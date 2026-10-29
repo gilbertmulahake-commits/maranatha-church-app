@@ -9,6 +9,7 @@ import {
   CreditCard,
   FileText,
   Settings,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +19,7 @@ const navItems = [
   { name: 'Churches', href: '/dashboard/churches', icon: Church },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+  { name: 'Mock KCB', href: '/dashboard/mock-kcb', icon: Zap },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

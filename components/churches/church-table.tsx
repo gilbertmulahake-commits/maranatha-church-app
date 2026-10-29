@@ -1,20 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  ColumnDef,
-  flexRender,
-  tableFeatures,
-  useTable,
-  createFilteredRowModel,
-  createPaginatedRowModel,
-  createSortedRowModel,
-  columnFilteringFeature,
-  rowPaginationFeature,
-  rowSortingFeature,
-  SortingState,
-} from '@tanstack/react-table'
-import { ArrowUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -27,73 +14,31 @@ export type ChurchRow = {
   region: { name: string } | null
 }
 
-const features = tableFeatures({
-  columnFilteringFeature,
-  rowSortingFeature,
-  rowPaginationFeature,
-  filteredRowModel: createFilteredRowModel(),
-  sortedRowModel: createSortedRowModel(),
-  paginatedRowModel: createPaginatedRowModel(),
-})
-
-const columns: ColumnDef<typeof features, ChurchRow>[] = [
-  {
-    accessorKey: 'church_code',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="hover:bg-transparent px-0 font-semibold"
-        >
-          Church ID
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => <span className="font-mono tabular-nums">{row.getValue('church_code')}</span>,
-  },
-  {
-    accessorKey: 'church_name',
-    header: 'Church Name',
-    cell: ({ row }) => <span className="font-medium text-[#0F172A]">{row.getValue('church_name')}</span>,
-  },
-  {
-    id: 'region_name',
-    accessorFn: (row: ChurchRow) => row.region?.name ?? 'Unassigned',
-    header: 'Region',
-  },
-  {
-    accessorKey: 'treasurer_name',
-    header: 'Treasurer',
-  },
-  {
-    accessorKey: 'contact_phone',
-    header: 'Contact',
-    cell: ({ row }) => <span className="tabular-nums">{row.getValue('contact_phone')}</span>,
-  },
-]
-
 export function ChurchTable({ data }: { data: ChurchRow[] }) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const rowsPerPage = 20
 
-  const table = useTable({
-    features,
-    columns,
-    data,
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    state: {
-      sorting,
-      globalFilter,
-    },
-    initialState: {
-      pagination: {
-        pageSize: 20,
-      },
-    },
-  })
+  const filteredData = useMemo(() => {
+    return data.filter((church) => {
+      const searchLower = search.toLowerCase()
+      return (
+        church.church_code.toLowerCase().includes(searchLower) ||
+        church.church_name.toLowerCase().includes(searchLower) ||
+        church.treasurer_name.toLowerCase().includes(searchLower) ||
+        (church.region?.name ?? '').toLowerCase().includes(searchLower)
+      )
+    })
+  }, [data, search])
+
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage)
+  const startIndex = (currentPage - 1) * rowsPerPage
+  const paginatedData = filteredData.slice(startIndex, startIndex + rowsPerPage)
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="space-y-4">
@@ -101,8 +46,8 @@ export function ChurchTable({ data }: { data: ChurchRow[] }) {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
         <Input
           placeholder="Search churches..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
+          value={search}
+          onChange={handleSearch}
           className="pl-10 bg-white border-[#E2E8F0]"
         />
       </div>
@@ -110,33 +55,29 @@ export function ChurchTable({ data }: { data: ChurchRow[] }) {
       <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="px-4 py-3 text-left font-medium text-[#64748B]">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-[#64748B]">Church ID</th>
+              <th className="px-4 py-3 text-left font-medium text-[#64748B]">Church Name</th>
+              <th className="px-4 py-3 text-left font-medium text-[#64748B]">Region</th>
+              <th className="px-4 py-3 text-left font-medium text-[#64748B]">Treasurer</th>
+              <th className="px-4 py-3 text-left font-medium text-[#64748B]">Contact</th>
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-[#64748B]">
+                <td colSpan={5} className="px-4 py-8 text-center text-[#64748B]">
                   No churches found.
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 text-[#64748B]">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+              paginatedData.map((church) => (
+                <tr key={church.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                  <td className="px-4 py-3 font-mono tabular-nums text-[#64748B]">{church.church_code}</td>
+                  <td className="px-4 py-3 font-medium text-[#0F172A]">{church.church_name}</td>
+                  <td className="px-4 py-3 text-[#64748B]">{church.region?.name ?? 'Unassigned'}</td>
+                  <td className="px-4 py-3 text-[#64748B]">{church.treasurer_name}</td>
+                  <td className="px-4 py-3 tabular-nums text-[#64748B]">{church.contact_phone}</td>
                 </tr>
               ))
             )}
@@ -146,26 +87,26 @@ export function ChurchTable({ data }: { data: ChurchRow[] }) {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-[#64748B]">
-          Showing {table.getRowModel().rows.length} of {data.length} churches
+          Showing {paginatedData.length} of {filteredData.length} churches
         </p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
           <span className="text-sm text-[#64748B]">
-            Page {(table.state.pagination?.pageIndex ?? 0) + 1} of {table.getPageCount()}
+            Page {currentPage} of {totalPages || 1}
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
           >
             Next
             <ChevronRight className="h-4 w-4" />
