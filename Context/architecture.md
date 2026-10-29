@@ -8,7 +8,7 @@
 | UI Components | TanStack Table + Recharts | Data grid for 1,600+ churches & financial charts |
 | Auth | Supabase Auth | Role-based authentication (Church, Region, National HQ) |
 | Database | Supabase (PostgreSQL) | Relational data for Churches, Payments, Scores |
-| ORM | Prisma | Type-safe database queries and schema management |
+| ORM | Prisma v7 (via `@prisma/prisma7`) | Type-safe database queries and schema management (uses `prisma.config.ts` for connection). |
 | Validation | Zod | Schema validation for forms, API inputs, and webhook payloads |
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic and prevent exhaustion |
 | Integrations | KCB Bank API (Mocked for v1) | Listens for incoming payment webhooks (IPN) to reconcile Paybill/Bank transfers. |
@@ -22,6 +22,11 @@
 - `lib/` — Server helpers, Prisma client, and API clients (KCB/SMS).
 - `prisma/` — Database schema and migrations.
 - `jobs/` — Background worker functions (SMS reminders, score calculations).
+
+### Important Architectural Notes
+- **Prisma Workflow:** Due to Prisma v8 breaking changes, all Prisma commands must be run via `npx prisma7 <command>`. The database URL is stored in `prisma.config.ts`, not `schema.prisma`.
+- **Next.js 16 Middleware:** The `middleware.ts` convention is deprecated. Route protection is handled by `proxy.ts`.
+- **Case Sensitivity:** All imports and paths are case-sensitive. Avoid renaming folders after they have been pushed to GitHub to prevent sync issues.
 
 ## Storage Model
 - **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, and Regional Scores.

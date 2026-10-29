@@ -1,4 +1,3 @@
-
 # Unit 02: Authentication & Access Control
 
 ## Goal
