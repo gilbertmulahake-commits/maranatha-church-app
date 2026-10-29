@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma skills sync || exit 0"
   },
   "dependencies": {
     "@prisma/client": "^7.10.1",
+    "@prisma/config": "^7.10.1",
     "dotenv": "^18.0.9",
     "next": "16.4.3",
     "prisma": "^8.0.0-rc.28",
@@ -17,6 +19,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@prisma/prisma7": "^7.10.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
