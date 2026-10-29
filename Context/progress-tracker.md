@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 02 - Complete
+Unit 03 - Complete
 
 ## Current Goal
-Begin Unit 03: App Shell & UI Layout
+Begin Unit 04: Church Management (CRUD)
 
 ## Completed
 - Initialized project overview and architecture.
@@ -15,12 +15,13 @@ Begin Unit 03: App Shell & UI Layout
 - Initialized Git repository and pushed `main` branch to GitHub.
 - **Unit 01: Database Initialization** (Prisma, Supabase, and Schema Migration).
 - **Unit 02: Authentication & Access Control** (Supabase Auth, Proxy Middleware, RLS Policies).
+- **Unit 03: App Shell & UI Layout** (Sidebar, Topbar, Dashboard placeholders).
 
 ## In Progress
 - None.
 
 ## Next Up
-- Unit 03: App Shell & UI Layout.
+- Unit 04: Church Management (CRUD) - UI and API to manage the 1,600 churches.
 
 ## Open Questions
 - What exact URL/structure will the Mock KCB API use for testing?
@@ -31,9 +32,11 @@ Begin Unit 03: App Shell & UI Layout
 - **UI:** Opted for a modern, data-dense enterprise look using shadcn/ui and `tabular-nums` for financial clarity.
 - **Prisma Version:** Using `@prisma/prisma7` compatibility package with `prisma.config.ts` to handle v8 breaking changes.
 - **Auth & Security:** Implemented `proxy.ts` (Next.js 16 middleware) for route protection and Supabase RLS policies to enforce strict data isolation.
+- **UI Components:** Using shadcn/ui with Base UI (`render` prop instead of `asChild`).
 
 ## Session Notes
 - Mock KCB API will need to be built as a Next.js API route to simulate webhook payloads.
 - Client revealed historical inability to collect full annual revenue. The system is designed to solve revenue leakage through automation.
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - Database successfully connected via Supabase Session Pooler.
+- **RECOVERY (Unit 02):** A case-sensitivity issue during a GitHub merge deleted the `prisma` folder locally. Restored `schema.prisma` manually and used `npx prisma7 db push` to re-sync without data loss. All future Prisma commands must use `npx prisma7`.
