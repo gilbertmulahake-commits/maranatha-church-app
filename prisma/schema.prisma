@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- MODELS ---
+
+model Region {
+  id             String         @id @default(uuid())
+  name           String         @unique
+  chairman_name  String
+  contact_phone  String
+  created_at     DateTime       @default(now())
+  churches       Church[]
+  regionalScores RegionalScore[]
+  users          User[]
+}
+
+model Church {
+  id             String    @id @default(uuid())
+  church_code    String    @unique
+  church_name    String
+  region_id      String
+  region         Region    @relation(fields: [region_id], references: [id])
+  treasurer_name String
+  contact_phone  String
+  annual_fee     Decimal   @default(5000.00)
+  monthly_fee    Decimal   @default(500.00)
+  created_at     DateTime  @default(now())
+  payments       Payment[]
+  users          User[]
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  church_id      String
+  church         Church   @relation(fields: [church_id], references: [id])
+  transaction_id String   @unique
+  payment_type   PaymentType
+  amount_paid    Decimal
+  payment_date   DateTime
+  payment_method PaymentMethod
+  status         PaymentStatus @default(Pending)
+  month_covered  String?
+  created_at     DateTime @default(now())
+}
+
+model RegionalScore {
+  id                    String   @id @default(uuid())
+  region_id             String
+  region                Region   @relation(fields: [region_id], references: [id])
+  year                  Int
+  quarter               String
+  compliance_pct        Decimal
+  timeliness_pct        Decimal
+  reporting_accuracy    Decimal
+  leadership_engagement Decimal
+  final_score           Decimal
+  incentive_tier        String
+  created_at            DateTime @default(now())
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  role           Role     @default(CHURCH_TREASURER)
+  region_id      String?
+  church_id      String?
+  created_at     DateTime @default(now())
+  
+  region         Region?  @relation(fields: [region_id], references: [id])
+  church         Church?  @relation(fields: [church_id], references: [id])
+}
+
+// --- ENUMS ---
+
+enum PaymentType {
+  Monthly
+  Annual
+}
+
+enum PaymentMethod {
+  M_Pesa
+  Bank_Transfer
+  Cash
+}
+
+enum PaymentStatus {
+  Paid
+  Pending
+  Overdue
+}
+
+enum Role {
+  NATIONAL_HQ
+  REGIONAL_CHAIRMAN
+  CHURCH_TREASURER
+}
