@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 05 - Complete
+Unit 06 - Complete
 
 ## Current Goal
-Begin Unit 06: National HQ Dashboard (Real-time KPIs & Charts)
+Begin Unit 07: Regional Dashboards & Alerts
 
 ## Completed
 - Initialized project overview and architecture.
@@ -18,12 +18,13 @@ Begin Unit 06: National HQ Dashboard (Real-time KPIs & Charts)
 - **Unit 03: App Shell & UI Layout** (Sidebar, Topbar, Dashboard placeholders).
 - **Unit 04: Church Management (CRUD)** (Regions CRUD, Churches CRUD, Custom Data Table).
 - **Unit 05: Mock KCB Webhook & Payment Reconciliation** (Webhook endpoint, Idempotency check, Reconciliation engine, Mock simulator).
+- **Unit 06: National HQ Dashboard** (Real-time KPIs, Progress Bar, Bar Chart, Donut Chart).
 
 ## In Progress
 - None.
 
 ## Next Up
-- Unit 06: National HQ Dashboard (Real-time KPIs & Charts).
+- Unit 07: Regional Dashboards & Alerts.
 
 ## Open Questions
 - What exact URL/structure will the Mock KCB API use for testing? *(Answered: `/api/webhooks/kcb`)*
@@ -37,6 +38,7 @@ Begin Unit 06: National HQ Dashboard (Real-time KPIs & Charts)
 - **UI Components:** Using shadcn/ui with Base UI (`render` prop instead of `asChild`).
 - **Data Table:** **DECISION:** TanStack Table v9 was abandoned due to unstable runtime APIs. We use a custom React table with `useState` and `useMemo`. It is lightweight, zero-dependency, and works perfectly for 1,600+ churches.
 - **Database Connection:** Switched from Session Pooler (`5432`) to Transaction Pooler (`6543`) with `?pgbouncer=true` to prevent `ConnectionClosed` errors during Next.js hot-reloading.
+- **Charts:** Using `recharts` for premium, interactive data visualizations.
 
 ## Session Notes
 - Mock KCB API will need to be built as a Next.js API route to simulate webhook payloads.
@@ -44,4 +46,5 @@ Begin Unit 06: National HQ Dashboard (Real-time KPIs & Charts)
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - Database successfully connected via Supabase Transaction Pooler.
 - **RECOVERY (Unit 02):** A case-sensitivity issue during a GitHub merge deleted the `prisma` folder locally. Restored `schema.prisma` manually and used `npx prisma7 db push` to re-sync without data loss. All future Prisma commands must use `npx prisma7`.
+- **RECOVERY (Unit 06):** The `context` folder casing issue caused the Unit 06 spec and progress tracker updates to be lost during a pull. Both were manually restored. The folder is now permanently lowercase (`context/specs/`).
 - **Browser Extension Warning:** A hydration mismatch error occurs in non-incognito browsers due to an extension injecting `webcrx`/`data-qb-installed` attributes. This is a harmless false positive; use Incognito for clean development.
