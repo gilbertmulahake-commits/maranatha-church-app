@@ -1,3 +1,7 @@
+import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/app-shell'
@@ -8,6 +12,25 @@ import { Button } from '@/components/ui/button'
 import { Zap } from 'lucide-react'
 
 async function DashboardContent() {
+  // Force Next.js to render this dynamically on every request
+  await connection()
+  
+  // 1. Check the user's role
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    })
+
+    // 2. If they are a Regional Chairman, redirect them to the Regional Dashboard
+    if (dbUser?.role === 'REGIONAL_CHAIRMAN') {
+      redirect('/dashboard/regional')
+    }
+  }
+
+  // 3. Otherwise, show the National Dashboard data
   const stats = await getDashboardStats()
 
   return (
