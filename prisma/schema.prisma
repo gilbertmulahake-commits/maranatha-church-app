@@ -21,12 +21,18 @@ model Region {
 
 model Church {
   id             String    @id @default(uuid())
-  church_code    String    @unique
+  church_code    String    @unique // e.g., "CH001"
   church_name    String
   region_id      String
   region         Region    @relation(fields: [region_id], references: [id])
+  
+  // NEW: Local Pastor Details
+  pastor_name    String    @default("") 
+  pastor_phone   String    @default("")
+  
   treasurer_name String
   contact_phone  String
+  
   annual_fee     Decimal   @default(5000.00)
   monthly_fee    Decimal   @default(500.00)
   created_at     DateTime  @default(now())
@@ -95,7 +101,19 @@ enum PaymentStatus {
 }
 
 enum Role {
-  NATIONAL_HQ
+  NATIONAL_TREASURER
+  NATIONAL_OVERSEER
   REGIONAL_CHAIRMAN
+  REGIONAL_TREASURER
+  LOCAL_PASTOR
   CHURCH_TREASURER
+}
+
+model SmsLog {
+  id         String   @id @default(uuid())
+  phone      String
+  message    String
+  status     String   @default("Sent") // 'Sent', 'Failed'
+  type       String   // 'Receipt', 'Reminder'
+  created_at DateTime @default(now())
 }

@@ -1,3 +1,4 @@
+import { sendSms } from '@/lib/actions/sms-actions'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
@@ -52,12 +53,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // 6. Save the Payment record
+       // 6. Save the Payment record
     const newPayment = await prisma.payment.create({
       data: {
         church_id: church.id,
         transaction_id: TransID,
-        payment_type: TransAmount >= 5000 ? 'Annual' : 'Monthly', // Basic logic
+        payment_type: TransAmount >= 5000 ? 'Annual' : 'Monthly',
         amount_paid: TransAmount,
         payment_date: new Date(TransTime),
         payment_method: 'M_Pesa',
@@ -66,7 +67,12 @@ export async function POST(request: Request) {
       },
     })
 
-    // 7. Return success
+    // 7. Trigger Automated SMS Receipt
+    // Note: In production, this would be sent to a background queue, but we await it for MVP testing.
+    const smsMessage = `Payment of KES ${TransAmount.toLocaleString()} for ${church.church_name} (${BillRefNumber}) received. Ref: ${TransID}. Thank you. - Maranatha`
+    await sendSms(MSISDN, smsMessage, 'Receipt')
+
+    // 8. Return success
     return NextResponse.json({ 
       message: 'Payment successfully reconciled', 
       payment_id: newPayment.id,
