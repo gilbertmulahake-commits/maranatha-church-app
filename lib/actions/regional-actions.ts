@@ -7,6 +7,8 @@ export type RegionalChurchData = {
   id: string
   church_code: string
   church_name: string
+  pastor_name: string
+  pastor_phone: string
   treasurer_name: string
   contact_phone: string
   status: 'Paid' | 'Pending'
@@ -76,6 +78,8 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         id: church.id,
         church_code: church.church_code,
         church_name: church.church_name,
+        pastor_name: church.pastor_name,
+        pastor_phone: church.pastor_phone,
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
         status: isPaid ? 'Paid' : 'Pending',

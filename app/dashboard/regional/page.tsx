@@ -1,3 +1,4 @@
+import { SendReminderButton } from '@/components/dashboard/send-reminder-button'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
@@ -90,6 +91,7 @@ async function RegionalContent() {
             <tr>
               <th className="px-6 py-3 text-left font-medium text-[#64748B]">Church ID</th>
               <th className="px-6 py-3 text-left font-medium text-[#64748B]">Church Name</th>
+              <th className="px-6 py-3 text-left font-medium text-[#64748B]">Pastor</th>
               <th className="px-6 py-3 text-left font-medium text-[#64748B]">Treasurer</th>
               <th className="px-6 py-3 text-left font-medium text-[#64748B]">Amount Paid</th>
               <th className="px-6 py-3 text-left font-medium text-[#64748B]">Status</th>
@@ -98,7 +100,7 @@ async function RegionalContent() {
           <tbody>
             {stats.churches.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-[#64748B]">
+                <td colSpan={6} className="px-6 py-8 text-center text-[#64748B]">
                   No churches have been added to this region yet.
                 </td>
               </tr>
@@ -107,16 +109,36 @@ async function RegionalContent() {
                 <tr key={church.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                   <td className="px-6 py-3 font-mono tabular-nums text-[#64748B]">{church.church_code}</td>
                   <td className="px-6 py-3 font-medium text-[#0F172A]">{church.church_name}</td>
-                  <td className="px-6 py-3 text-[#64748B]">{church.treasurer_name}</td>
+                  {/* NEW: Pastor Details */}
+                  <td className="px-6 py-3 text-[#64748B]">
+                    <div>{church.pastor_name || 'Not set'}</div>
+                    <div className="text-xs text-[#94A3B8]">{church.pastor_phone}</div>
+                  </td>
+                  <td className="px-6 py-3 text-[#64748B]">
+                    <div>{church.treasurer_name}</div>
+                    <div className="text-xs text-[#94A3B8]">{church.contact_phone}</div>
+                  </td>
                   <td className="px-6 py-3 tabular-nums text-[#64748B]">{formatCurrency(church.amountPaid)}</td>
                   <td className="px-6 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      church.status === 'Paid' 
-                        ? 'bg-[#D1FAE5] text-[#10B981]' 
-                        : 'bg-[#FEF3C7] text-[#F59E0B]'
-                    }`}>
-                      {church.status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                        church.status === 'Paid' 
+                          ? 'bg-[#D1FAE5] text-[#10B981]' 
+                          : 'bg-[#FEF3C7] text-[#F59E0B]'
+                      }`}>
+                        {church.status}
+                      </span>
+                      
+                      {/* Show button ONLY if pending */}
+                      {church.status === 'Pending' && (
+                        <SendReminderButton 
+                          churchId={church.church_code} 
+                          churchName={church.church_name} 
+                          pastorName={church.pastor_name}
+                          phone={church.pastor_phone} 
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

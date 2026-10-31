@@ -95,6 +95,22 @@ export function CreateChurchDialog() {
             </select>
           </div>
 
+          {/* NEW: Pastor Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="pastor_name" className="block text-sm font-medium text-[#0F172A]">
+                Pastor Name
+              </label>
+              <Input id="pastor_name" name="pastor_name" placeholder="e.g., Rev. Peter" required />
+            </div>
+            <div>
+              <label htmlFor="pastor_phone" className="block text-sm font-medium text-[#0F172A]">
+                Pastor Phone
+              </label>
+              <Input id="pastor_phone" name="pastor_phone" placeholder="e.g., 0723456789" required />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="treasurer_name" className="block text-sm font-medium text-[#0F172A]">
