@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { getExpectedToDate, getChurchStatus, ANNUAL_FEE, MONTHLY_FEE } from '@/lib/utils/financial'
 
 export type RegionalChurchData = {
   id: string
@@ -11,7 +12,7 @@ export type RegionalChurchData = {
   pastor_phone: string
   treasurer_name: string
   contact_phone: string
-  status: 'Paid' | 'Pending'
+  status: 'Paid' | 'Partial' | 'Overdue'
   amountPaid: number
 }
 
@@ -19,7 +20,10 @@ export type RegionalStatsSuccess = {
   regionName: string
   chairmanName: string
   totalCollected: number
-  totalExpected: number
+  totalCollectedAnnual: number
+  totalCollectedMonthly: number
+  totalExpectedAnnual: number
+  totalExpectedMonthly: number
   outstanding: number
   compliancePct: number
   churches: RegionalChurchData[]
@@ -42,8 +46,8 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       where: { id: user.id },
     })
 
-    if (!dbUser || dbUser.role !== 'REGIONAL_CHAIRMAN' || !dbUser.region_id) {
-      return { error: 'User is not a Regional Chairman or has no assigned region.' }
+    if (!dbUser || !['REGIONAL_CHAIRMAN', 'REGIONAL_TREASURER'].includes(dbUser.role) || !dbUser.region_id) {
+      return { error: 'User is not a Regional role or has no assigned region.' }
     }
 
     const region = await prisma.region.findUnique({
@@ -51,9 +55,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       include: {
         churches: {
           include: {
-            payments: {
-              orderBy: { payment_date: 'desc' },
-            },
+            payments: true,
           },
         },
       },
@@ -63,16 +65,37 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       return { error: 'Region not found' }
     }
 
+    const totalChurches = region.churches.length
+    const totalExpectedAnnual = totalChurches * ANNUAL_FEE
+    const totalExpectedMonthly = totalChurches * (MONTHLY_FEE * 12)
+    const totalExpected = totalExpectedAnnual + totalExpectedMonthly
+
+    const { totalExpected: expectedToDate } = getExpectedToDate()
+
     let totalCollected = 0
-    const totalExpected = region.churches.length * 5000
-    let churchesPaid = 0
+    let totalCollectedAnnual = 0
+    let totalCollectedMonthly = 0
+    let compliantChurches = 0
 
     const churchesData: RegionalChurchData[] = region.churches.map((church) => {
-      const churchPaid = church.payments.reduce((sum, payment) => sum + Number(payment.amount_paid), 0)
-      const isPaid = churchPaid >= 5000 
-      
-      if (isPaid) churchesPaid++
-      totalCollected += churchPaid
+      let churchTotalPaid = 0
+
+      church.payments.forEach((payment) => {
+        churchTotalPaid += Number(payment.amount_paid)
+        if (payment.payment_type === 'Annual') {
+          totalCollectedAnnual += Number(payment.amount_paid)
+        } else {
+          totalCollectedMonthly += Number(payment.amount_paid)
+        }
+      })
+
+      totalCollected += churchTotalPaid
+
+      // Determine status using the financial utility
+      const status = getChurchStatus(churchTotalPaid, expectedToDate)
+      if (status === 'Paid') {
+        compliantChurches++
+      }
 
       return {
         id: church.id,
@@ -82,21 +105,22 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         pastor_phone: church.pastor_phone,
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
-        status: isPaid ? 'Paid' : 'Pending',
-        amountPaid: churchPaid,
+        status: status,
+        amountPaid: churchTotalPaid,
       }
     })
 
     const outstanding = totalExpected - totalCollected
-    const compliancePct = region.churches.length > 0 
-      ? (churchesPaid / region.churches.length) * 100 
-      : 0
+    const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
 
     return {
       regionName: region.name,
       chairmanName: region.chairman_name,
       totalCollected,
-      totalExpected,
+      totalCollectedAnnual,
+      totalCollectedMonthly,
+      totalExpectedAnnual,
+      totalExpectedMonthly,
       outstanding,
       compliancePct,
       churches: churchesData,

@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { getExpectedToDate, getChurchStatus } from '@/lib/utils/financial'
 
 // Zod schema for validation
 const churchSchema = z.object({
@@ -17,9 +18,38 @@ const churchSchema = z.object({
 
 export async function getChurches() {
   try {
-    return await prisma.church.findMany({
-      include: { region: true },
+    // 1. Fetch churches with their region and ALL payments
+    const churches = await prisma.church.findMany({
+      include: { 
+        region: true,
+        payments: {
+          where: { status: 'Paid' }
+        } 
+      },
       orderBy: { church_code: 'asc' },
+    })
+
+    const { totalExpected } = getExpectedToDate()
+
+    // 2. Map and calculate financial status for each church
+    return churches.map((church) => {
+      const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
+      const status = getChurchStatus(totalPaid, totalExpected)
+
+      return {
+        id: church.id,
+        church_code: church.church_code,
+        church_name: church.church_name,
+        region: church.region ? { name: church.region.name } : null,
+        pastor_name: church.pastor_name,
+        pastor_phone: church.pastor_phone,
+        treasurer_name: church.treasurer_name,
+        contact_phone: church.contact_phone,
+        amountPaid: totalPaid,
+        expected: totalExpected,
+        outstanding: Math.max(0, totalExpected - totalPaid),
+        status: status,
+      }
     })
   } catch (error) {
     console.error('Failed to fetch churches:', error)
@@ -61,5 +91,38 @@ export async function createChurch(formData: FormData) {
   } catch (error) {
     console.error('Failed to create church:', error)
     return { error: 'Failed to create church. Code might already exist.' }
+  }
+}
+
+export async function getChurchStats() {
+  try {
+    const churches = await prisma.church.findMany({
+      include: { payments: { where: { status: 'Paid' } } },
+    })
+
+    const { totalExpected } = getExpectedToDate()
+
+    let compliant = 0
+    let partial = 0
+    let overdue = 0
+
+    churches.forEach((church) => {
+      const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
+      const status = getChurchStatus(totalPaid, totalExpected)
+
+      if (status === 'Paid') compliant++
+      else if (status === 'Partial') partial++
+      else overdue++
+    })
+
+    return {
+      total: churches.length,
+      compliant,
+      partial,
+      overdue,
+    }
+  } catch (error) {
+    console.error('Failed to fetch church stats:', error)
+    return { total: 0, compliant: 0, partial: 0, overdue: 0 }
   }
 }

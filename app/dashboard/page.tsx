@@ -10,12 +10,14 @@ import { KpiCards } from '@/components/dashboard/kpi-cards'
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts'
 import { Button } from '@/components/ui/button'
 import { Zap } from 'lucide-react'
+import { getRegionalScores } from '@/lib/actions/scoring-actions'
+import { RegionalLeaderboard } from '@/components/dashboard/regional-leaderboard'
 
 async function DashboardContent() {
-  // Force Next.js to render this dynamically on every request
+  // 1. Force dynamic rendering (Next.js 16 requirement for Auth/Cookies)
   await connection()
   
-  // 1. Check the user's role
+  // 2. Check the user's role to enforce access control
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -24,29 +26,39 @@ async function DashboardContent() {
       where: { id: user.id },
     })
 
-    // 2. If they are a Regional Chairman, redirect them to the Regional Dashboard
-    if (dbUser?.role === 'REGIONAL_CHAIRMAN') {
+    // 3. Redirect Regional roles to their specific dashboard
+    if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       redirect('/dashboard/regional')
     }
   }
 
-  // 3. Otherwise, show the National Dashboard data
-  const stats = await getDashboardStats()
+  // 4. Fetch all data in parallel for the National Dashboard
+  // (Only accessible by NATIONAL_TREASURER and NATIONAL_OVERSEER)
+  const [stats, scores] = await Promise.all([
+    getDashboardStats(),
+    getRegionalScores(),
+  ])
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
+      {/* KPI Cards Component */}
       <KpiCards
         totalCollected={stats.totalCollected}
-        totalExpected={stats.totalExpected}
+        totalCollectedAnnual={stats.totalCollectedAnnual}
+        totalCollectedMonthly={stats.totalCollectedMonthly}
+        totalExpectedAnnual={stats.totalExpectedAnnual}
+        totalExpectedMonthly={stats.totalExpectedMonthly}
         outstanding={stats.outstanding}
-        collectionPct={stats.collectionPct}
+        compliancePct={stats.compliancePct}
         totalChurches={stats.totalChurches}
         totalRegions={stats.totalRegions}
       />
 
-      {/* Charts */}
+      {/* Charts Component (Monthly Collections & Payment Methods) */}
       <DashboardCharts paymentMethods={stats.paymentMethods} />
+
+      {/* Regional Leaderboard Component */}
+      <RegionalLeaderboard scores={scores} />
     </div>
   )
 }
@@ -55,7 +67,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* Header with Quick Action */}
+        {/* Page Header with Quick Action Button */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#0F172A]">National Dashboard</h1>

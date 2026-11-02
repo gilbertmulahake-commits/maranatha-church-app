@@ -11,6 +11,7 @@ const kcbWebhookSchema = z.object({
   MSISDN: z.string(),          // Phone number
   TransTime: z.string(),       // Date/Time string
   FirstName: z.string().optional(), // Optional payer name
+  payment_type: z.enum(['Monthly', 'Annual']).default('Monthly'), // NEW: Specify payment type
 })
 
 export async function POST(request: Request) {
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime } = validatedData.data
+    // Destructure the validated data including the new payment_type
+    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type } = validatedData.data
 
     // 4. Idempotency Check: Has this transaction already been processed?
     const existingPayment = await prisma.payment.findUnique({
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
       data: {
         church_id: church.id,
         transaction_id: TransID,
-        payment_type: TransAmount >= 5000 ? 'Annual' : 'Monthly',
+        payment_type: payment_type, // UPDATED: Use the payment_type from the payload
         amount_paid: TransAmount,
         payment_date: new Date(TransTime),
         payment_method: 'M_Pesa',
