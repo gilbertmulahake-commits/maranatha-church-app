@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { AppShell } from '@/components/layout/app-shell'
 import { getRegionalStats } from '@/lib/actions/regional-actions'
-import { Banknote, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Banknote, AlertTriangle, CheckCircle2, Target } from 'lucide-react'
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-KE', {
@@ -35,8 +35,8 @@ async function RegionalContent() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-6 md:grid-cols-3">
+            {/* KPI Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-[#D1FAE5] p-2">
@@ -44,20 +44,11 @@ async function RegionalContent() {
             </div>
             <p className="text-sm font-medium text-[#64748B]">Region Collected</p>
           </div>
-          <p className="mt-4 text-3xl font-bold tabular-nums text-[#0F172A]">
+          <p className="mt-4 text-2xl font-bold tabular-nums text-[#0F172A]">
             {formatCurrency(stats.totalCollected)}
           </p>
-        </div>
-
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-[#FEE2E2] p-2">
-              <AlertTriangle className="h-5 w-5 text-[#EF4444]" />
-            </div>
-            <p className="text-sm font-medium text-[#64748B]">Region Arrears</p>
-          </div>
-          <p className="mt-4 text-3xl font-bold tabular-nums text-[#EF4444]">
-            {formatCurrency(stats.outstanding)}
+          <p className="mt-1 text-xs text-[#EF4444]">
+            {formatCurrency(stats.outstanding)} outstanding
           </p>
         </div>
 
@@ -68,15 +59,42 @@ async function RegionalContent() {
             </div>
             <p className="text-sm font-medium text-[#64748B]">Compliance Rate</p>
           </div>
-          <p className="mt-4 text-3xl font-bold tabular-nums text-[#0F172A]">
+          <p className="mt-4 text-2xl font-bold tabular-nums text-[#0F172A]">
             {stats.compliancePct.toFixed(1)}%
           </p>
-          <div className="mt-3 h-2 w-full rounded-full bg-[#E2E8F0]">
-            <div
-              className="h-2 rounded-full bg-[#2563EB]"
-              style={{ width: `${Math.min(stats.compliancePct, 100)}%` }}
-            />
+          <div className="mt-2 h-1.5 w-full rounded-full bg-[#E2E8F0]">
+            <div className="h-1.5 rounded-full bg-[#2563EB]" style={{ width: `${Math.min(stats.compliancePct, 100)}%` }} />
           </div>
+        </div>
+
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-[#FEF3C7] p-2">
+              <Target className="h-5 w-5 text-[#F59E0B]" />
+            </div>
+            <p className="text-sm font-medium text-[#64748B]">Annual Target</p>
+          </div>
+          <p className="mt-4 text-2xl font-bold tabular-nums text-[#0F172A]">
+            {formatCurrency(stats.totalCollectedAnnual)}
+          </p>
+          <p className="mt-1 text-xs text-[#64748B]">
+            of {formatCurrency(stats.totalExpectedAnnual)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-[#FEF3C7] p-2">
+              <Target className="h-5 w-5 text-[#F59E0B]" />
+            </div>
+            <p className="text-sm font-medium text-[#64748B]">Monthly Target</p>
+          </div>
+          <p className="mt-4 text-2xl font-bold tabular-nums text-[#0F172A]">
+            {formatCurrency(stats.totalCollectedMonthly)}
+          </p>
+          <p className="mt-1 text-xs text-[#64748B]">
+            of {formatCurrency(stats.totalExpectedMonthly)}
+          </p>
         </div>
       </div>
 
@@ -119,18 +137,21 @@ async function RegionalContent() {
                     <div className="text-xs text-[#94A3B8]">{church.contact_phone}</div>
                   </td>
                   <td className="px-6 py-3 tabular-nums text-[#64748B]">{formatCurrency(church.amountPaid)}</td>
-                  <td className="px-6 py-3">
+                                    <td className="px-6 py-3">
                     <div className="flex items-center gap-3">
+                      {/* Dynamic Badge based on new statuses */}
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                         church.status === 'Paid' 
                           ? 'bg-[#D1FAE5] text-[#10B981]' 
-                          : 'bg-[#FEF3C7] text-[#F59E0B]'
+                          : church.status === 'Partial'
+                          ? 'bg-[#FEF3C7] text-[#F59E0B]'
+                          : 'bg-[#FEE2E2] text-[#EF4444]'
                       }`}>
                         {church.status}
                       </span>
                       
-                      {/* Show button ONLY if pending */}
-                      {church.status === 'Pending' && (
+                      {/* Show button if they are NOT fully paid */}
+                      {(church.status === 'Partial' || church.status === 'Overdue') && (
                         <SendReminderButton 
                           churchId={church.church_code} 
                           churchName={church.church_name} 

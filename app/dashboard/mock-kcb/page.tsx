@@ -10,6 +10,7 @@ export default function MockKCBPage() {
   const [churchCode, setChurchCode] = useState('')
   const [amount, setAmount] = useState('')
   const [phone, setPhone] = useState('')
+  const [paymentType, setPaymentType] = useState('Monthly') // NEW: State for payment type
   const [loading, setLoading] = useState(false)
   const [response, setResponse] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
@@ -28,6 +29,7 @@ export default function MockKCBPage() {
       MSISDN: phone,
       TransTime: new Date().toISOString(),
       FirstName: 'Test Payer',
+      payment_type: paymentType, // NEW: Include payment type in payload
     }
 
     try {
@@ -44,6 +46,7 @@ export default function MockKCBPage() {
         setChurchCode('')
         setAmount('')
         setPhone('')
+        setPaymentType('Monthly') // Reset to default
       } else {
         setResponse({ type: 'error', text: data.error || 'Failed to process payment' })
       }
@@ -82,6 +85,20 @@ export default function MockKCBPage() {
                   required 
                 />
               </div>
+
+              {/* NEW: Payment Type Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-[#0F172A]">Payment Type</label>
+                <select
+                  value={paymentType}
+                  onChange={(e) => setPaymentType(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-[#E2E8F0] px-3 py-2 text-[#0F172A] focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                >
+                  <option value="Monthly">Monthly (500)</option>
+                  <option value="Annual">Annual (5000)</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-[#0F172A]">Amount (KES)</label>
                 <Input 

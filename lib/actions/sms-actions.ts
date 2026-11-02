@@ -43,3 +43,28 @@ export async function sendReminder(churchId: string, churchName: string, pastorN
     return { error: 'Failed to send reminder' }
   }
 }
+
+export async function sendChairmanReminder(
+  regionName: string, 
+  chairmanName: string, 
+  phone: string, 
+  compliancePct: number,
+  arrears: number
+) {
+  try {
+    const formattedArrears = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(arrears)
+    
+    const message = `Dear Chairman ${chairmanName}, the ${regionName} Region currently has a compliance rate of ${compliancePct.toFixed(1)}% with ${formattedArrears} in arrears. Please follow up with your local pastors. - Maranatha HQ`
+    
+    const result = await sendSms(phone, message, 'Reminder')
+    
+    if (result.error) {
+      return { error: result.error }
+    }
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Chairman SMS error:', error)
+    return { error: 'Failed to send reminder' }
+  }
+}
