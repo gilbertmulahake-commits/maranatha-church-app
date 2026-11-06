@@ -36,10 +36,17 @@
 *Strict Hierarchical Access: National HQ \(\rightarrow\) Region \(\rightarrow\) Church*
 *(Enforced via Supabase Row Level Security - RLS at the database level)*
 
+### Role-Based Access Control (RBAC) Matrix
+| Role(s) | Sidebar Tabs | Core Focus |
+| :--- | :--- | :--- |
+| **National Treasurer / Overseer** | Dashboard, Regions, Churches, Payments, Users, Mock KCB, Reports, Settings | Full financial oversight, user management, and system settings. |
+| **Regional Chairman / Treasurer** | Regional Dashboard, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. |
+| **Local Pastor / Church Treasurer** | Local Dashboard, Settings | Personal church compliance, exact bucket status, and payment history. *(Note: 'Reports' tab is hidden for this tier).* |
+
+### Detailed Role Definitions
 - **National HQ Admin:** Has absolute visibility. Can view the single central KCB account totals, all 60 regions, all 1,600 church streams, and the Unmatched Payments queue.
-- **Regional Chairman:** Can view aggregated totals and church payment histories strictly *within their assigned region only*. 
-- **Church Treasurer:** Has the most restricted view. Can only see their own Church profile and payment history.
-- **System Admin (Technical):** Manages user accounts, assigns roles, and handles system configuration via Supabase Auth.
+- **Regional Chairman / Treasurer:** Can view aggregated totals and church payment histories strictly *within their assigned region only*. 
+- **Local Pastor / Church Treasurer:** Has the most restricted view. Can only see their own Church profile and payment history.
 
 ### Communication Identity (SMS)
 - **Universal Capability, Contextual Identity:** All authorized roles (National, Regional) can send SMS reminders. However, the SMS message body must reflect the sender's role.
