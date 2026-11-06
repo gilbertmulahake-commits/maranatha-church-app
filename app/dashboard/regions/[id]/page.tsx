@@ -1,13 +1,11 @@
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 import { AppShell } from '@/components/layout/app-shell'
 import { getSingleRegionStats } from '@/lib/actions/region-actions'
 import { RegionDetailClient } from '@/components/regions/region-detail-client'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-
-// Opt out of instant navigation validation (auth via AppShell)
-export const instant = false
 
 async function RegionDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
@@ -32,19 +30,28 @@ async function RegionDetailContent({ params }: { params: Promise<{ id: string }>
           </p>
         </div>
       </div>
-
-      {/* Client Component handles KPI cards + table + all state */}
       <RegionDetailClient stats={stats} />
     </div>
   )
 }
 
-export default function RegionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+async function Content({ params }: { params: Promise<{ id: string }> }) {
+  // Force dynamic rendering (auth-protected route)
+  await connection()
+
   return (
     <AppShell>
       <Suspense fallback={<div className="p-xl text-muted-foreground">Loading region details...</div>}>
         <RegionDetailContent params={params} />
       </Suspense>
     </AppShell>
+  )
+}
+
+export default function RegionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
+      <Content params={params} />
+    </Suspense>
   )
 }

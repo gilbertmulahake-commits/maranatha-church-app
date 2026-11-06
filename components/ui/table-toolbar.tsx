@@ -15,25 +15,19 @@ interface TableToolbarProps {
   filterSlot?: React.ReactNode
   selectionCount?: number
   onClearSelection?: () => void
-  onBulkAction?: () => Promise<void> // NEW
-  isBulkLoading?: boolean           // NEW
-  bulkActionLabel?: string          // NEW
+  onBulkAction?: () => Promise<void>
+  isBulkLoading?: boolean
+  bulkActionLabel?: string
+  // NEW: Period Toggle
+  periodView?: 'month' | 'year'
+  setPeriodView?: (val: 'month' | 'year') => void
 }
 
 export function TableToolbar({
-  title,
-  subtitle,
-  search,
-  setSearch,
-  statusFilter,
-  setStatusFilter,
-  statusOptions,
-  filterSlot,
-  selectionCount = 0,
-  onClearSelection,
-  onBulkAction,
-  isBulkLoading = false,
-  bulkActionLabel = 'Send Reminders',
+  title, subtitle, search, setSearch,
+  statusFilter, setStatusFilter, statusOptions, filterSlot,
+  selectionCount = 0, onClearSelection, onBulkAction, isBulkLoading = false, bulkActionLabel = 'Send Reminders',
+  periodView, setPeriodView
 }: TableToolbarProps) {
   return (
     <div className="space-y-md">
@@ -56,6 +50,26 @@ export function TableToolbar({
         </div>
 
         <div className="flex items-center gap-sm w-full lg:w-auto">
+          {/* NEW: Period Toggle */}
+          {periodView && setPeriodView && (
+            <div className="flex items-center gap-xs bg-muted rounded-md p-1">
+              <Button
+                variant="ghost" size="sm"
+                className={`h-7 px-sm text-paragraph-mini ${periodView === 'month' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                onClick={() => setPeriodView('month')}
+              >
+                Monthly
+              </Button>
+              <Button
+                variant="ghost" size="sm"
+                className={`h-7 px-sm text-paragraph-mini ${periodView === 'year' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                onClick={() => setPeriodView('year')}
+              >
+                Yearly
+              </Button>
+            </div>
+          )}
+
           {filterSlot && <div className="flex items-center gap-xs">{filterSlot}</div>}
 
           {statusFilter !== undefined && setStatusFilter && statusOptions && (
@@ -75,7 +89,6 @@ export function TableToolbar({
         </div>
       </div>
 
-      {/* Bulk Action Bar */}
       {selectionCount > 0 && onClearSelection && (
         <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg p-md">
           <div className="flex items-center gap-sm">

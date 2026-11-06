@@ -1,10 +1,10 @@
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 import { AppShell } from '@/components/layout/app-shell'
 import { getRegionsWithStats, getRegionStats } from '@/lib/actions/region-actions'
 import { CreateRegionDialog } from '@/components/regions/create-region-dialog'
 import { RegionDashboard } from '@/components/regions/region-dashboard'
-
-export const instant = false
+import { Skeleton } from '@/components/ui/skeleton'
 
 async function RegionsContent() {
   const [regions, stats] = await Promise.all([
@@ -15,7 +15,10 @@ async function RegionsContent() {
   return <RegionDashboard initialData={regions} stats={stats} />
 }
 
-export default function RegionsPage() {
+async function Content() {
+  // Force this route to render dynamically (auth-protected via AppShell)
+  await connection()
+
   return (
     <AppShell>
       <div className="space-y-xl">
@@ -29,10 +32,28 @@ export default function RegionsPage() {
           <CreateRegionDialog />
         </div>
 
-        <Suspense fallback={<p className="text-paragraph-small text-muted-foreground">Loading region data...</p>}>
+        <Suspense fallback={
+          <div className="space-y-xl">
+            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+            </div>
+            <Skeleton className="h-[400px] rounded-xl" />
+          </div>
+        }>
           <RegionsContent />
         </Suspense>
       </div>
     </AppShell>
+  )
+}
+
+export default function RegionsPage() {
+  return (
+    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading regions...</div>}>
+      <Content />
+    </Suspense>
   )
 }

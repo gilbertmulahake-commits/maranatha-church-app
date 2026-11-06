@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 09.1 - Complete
+Unit 10.1 - Complete
 
 ## Current Goal
-Begin Unit 10.0: Financial Ledger Upgrade (Pre-requisite for Payments Tab)
+Begin Unit 10.2: Payments Tab (Audit Ledger)
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -76,11 +76,7 @@ Begin Unit 10.0: Financial Ledger Upgrade (Pre-requisite for Payments Tab)
 - None.
 
 ## Next Up
-- **Unit 10.0: Financial Ledger Upgrade**
-  - Add `billing_year` to the `Payment` model.
-  - Update `getExpectedToDate` to calculate cumulative expected vs. actual (track carry-forwards).
-  - Activate the Month/Year view toggle in `TableToolbar`.
-- **Unit 10: Payments Tab (Audit Ledger)**
+- **Unit 10.2: Payments Tab (Audit Ledger)**
   - Build the transaction-level view with date range picker, search, and export.
 - **Unit 11: Reporting & Export**
   - Build Daily Cashbook, Arrears Report, CSV/PDF exports.

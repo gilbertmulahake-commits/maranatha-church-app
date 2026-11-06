@@ -44,13 +44,14 @@ model Payment {
   id             String   @id @default(uuid())
   church_id      String
   church         Church   @relation(fields: [church_id], references: [id])
-  transaction_id String   @unique
+  transaction_id String   @unique // KCB/M-Pesa reference code (Invariant: Idempotency)
   payment_type   PaymentType
   amount_paid    Decimal
   payment_date   DateTime
   payment_method PaymentMethod
   status         PaymentStatus @default(Pending)
-  month_covered  String?
+  month_covered  String?  // e.g., "January 2026"
+  billing_year   Int      // NEW: Tracks the financial year this payment applies to
   created_at     DateTime @default(now())
 }
 

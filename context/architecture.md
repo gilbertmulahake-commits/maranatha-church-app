@@ -58,9 +58,8 @@
 - **Stream Allocation:** Every payment received is treated as a "stream" that must be allocated to a `Church` record via the `church_code` (`BillRefNumber`).
 - **Unallocated Funds:** Any funds received that do not match a valid `church_code` remain in an "Unallocated/Unmatched" pool at the National HQ level until manually reconciled by an admin. 
 
-## 7. Financial Ledger & Carry-Forward (Deferred to Unit 10.0)
-- **Current State:** The system calculates expected-to-date based on the current calendar year. Year-end arrears silently vanish on Jan 1st.
-- **Required Upgrade (Unit 10.0):** 
-  - Add `billing_year` to the `Payment` model.
-  - Update `getExpectedToDate` to calculate cumulative expected vs. actual to track carry-forwards.
-  - Activate the Month/Year view toggle in `TableToolbar`.
+## 7. Financial Ledger & Strict Bucket Isolation
+- **Cumulative Ledger:** The system calculates expected amounts cumulatively from a church's `created_at` date. Year-end arrears do not vanish on Jan 1st.
+- **Strict Bucket Isolation:** Annual contributions (KES 5,000) and Monthly contributions (KES 500) are treated as completely separate ledgers. An overpayment in one bucket does not cover a shortfall in the other.
+- **Dynamic Statuses:** A church's status is evaluated per bucket (`annualStatus` vs `monthlyStatus`). The UI dynamically swaps the badge and KPI counts based on the active `periodView` (Month/Year). If a church owes 0 in a bucket (e.g., joined after the annual deadline), it shows an `N/A` status.
+- **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit` rather than a generic total credit.

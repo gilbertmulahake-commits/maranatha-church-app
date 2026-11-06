@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-import { getExpectedToDate, getChurchStatus, ANNUAL_FEE, MONTHLY_FEE } from '@/lib/utils/financial'
+import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
 
 export type RegionalChurchData = {
   id: string
@@ -13,8 +13,16 @@ export type RegionalChurchData = {
   treasurer_name: string
   contact_phone: string
   status: 'Paid' | 'Partial' | 'Overdue'
+  annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A'
+  monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
   amountPaid: number
   outstanding: number
+  annualCredit: number   // NEW: Strictly separate
+  monthlyCredit: number  // NEW: Strictly separate
+  annualPaid: number
+  monthlyPaid: number
+  annualOutstanding: number
+  monthlyOutstanding: number
 }
 
 export type RegionalStatsSuccess = {
@@ -25,19 +33,24 @@ export type RegionalStatsSuccess = {
   totalCollectedMonthly: number
   totalExpectedAnnual: number
   totalExpectedMonthly: number
+  totalExpected: number
   outstanding: number
-  outstandingAnnual: number    // NEW
-  outstandingMonthly: number   // NEW
+  outstandingAnnual: number
+  outstandingMonthly: number
+  
+  thisMonthCollectedAnnual: number
+  thisMonthCollectedMonthly: number
+  thisMonthExpected: number
+  thisMonthCollectionPct: number
+
   compliancePct: number
-  compliantChurches: number    // NEW
-  partialChurches: number      // NEW
-  overdueChurches: number      // NEW
+  compliantChurches: number
+  partialChurches: number
+  overdueChurches: number
   churches: RegionalChurchData[]
 }
 
-export type RegionalStatsError = {
-  error: string
-}
+export type RegionalStatsError = { error: string }
 
 export async function getRegionalStats(): Promise<RegionalStatsSuccess | RegionalStatsError> {
   try {
@@ -46,9 +59,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
 
     if (!user) return { error: 'Not authenticated' }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    })
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
 
     if (!dbUser || !['REGIONAL_CHAIRMAN', 'REGIONAL_TREASURER'].includes(dbUser.role) || !dbUser.region_id) {
       return { error: 'User is not a Regional role or has no assigned region.' }
@@ -56,53 +67,86 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
 
     const region = await prisma.region.findUnique({
       where: { id: dbUser.region_id },
-      include: {
-        churches: {
-          include: {
-            payments: true,
-          },
-        },
-      },
+      include: { churches: { include: { payments: true } } },
     })
 
     if (!region) return { error: 'Region not found' }
 
-    const totalChurches = region.churches.length
-    const totalExpectedAnnual = totalChurches * ANNUAL_FEE
-    const totalExpectedMonthly = totalChurches * (MONTHLY_FEE * 12)
-    const totalExpected = totalExpectedAnnual + totalExpectedMonthly
+    const today = new Date()
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const endOfLastMonth = new Date(startOfMonth.getTime() - 1)
 
-    const { totalExpected: expectedToDate } = getExpectedToDate()
-
+    let totalExpectedAnnual = 0
+    let totalExpectedMonthly = 0
+    let totalExpected = 0
     let totalCollected = 0
     let totalCollectedAnnual = 0
     let totalCollectedMonthly = 0
+
+    let thisMonthCollectedAnnual = 0
+    let thisMonthCollectedMonthly = 0
+    let thisMonthExpected = 0
+
     let compliantChurches = 0
     let partialChurches = 0
     let overdueChurches = 0
 
     const churchesData: RegionalChurchData[] = region.churches.map((church) => {
       let churchTotalPaid = 0
-      let churchPaidAnnual = 0
-      let churchPaidMonthly = 0
+      let annualPaid = 0
+      let monthlyPaid = 0
+      let churchPaidLastMonth = 0
 
       church.payments.forEach((payment) => {
         const amount = Number(payment.amount_paid)
+        const pDate = new Date(payment.payment_date)
         churchTotalPaid += amount
+        
         if (payment.payment_type === 'Annual') {
           totalCollectedAnnual += amount
-          churchPaidAnnual += amount
+          annualPaid += amount
+          if (pDate >= startOfMonth) thisMonthCollectedAnnual += amount
         } else {
           totalCollectedMonthly += amount
-          churchPaidMonthly += amount
+          monthlyPaid += amount
+          if (pDate >= startOfMonth) thisMonthCollectedMonthly += amount
         }
+
+        if (pDate < startOfMonth) churchPaidLastMonth += amount
       })
 
       totalCollected += churchTotalPaid
 
-      const status = getChurchStatus(churchTotalPaid, expectedToDate)
-      if (status === 'Paid') compliantChurches++
-      else if (status === 'Partial') partialChurches++
+      const { expectedAnnual, expectedMonthly, totalExpected: churchExpectedToday } = getExpectedUpToDate(church.created_at, today)
+      totalExpectedAnnual += expectedAnnual
+      totalExpectedMonthly += expectedMonthly
+      totalExpected += churchExpectedToday
+
+      const { totalExpected: churchExpectedLastMonth } = getExpectedUpToDate(church.created_at, endOfLastMonth)
+      
+      const churchExpectedThisMonth = Math.max(0, churchExpectedToday - churchExpectedLastMonth)
+      const arrearsBroughtForward = Math.max(0, churchExpectedLastMonth - churchPaidLastMonth)
+      thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
+
+      // STRICT BUCKET ISOLATION
+      const annualCredit = Math.max(0, annualPaid - expectedAnnual)
+      const monthlyCredit = Math.max(0, monthlyPaid - expectedMonthly)
+      
+      let annualStatus: RegionalChurchData['annualStatus'] = getPeriodStatus(annualPaid, expectedAnnual) as any
+      const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
+
+      // Handle Phantom Paid for Annual
+      if (expectedAnnual === 0 && annualPaid === 0) {
+        annualStatus = 'N/A'
+      }
+
+      // Determine Overall Status: Must fulfill BOTH to be 'Paid'
+      let overallStatus: 'Paid' | 'Partial' | 'Overdue' = 'Partial'
+      if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+
+      if (overallStatus === 'Paid') compliantChurches++
+      else if (overallStatus === 'Partial') partialChurches++
       else overdueChurches++
 
       return {
@@ -113,33 +157,36 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         pastor_phone: church.pastor_phone,
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
-        status: status,
+        status: overallStatus,
+        annualStatus,
+        monthlyStatus,
         amountPaid: churchTotalPaid,
-        // Outstanding per church is calculated against expected-to-date for the table
-        outstanding: Math.max(0, expectedToDate - churchTotalPaid), 
+        outstanding: Math.max(0, churchExpectedToday - churchTotalPaid),
+        annualCredit,
+        monthlyCredit,
+        annualPaid,
+        monthlyPaid,
+        annualOutstanding: Math.max(0, expectedAnnual - annualPaid),
+        monthlyOutstanding: Math.max(0, expectedMonthly - monthlyPaid),
       }
     })
 
-    const outstanding = totalExpected - totalCollected
-    const outstandingAnnual = totalExpectedAnnual - totalCollectedAnnual
-    const outstandingMonthly = totalExpectedMonthly - totalCollectedMonthly
-    const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
+    const outstanding = Math.max(0, totalExpected - totalCollected)
+    const outstandingAnnual = Math.max(0, totalExpectedAnnual - totalCollectedAnnual)
+    const outstandingMonthly = Math.max(0, totalExpectedMonthly - totalCollectedMonthly)
+    const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
+    
+    const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
+    const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0
 
     return {
       regionName: region.name,
       chairmanName: region.chairman_name,
-      totalCollected,
-      totalCollectedAnnual,
-      totalCollectedMonthly,
-      totalExpectedAnnual,
-      totalExpectedMonthly,
-      outstanding,
-      outstandingAnnual,
-      outstandingMonthly,
-      compliancePct,
-      compliantChurches,
-      partialChurches,
-      overdueChurches,
+      totalCollected, totalCollectedAnnual, totalCollectedMonthly,
+      totalExpectedAnnual, totalExpectedMonthly, totalExpected,
+      outstanding, outstandingAnnual, outstandingMonthly,
+      thisMonthCollectedAnnual, thisMonthCollectedMonthly, thisMonthExpected, thisMonthCollectionPct,
+      compliancePct, compliantChurches, partialChurches, overdueChurches,
       churches: churchesData,
     }
   } catch (error) {
