@@ -1,34 +1,68 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { AppShell } from '@/components/layout/app-shell'
-import { Church } from 'lucide-react'
+import { getLocalChurchStats } from '@/lib/actions/local-actions'
+import { LocalKpiCards } from '@/components/local/local-kpi-cards'
+import { LocalPaymentHistory } from '@/components/local/local-payment-history'
+import { Badge } from '@/components/ui/badge'
+import { MapPin } from 'lucide-react'
+
+async function LocalContent() {
+  const stats = await getLocalChurchStats()
+
+  if ('error' in stats) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[400px] text-center space-y-4">
+        <div className="bg-destructive/10 text-destructive p-4 rounded-full">
+          <MapPin className="h-8 w-8" />
+        </div>
+        <div>
+          <h2 className="text-heading-3 font-medium text-foreground">Access Error</h2>
+          <p className="text-paragraph-small text-muted-foreground mt-1">{stats.error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-xl" style={{ width: '100%', maxWidth: '100%' }}>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-heading-2 font-bold text-foreground">{stats.churchName}</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="outline" className="font-mono">{stats.churchCode}</Badge>
+            <span className="text-paragraph-small text-muted-foreground">•</span>
+            <span className="text-paragraph-small text-muted-foreground flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> {stats.regionName} Region
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <LocalKpiCards stats={stats} />
+
+      {/* Payment History */}
+      <LocalPaymentHistory payments={stats.payments} />
+    </div>
+  )
+}
 
 async function Content() {
+  // Force dynamic rendering (auth-protected via AppShell)
   await connection()
 
   return (
     <AppShell>
-      <div className="space-y-xl">
-        <div>
-          <h1 className="text-heading-2 font-medium text-foreground">Local Church Dashboard</h1>
-          <p className="mt-xs text-paragraph-small text-muted-foreground">
-            View your church's financial status and compliance.
-          </p>
-        </div>
-        
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-xl text-center h-[400px]">
-          <Church className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-heading-4 font-medium text-foreground">Church Dashboard</h3>
-          <p className="mt-1 text-paragraph-small text-muted-foreground">
-            This dedicated view for Pastors and Treasurers will be built in a future unit.
-          </p>
-        </div>
-      </div>
+      <Suspense fallback={<div className="p-xl text-muted-foreground">Loading local dashboard...</div>}>
+        <LocalContent />
+      </Suspense>
     </AppShell>
   )
 }
 
-export default function LocalChurchDashboard() {
+export default function LocalChurchDashboardPage() {
   return (
     <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
       <Content />

@@ -10,7 +10,7 @@ import {
   FileText,
   Settings,
   Zap,
-  Users, // <-- ADDED
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,8 +19,8 @@ type Role = 'NATIONAL_TREASURER' | 'NATIONAL_OVERSEER' | 'REGIONAL_CHAIRMAN' | '
 export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname()
 
+  // 1. Settings is always available
   const baseItems = [
-    { name: 'Reports', href: '/dashboard/reports', icon: FileText },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ]
 
@@ -32,14 +32,17 @@ export function Sidebar({ role }: { role: Role }) {
       { name: 'Regions', href: '/dashboard/regions', icon: MapPin },
       { name: 'Churches', href: '/dashboard/churches', icon: Church },
       { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
-      { name: 'Users', href: '/dashboard/users', icon: Users }, // <-- ADDED
+      { name: 'Users', href: '/dashboard/users', icon: Users },
       { name: 'Mock KCB', href: '/dashboard/mock-kcb', icon: Zap },
+      { name: 'Reports', href: '/dashboard/reports', icon: FileText },
     ]
   } else if (role === 'REGIONAL_CHAIRMAN' || role === 'REGIONAL_TREASURER') {
     roleSpecificItems = [
       { name: 'Dashboard', href: '/dashboard/regional', icon: LayoutDashboard },
+      { name: 'Reports', href: '/dashboard/reports', icon: FileText },
     ]
   } else if (role === 'LOCAL_PASTOR' || role === 'CHURCH_TREASURER') {
+    // Local roles only get their dashboard and settings (No Reports tab)
     roleSpecificItems = [
       { name: 'Church Dashboard', href: '/dashboard/local', icon: LayoutDashboard },
     ]
