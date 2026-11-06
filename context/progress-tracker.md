@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 12.1 - Complete
+Unit 12.2 - Complete (MVP Build Complete)
 
 ## Current Goal
-Begin Unit 12.2: User Management (Admin)
+Deployment Preparation & Final Polish
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -83,14 +83,22 @@ Begin Unit 12.2: User Management (Admin)
   - Added read-only Profile Card showing Email, Role, Region, and Church assignments.
   - Built a secure password update form using Supabase Auth client and Sonner toasts.
   - Applied inline style width resolution (`style={{ width: '100%', maxWidth: '64rem' }}`) to fix flex-collapse layout issues.
+- **Unit 12.2: User Management (Admin)**
+  - Added the `/dashboard/users` route (strictly restricted to National HQ).
+  - Built the `UsersTable` to display all system users, their roles, and their region/church assignments.
+  - Built the `InviteUserDialog` with dynamic form fields (showing Regions for Regional roles, and Churches for Local roles).
+  - Integrated Supabase Admin Auth creation with Prisma DB insertion and a rollback safety catch.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 12.2: User Management (Admin)**
-  - Build the admin table for National HQ to view all users.
-  - Build the "Invite User" dialog to create new accounts and assign roles/regions.
+- **Deployment**: Set up Vercel, connect Supabase production keys, run `prisma migrate deploy`.
+- **V2 Enhancements**: 
+  - Real Africa's Talking SMS API integration.
+  - Real KCB Daraja API integration.
+  - FIFO Payment Allocation Ledger.
+  - Background jobs (Inngest/Trigger.dev) for SMS queues.
 
 ## Open Questions
 - None.

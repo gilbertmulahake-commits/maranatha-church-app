@@ -10,6 +10,7 @@ import {
   FileText,
   Settings,
   Zap,
+  Users, // <-- ADDED
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +32,7 @@ export function Sidebar({ role }: { role: Role }) {
       { name: 'Regions', href: '/dashboard/regions', icon: MapPin },
       { name: 'Churches', href: '/dashboard/churches', icon: Church },
       { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
+      { name: 'Users', href: '/dashboard/users', icon: Users }, // <-- ADDED
       { name: 'Mock KCB', href: '/dashboard/mock-kcb', icon: Zap },
     ]
   } else if (role === 'REGIONAL_CHAIRMAN' || role === 'REGIONAL_TREASURER') {
