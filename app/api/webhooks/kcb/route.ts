@@ -60,12 +60,13 @@ export async function POST(request: Request) {
       data: {
         church_id: church.id,
         transaction_id: TransID,
-        payment_type: payment_type, // UPDATED: Use the payment_type from the payload
+        payment_type: payment_type,
         amount_paid: TransAmount,
         payment_date: new Date(TransTime),
         payment_method: 'M_Pesa',
         status: 'Paid',
         month_covered: new Date(TransTime).toLocaleString('default', { month: 'long', year: 'numeric' }),
+        billing_year: new Date(TransTime).getFullYear(), // NEW: Stamp the year from the transaction time
       },
     })
 

@@ -3,44 +3,31 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getExpectedToDate, getChurchStatus } from '@/lib/utils/financial'
+import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
 
-// --- Zod Schemas ---
 const regionSchema = z.object({
   name: z.string().min(1, 'Region Name is required'),
   chairman_name: z.string().min(1, 'Chairman Name is required'),
   contact_phone: z.string().min(10, 'Valid phone number is required'),
 })
 
-// --- Read Operations ---
-
-// Basic fetch (used for dropdowns)
 export async function getRegions() {
   try {
-    return await prisma.region.findMany({
-      orderBy: { name: 'asc' },
-    })
+    return await prisma.region.findMany({ orderBy: { name: 'asc' } })
   } catch (error) {
     console.error('Failed to fetch regions:', error)
     return []
   }
 }
 
-// Advanced fetch with Compliance Stats (used for the Regions Data Table)
 export async function getRegionsWithStats() {
   try {
     const regions = await prisma.region.findMany({
-      include: {
-        churches: {
-          include: {
-            payments: true,
-          },
-        },
-      },
+      include: { churches: { include: { payments: true } } },
       orderBy: { name: 'asc' },
     })
 
-    const { totalExpected } = getExpectedToDate()
+    const now = new Date()
 
     return regions.map((region) => {
       let compliantChurches = 0
@@ -50,9 +37,9 @@ export async function getRegionsWithStats() {
       region.churches.forEach((church) => {
         const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
         totalCollected += totalPaid
-        if (getChurchStatus(totalPaid, totalExpected) === 'Paid') {
-          compliantChurches++
-        }
+        
+        const { totalExpected: churchExpected } = getExpectedUpToDate(church.created_at, now)
+        if (getPeriodStatus(totalPaid, churchExpected) === 'Paid') compliantChurches++
       })
 
       const compliancePct = churchCount > 0 ? (compliantChurches / churchCount) * 100 : 0
@@ -73,20 +60,13 @@ export async function getRegionsWithStats() {
   }
 }
 
-// Fetch KPI Stats for the Regions Dashboard (all regions aggregated)
 export async function getRegionStats() {
   try {
     const regions = await prisma.region.findMany({
-      include: {
-        churches: {
-          include: {
-            payments: { where: { status: 'Paid' } },
-          },
-        },
-      },
+      include: { churches: { include: { payments: { where: { status: 'Paid' } } } } },
     })
 
-    const { totalExpected } = getExpectedToDate()
+    const now = new Date()
 
     let totalCollected = 0
     let totalCollectedAnnual = 0
@@ -96,7 +76,6 @@ export async function getRegionStats() {
     let totalArrearsMonthly = 0
     let totalCompliancePct = 0
     let regionsAtRisk = 0
-
     let topRegions: { name: string, compliancePct: number }[] = []
     let maxCompliance = -1
 
@@ -104,10 +83,9 @@ export async function getRegionStats() {
       let compliantChurches = 0
       let regionCollectedAnnual = 0
       let regionCollectedMonthly = 0
+      let regionExpectedAnnual = 0
+      let regionExpectedMonthly = 0
       const churchCount = region.churches.length
-
-      const regionExpectedAnnual = churchCount * 5000
-      const regionExpectedMonthly = churchCount * 6000
 
       region.churches.forEach((church) => {
         church.payments.forEach(p => {
@@ -115,8 +93,13 @@ export async function getRegionStats() {
           if (p.payment_type === 'Annual') regionCollectedAnnual += amt
           else regionCollectedMonthly += amt
         })
+        
+        const { expectedAnnual, expectedMonthly, totalExpected: churchExpected } = getExpectedUpToDate(church.created_at, now)
+        regionExpectedAnnual += expectedAnnual
+        regionExpectedMonthly += expectedMonthly
+
         const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
-        if (getChurchStatus(totalPaid, totalExpected) === 'Paid') compliantChurches++
+        if (getPeriodStatus(totalPaid, churchExpected) === 'Paid') compliantChurches++
       })
 
       totalCollectedAnnual += regionCollectedAnnual
@@ -133,7 +116,6 @@ export async function getRegionStats() {
       totalCompliancePct += compliancePct
 
       if (compliancePct < 50) regionsAtRisk++
-
       if (compliancePct > maxCompliance) {
         maxCompliance = compliancePct
         topRegions = [{ name: region.name, compliancePct }]
@@ -146,14 +128,9 @@ export async function getRegionStats() {
     const averageCompliance = regions.length > 0 ? totalCompliancePct / regions.length : 0
 
     return {
-      totalCollected,
-      totalCollectedAnnual,
-      totalCollectedMonthly,
-      totalArrears,
-      totalArrearsAnnual,
-      totalArrearsMonthly,
-      averageCompliance,
-      regionsAtRisk,
+      totalCollected, totalCollectedAnnual, totalCollectedMonthly,
+      totalArrears, totalArrearsAnnual, totalArrearsMonthly,
+      averageCompliance, regionsAtRisk,
       topRegionName: topRegions[0]?.name ?? 'N/A',
       topRegionPct: maxCompliance >= 0 ? maxCompliance : 0,
       topRegionTieCount: topRegions.length,
@@ -169,61 +146,87 @@ export async function getRegionStats() {
   }
 }
 
-// NEW: Fetch stats for a SINGLE region (used by /dashboard/regions/[id])
 export async function getSingleRegionStats(regionId: string) {
   try {
     const region = await prisma.region.findUnique({
       where: { id: regionId },
-      include: {
-        churches: {
-          include: {
-            payments: true,
-          },
-        },
-      },
+      include: { churches: { include: { payments: true } } },
     })
 
     if (!region) return { error: 'Region not found' }
 
-    const totalChurches = region.churches.length
-    const totalExpectedAnnual = totalChurches * 5000
-    const totalExpectedMonthly = totalChurches * 6000
-    const totalExpected = totalExpectedAnnual + totalExpectedMonthly
+    const today = new Date()
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const endOfLastMonth = new Date(startOfMonth.getTime() - 1)
 
-    const { totalExpected: expectedToDate } = getExpectedToDate()
-
+    let totalExpectedAnnual = 0
+    let totalExpectedMonthly = 0
+    let totalExpected = 0
     let totalCollected = 0
     let totalCollectedAnnual = 0
     let totalCollectedMonthly = 0
-    let totalThisMonth = 0
+
+    let thisMonthCollectedAnnual = 0
+    let thisMonthCollectedMonthly = 0
+    let thisMonthExpected = 0
+
     let compliantChurches = 0
     let partialChurches = 0
     let overdueChurches = 0
 
-    const currentMonth = new Date().getMonth()
-    const currentYear = new Date().getFullYear()
-
     const churchesData = region.churches.map((church) => {
       let churchTotalPaid = 0
+      let annualPaid = 0
+      let monthlyPaid = 0
+      let churchPaidLastMonth = 0
 
       church.payments.forEach((payment) => {
         const amount = Number(payment.amount_paid)
-        churchTotalPaid += amount
-
-        if (payment.payment_type === 'Annual') totalCollectedAnnual += amount
-        else totalCollectedMonthly += amount
-
         const pDate = new Date(payment.payment_date)
-        if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
-          totalThisMonth += amount
+        churchTotalPaid += amount
+        
+        if (payment.payment_type === 'Annual') {
+          totalCollectedAnnual += amount
+          annualPaid += amount
+          if (pDate >= startOfMonth) thisMonthCollectedAnnual += amount
+        } else {
+          totalCollectedMonthly += amount
+          monthlyPaid += amount
+          if (pDate >= startOfMonth) thisMonthCollectedMonthly += amount
         }
+
+        if (pDate < startOfMonth) churchPaidLastMonth += amount
       })
 
       totalCollected += churchTotalPaid
 
-      const status = getChurchStatus(churchTotalPaid, expectedToDate)
-      if (status === 'Paid') compliantChurches++
-      else if (status === 'Partial') partialChurches++
+      const { expectedAnnual, expectedMonthly, totalExpected: churchExpectedToday } = getExpectedUpToDate(church.created_at, today)
+      totalExpectedAnnual += expectedAnnual
+      totalExpectedMonthly += expectedMonthly
+      totalExpected += churchExpectedToday
+
+      const { totalExpected: churchExpectedLastMonth } = getExpectedUpToDate(church.created_at, endOfLastMonth)
+      const churchExpectedThisMonth = Math.max(0, churchExpectedToday - churchExpectedLastMonth)
+      const arrearsBroughtForward = Math.max(0, churchExpectedLastMonth - churchPaidLastMonth)
+      thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
+
+      // STRICT BUCKET ISOLATION
+      const annualCredit = Math.max(0, annualPaid - expectedAnnual)
+      const monthlyCredit = Math.max(0, monthlyPaid - expectedMonthly)
+      
+      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual) as any
+      const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
+
+      if (expectedAnnual === 0 && annualPaid === 0) {
+        annualStatus = 'N/A'
+      }
+
+      let overallStatus: 'Paid' | 'Partial' | 'Overdue' = 'Partial'
+      if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+
+      if (overallStatus === 'Paid') compliantChurches++
+      else if (overallStatus === 'Partial') partialChurches++
       else overdueChurches++
 
       return {
@@ -234,33 +237,35 @@ export async function getSingleRegionStats(regionId: string) {
         pastor_phone: church.pastor_phone,
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
-        status: status,
+        status: overallStatus,
+        annualStatus,
+        monthlyStatus,
         amountPaid: churchTotalPaid,
-        outstanding: Math.max(0, expectedToDate - churchTotalPaid),
+        outstanding: Math.max(0, churchExpectedToday - churchTotalPaid),
+        annualCredit,
+        monthlyCredit,
+        annualPaid,
+        monthlyPaid,
+        annualOutstanding: Math.max(0, expectedAnnual - annualPaid),
+        monthlyOutstanding: Math.max(0, expectedMonthly - monthlyPaid),
       }
     })
 
-    const outstanding = totalExpected - totalCollected
-    const outstandingAnnual = totalExpectedAnnual - totalCollectedAnnual
-    const outstandingMonthly = totalExpectedMonthly - totalCollectedMonthly
-    const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
+    const outstanding = Math.max(0, totalExpected - totalCollected)
+    const outstandingAnnual = Math.max(0, totalExpectedAnnual - totalCollectedAnnual)
+    const outstandingMonthly = Math.max(0, totalExpectedMonthly - totalCollectedMonthly)
+    const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
+    const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
+    const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0
 
     return {
       regionName: region.name,
       chairmanName: region.chairman_name,
-      totalCollected,
-      totalCollectedAnnual,
-      totalCollectedMonthly,
-      totalThisMonth,
-      totalExpectedAnnual,
-      totalExpectedMonthly,
-      outstanding,
-      outstandingAnnual,
-      outstandingMonthly,
-      compliancePct,
-      compliantChurches,
-      partialChurches,
-      overdueChurches,
+      totalCollected, totalCollectedAnnual, totalCollectedMonthly,
+      totalExpectedAnnual, totalExpectedMonthly, totalExpected,
+      outstanding, outstandingAnnual, outstandingMonthly,
+      thisMonthCollectedAnnual, thisMonthCollectedMonthly, thisMonthExpected, thisMonthCollectionPct,
+      compliancePct, compliantChurches, partialChurches, overdueChurches,
       churches: churchesData,
     }
   } catch (error) {
@@ -269,33 +274,20 @@ export async function getSingleRegionStats(regionId: string) {
   }
 }
 
-// --- Write Operations ---
-
 export async function createRegion(formData: FormData) {
   const rawData = {
     name: formData.get('name') as string,
     chairman_name: formData.get('chairman_name') as string,
     contact_phone: formData.get('contact_phone') as string,
   }
-
   const validated = regionSchema.safeParse(rawData)
-
-  if (!validated.success) {
-    return { error: validated.error.issues[0].message }
-  }
+  if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
-    await prisma.region.create({
-      data: {
-        name: validated.data.name,
-        chairman_name: validated.data.chairman_name,
-        contact_phone: validated.data.contact_phone,
-      },
-    })
+    await prisma.region.create({ data: validated.data })
     revalidatePath('/dashboard/regions')
     return { success: true }
   } catch (error) {
-    console.error('Failed to create region:', error)
     return { error: 'Failed to create region. Name might already exist.' }
   }
 }
@@ -306,26 +298,14 @@ export async function updateRegion(id: string, formData: FormData) {
     chairman_name: formData.get('chairman_name') as string,
     contact_phone: formData.get('contact_phone') as string,
   }
-
   const validated = regionSchema.safeParse(rawData)
-
-  if (!validated.success) {
-    return { error: validated.error.issues[0].message }
-  }
+  if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
-    await prisma.region.update({
-      where: { id },
-      data: {
-        name: validated.data.name,
-        chairman_name: validated.data.chairman_name,
-        contact_phone: validated.data.contact_phone,
-      },
-    })
+    await prisma.region.update({ where: { id }, data: validated.data })
     revalidatePath('/dashboard/regions')
     return { success: true }
   } catch (error) {
-    console.error('Failed to update region:', error)
     return { error: 'Failed to update region.' }
   }
 }

@@ -14,10 +14,6 @@ import { getRegionalScores } from '@/lib/actions/scoring-actions'
 import { RegionalLeaderboard } from '@/components/dashboard/regional-leaderboard'
 import { Skeleton } from '@/components/ui/skeleton'
 
-// Next.js 16 Cache Components: opt this route out of instant navigation validation.
-// This is required because AppShell uses auth cookies, which forces a blocking route.
-export const instant = false
-
 async function DashboardContent() {
   await connection()
   
@@ -55,7 +51,10 @@ async function DashboardContent() {
   )
 }
 
-export default async function DashboardPage() {
+async function Content() {
+  // Force this route to render dynamically (auth-protected via AppShell)
+  await connection()
+
   return (
     <AppShell>
       <div className="space-y-xl">
@@ -93,5 +92,13 @@ export default async function DashboardPage() {
         </Suspense>
       </div>
     </AppShell>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading dashboard...</div>}>
+      <Content />
+    </Suspense>
   )
 }

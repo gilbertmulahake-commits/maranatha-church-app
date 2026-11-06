@@ -1,5 +1,12 @@
-import { Building2, TrendingUp, AlertCircle, XCircle } from 'lucide-react'
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Building2, TrendingUp, AlertCircle, XCircle, CalendarDays } from 'lucide-react'
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StackedBar } from '@/components/dashboard/stacked-bar'
 
@@ -8,32 +15,32 @@ interface ChurchStats {
   compliant: number
   partial: number
   overdue: number
+  na: number
 }
 
 interface ChurchKpiProps {
   localStats: ChurchStats
   nationalStats: ChurchStats
+  periodView: 'month' | 'year'
   onFilterChange?: (status: string) => void
 }
 
-export function ChurchKpiCards({ 
-  localStats = { total: 0, compliant: 0, partial: 0, overdue: 0 }, 
-  nationalStats = { total: 0, compliant: 0, partial: 0, overdue: 0 },
-  onFilterChange
+export function ChurchKpiCards({
+  localStats = { total: 0, compliant: 0, partial: 0, overdue: 0, na: 0 },
+  nationalStats = { total: 0, compliant: 0, partial: 0, overdue: 0, na: 0 },
+  periodView,
+  onFilterChange,
 }: ChurchKpiProps) {
-  
-  // UNIFIED CLASSES
-  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+  const cardClasses =
+    'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card'
 
-  // Percentages within the current view (which, on the Churches tab, is always national-scope)
   const compliantPct = localStats.total > 0 ? (localStats.compliant / localStats.total) * 100 : 0
   const partialPct = localStats.total > 0 ? (localStats.partial / localStats.total) * 100 : 0
   const overduePct = localStats.total > 0 ? (localStats.overdue / localStats.total) * 100 : 0
+  const viewLabel = periodView === 'year' ? 'Annual view' : 'Monthly view'
 
   return (
     <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
-      
-      {/* CARD 1: Total Churches — always national scope, no "Filtered" badge */}
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Total Churches</CardDescription>
@@ -42,7 +49,7 @@ export function ChurchKpiCards({
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <Building2 className="h-3 w-3" /> National
+              <CalendarDays className="h-3 w-3" /> {viewLabel}
             </Badge>
           </CardAction>
         </CardHeader>
@@ -52,15 +59,16 @@ export function ChurchKpiCards({
               { label: `${localStats.compliant} paid`, value: localStats.compliant, color: 'bg-emerald-500' },
               { label: `${localStats.partial} partial`, value: localStats.partial, color: 'bg-amber-500' },
               { label: `${localStats.overdue} overdue`, value: localStats.overdue, color: 'bg-red-500' },
+              ...(localStats.na > 0 ? [{ label: `${localStats.na} N/A`, value: localStats.na, color: 'bg-gray-400' }] : []),
             ]}
           />
           <p className="text-paragraph-mini text-muted-foreground">
-            Complete registry
+            Complete registry · {viewLabel.toLowerCase()}
+            {localStats.na > 0 && ` · ${localStats.na} N/A`}
           </p>
         </CardFooter>
       </Card>
 
-      {/* CARD 2: Compliant */}
       <Card className={cardClasses} onClick={() => onFilterChange?.('Paid')}>
         <CardHeader>
           <CardDescription>Compliant</CardDescription>
@@ -75,15 +83,12 @@ export function ChurchKpiCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
-            {compliantPct.toFixed(1)}% of {localStats.total} nationally
+            {compliantPct.toFixed(1)}% of {localStats.total} · {viewLabel.toLowerCase()}
           </p>
-          <p className="text-paragraph-mini text-muted-foreground">
-            Fully up to date
-          </p>
+          <p className="text-paragraph-mini text-muted-foreground">Fully up to date</p>
         </CardFooter>
       </Card>
 
-      {/* CARD 3: Partial */}
       <Card className={cardClasses} onClick={() => onFilterChange?.('Partial')}>
         <CardHeader>
           <CardDescription>Partial</CardDescription>
@@ -98,15 +103,12 @@ export function ChurchKpiCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
-            {partialPct.toFixed(1)}% of {localStats.total} nationally
+            {partialPct.toFixed(1)}% of {localStats.total} · {viewLabel.toLowerCase()}
           </p>
-          <p className="text-paragraph-mini text-muted-foreground">
-            Requires follow-up
-          </p>
+          <p className="text-paragraph-mini text-muted-foreground">Requires follow-up</p>
         </CardFooter>
       </Card>
 
-      {/* CARD 4: Overdue */}
       <Card className={cardClasses} onClick={() => onFilterChange?.('Overdue')}>
         <CardHeader>
           <CardDescription>Overdue</CardDescription>
@@ -121,14 +123,11 @@ export function ChurchKpiCards({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
-            {overduePct.toFixed(1)}% of {localStats.total} nationally
+            {overduePct.toFixed(1)}% of {localStats.total} · {viewLabel.toLowerCase()}
           </p>
-          <p className="text-paragraph-mini text-muted-foreground">
-            Immediate reminder needed
-          </p>
+          <p className="text-paragraph-mini text-muted-foreground">Immediate reminder needed</p>
         </CardFooter>
       </Card>
-
     </div>
   )
 }

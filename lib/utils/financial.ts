@@ -1,48 +1,69 @@
-// Constants based on the business rules
 export const ANNUAL_FEE = 5000
 export const MONTHLY_FEE = 500
-export const TOTAL_EXPECTED_PER_CHURCH = 11000
 
-// The annual fee is due by the end of March (Month index 2)
-const ANNUAL_DUE_MONTH_INDEX = 2 
+/**
+ * Calculates the cumulative expected amount owed by a church from a start date.
+ */
+export function getExpectedUpToDate(startDate: Date, upToDate: Date = new Date()) {
+  let expectedAnnual = 0
+  let expectedMonthly = 0
 
-export function getExpectedToDate(upToDate: Date = new Date()) {
-  const currentYear = upToDate.getFullYear()
-  const currentMonthIndex = upToDate.getMonth() // 0 = Jan, 11 = Dec
+  if (startDate > upToDate) {
+    return { expectedAnnual: 0, expectedMonthly: 0, totalExpected: 0 }
+  }
 
-  // 1. Calculate Annual Expected (Due after March 31st)
-  // If current month is > March (index 2), the annual fee is due.
-  const annualExpected = currentMonthIndex > ANNUAL_DUE_MONTH_INDEX ? ANNUAL_FEE : 0
+  let currentYear = startDate.getFullYear()
+  const endYear = upToDate.getFullYear()
 
-  // 2. Calculate Monthly Expected 
-  // If it's Jan 15th (index 0), 0 months are due. 
-  // If it's Feb 1st (index 1), 1 month (Jan) is due.
-  const monthlyExpected = currentMonthIndex * MONTHLY_FEE
+  while (currentYear <= endYear) {
+    const isStartYear = currentYear === startDate.getFullYear()
+    const isEndYear = currentYear === endYear
+
+    // --- 1. Annual Fee (Due after March) ---
+    if (isStartYear) {
+      if (startDate.getMonth() <= 2) expectedAnnual += ANNUAL_FEE
+    } else {
+      expectedAnnual += ANNUAL_FEE
+    }
+
+    // --- 2. Monthly Fee ---
+    let startMonth = 0
+    let endMonth = 11
+
+    if (isStartYear) startMonth = startDate.getMonth()
+    if (isEndYear) endMonth = upToDate.getMonth()
+
+    const monthsInYear = endMonth - startMonth + 1
+    if (monthsInYear > 0) {
+      expectedMonthly += (monthsInYear * MONTHLY_FEE)
+    }
+
+    currentYear++
+  }
 
   return {
-    annualExpected,
-    monthlyExpected,
-    totalExpected: annualExpected + monthlyExpected,
+    expectedAnnual,
+    expectedMonthly,
+    totalExpected: expectedAnnual + expectedMonthly
   }
 }
 
-export function getChurchStatus(
-  totalPaid: number, 
-  expectedToDate: number
+/**
+ * Calculates the status of a specific fee stream (Annual or Monthly).
+ */
+export function getPeriodStatus(
+  paid: number, 
+  expected: number
 ): 'Paid' | 'Partial' | 'Overdue' {
-  if (totalPaid >= expectedToDate) {
-    return 'Paid'
-  }
-  
-  if (totalPaid > 0) {
-    return 'Partial'
-  }
+  if (paid >= expected) return 'Paid'
+  if (paid > 0) return 'Partial'
+  if (expected > 0) return 'Overdue'
+  return 'Partial'
+}
 
-  // If they haven't paid anything and something is expected, they are overdue.
-  if (expectedToDate > 0) {
-    return 'Overdue'
-  }
-
-  // If nothing is expected yet (e.g., early January) and they haven't paid, they are just 'Pending'
-  return 'Partial' // Or we can add a 'Pending' state if we want to distinguish
+/**
+ * Calculates the credit balance (overpayment).
+ */
+export function getCreditBalance(totalPaid: number, expectedToDate: number): number {
+  return Math.max(0, totalPaid - expectedToDate)
 }
