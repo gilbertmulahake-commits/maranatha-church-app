@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 11.2 - Complete
+Unit 12.1 - Complete
 
 ## Current Goal
-Begin Unit 12: User Management & Settings
+Begin Unit 12.2: User Management (Admin)
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -78,14 +78,19 @@ Begin Unit 12: User Management & Settings
   - Created a generic `exportToCsv` utility (`lib/utils/export.ts`).
   - Added "Export" buttons to the Payments Ledger, Arrears Report, and Daily Cashbook.
   - Export logic strictly exports the *currently filtered* data, maintaining the active view's context.
+- **Unit 12.1: User Profile & Settings**
+  - Built the `/dashboard/settings` page.
+  - Added read-only Profile Card showing Email, Role, Region, and Church assignments.
+  - Built a secure password update form using Supabase Auth client and Sonner toasts.
+  - Applied inline style width resolution (`style={{ width: '100%', maxWidth: '64rem' }}`) to fix flex-collapse layout issues.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 12: User Management & Settings**
-  - Build the Settings page for profile updates.
-  - Build the User Management table for National HQ to assign roles and regions.
+- **Unit 12.2: User Management (Admin)**
+  - Build the admin table for National HQ to view all users.
+  - Build the "Invite User" dialog to create new accounts and assign roles/regions.
 
 ## Open Questions
 - None.
