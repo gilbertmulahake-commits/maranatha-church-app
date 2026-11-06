@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 10.2 - Complete
+Unit 11.2 - Complete
 
 ## Current Goal
-Begin Unit 11: Reporting & Export
+Begin Unit 12: User Management & Settings
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -70,15 +70,22 @@ Begin Unit 11: Reporting & Export
   - Implemented a full data table with sorting, pagination, global search, and specific filters for Payment Type and Method.
   - Added 4 KPI cards for Total Transactions, Total Volume, Annual/Monthly Split, and This Month volume.
   - *Architecture Note:* Kept KPI cards static (global lifetime totals) rather than dynamic, to ensure the ledger remains a stable source of truth for auditors.
+- **Unit 11.1: Reporting UI (Arrears & Cashbook)**
+  - Built the `/dashboard/reports` page with a custom segmented toggle (Arrears vs. Cashbook).
+  - Arrears table displays strict bucket isolation with a sticky summary footer for grand totals.
+  - Cashbook table features a dynamic date picker to view daily transactions.
+- **Unit 11.2: CSV Export Engine**
+  - Created a generic `exportToCsv` utility (`lib/utils/export.ts`).
+  - Added "Export" buttons to the Payments Ledger, Arrears Report, and Daily Cashbook.
+  - Export logic strictly exports the *currently filtered* data, maintaining the active view's context.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 11: Reporting & Export**
-  - Build Daily Cashbook, Arrears Report, CSV/PDF exports.
 - **Unit 12: User Management & Settings**
-  - Build invitation system, role assignment, profile management.
+  - Build the Settings page for profile updates.
+  - Build the User Management table for National HQ to assign roles and regions.
 
 ## Open Questions
 - None.
