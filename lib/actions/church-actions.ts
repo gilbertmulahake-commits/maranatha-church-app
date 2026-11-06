@@ -18,7 +18,6 @@ const churchSchema = z.object({
 
 export async function getChurches() {
   try {
-    // 1. Fetch churches with their region and ALL payments
     const churches = await prisma.church.findMany({
       include: { 
         region: true,
@@ -31,7 +30,6 @@ export async function getChurches() {
 
     const { totalExpected } = getExpectedToDate()
 
-    // 2. Map and calculate financial status for each church
     return churches.map((church) => {
       const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
       const status = getChurchStatus(totalPaid, totalExpected)
@@ -124,5 +122,46 @@ export async function getChurchStats() {
   } catch (error) {
     console.error('Failed to fetch church stats:', error)
     return { total: 0, compliant: 0, partial: 0, overdue: 0 }
+  }
+}
+
+// --- NEW FUNCTIONS FOR UNIT 09.1 ---
+
+export async function updateChurch(id: string, formData: FormData) {
+  const rawData = {
+    church_name: formData.get('church_name') as string,
+    pastor_name: formData.get('pastor_name') as string,
+    pastor_phone: formData.get('pastor_phone') as string,
+    treasurer_name: formData.get('treasurer_name') as string,
+    contact_phone: formData.get('contact_phone') as string,
+  }
+
+  try {
+    await prisma.church.update({
+      where: { id },
+      data: {
+        church_name: rawData.church_name,
+        pastor_name: rawData.pastor_name,
+        pastor_phone: rawData.pastor_phone,
+        treasurer_name: rawData.treasurer_name,
+        contact_phone: rawData.contact_phone,
+      },
+    })
+    revalidatePath('/dashboard/churches')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to update church:', error)
+    return { error: 'Failed to update church details.' }
+  }
+}
+
+export async function deleteChurch(id: string) {
+  try {
+    await prisma.church.delete({ where: { id } })
+    revalidatePath('/dashboard/churches')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to delete church:', error)
+    return { error: 'Failed to delete church. They may have linked payments.' }
   }
 }

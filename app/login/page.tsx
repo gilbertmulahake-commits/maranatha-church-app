@@ -26,32 +26,30 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      // For now, redirect to a generic dashboard. 
-      // We will build role-based redirection in the next step.
       router.push('/dashboard')
       router.refresh()
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg border border-[#E2E8F0]">
-        
-        {/* Header */}
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div 
+        className="space-y-6 rounded-xl bg-card p-6 shadow-lg border border-border"
+        style={{ width: '100%', maxWidth: '28rem' }}
+      >
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-[#0F172A]">
+          <h2 className="mt-4 text-2xl font-medium tracking-tight text-foreground">
             Maranatha Faith Assemblies
           </h2>
-          <p className="mt-2 text-sm text-[#64748B]">
+          <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your collection dashboard
           </p>
         </div>
 
-        {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+        <form className="mt-6 space-y-4" onSubmit={handleLogin}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
                 Email address
               </label>
               <input
@@ -62,12 +60,12 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-[#E2E8F0] px-3 py-2 text-[#0F172A] placeholder-[#64748B] focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="treasurer@church.org"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
                 Password
               </label>
               <input
@@ -78,24 +76,22 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-[#E2E8F0] px-3 py-2 text-[#0F172A] placeholder-[#64748B] focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="rounded-md bg-[#FEE2E2] p-3 text-sm text-[#EF4444]">
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
               {error}
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full justify-center rounded-md bg-[#0F172A] px-3 py-2.5 text-sm font-semibold text-white hover:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2 disabled:opacity-50"
+            className="flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 h-9"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>

@@ -23,7 +23,6 @@ export function CreateChurchDialog() {
   const [regions, setRegions] = useState<{ id: string; name: string }[]>([])
   const router = useRouter()
 
-  // Fetch regions when the dialog opens so we can populate the dropdown
   useEffect(() => {
     if (open) {
       getRegions().then((data) => setRegions(data))
@@ -42,7 +41,6 @@ export function CreateChurchDialog() {
     } else {
       setOpen(false)
       setLoading(false)
-      // Reset the form
       const form = document.getElementById('create-church-form') as HTMLFormElement
       form?.reset()
       router.refresh()
@@ -51,8 +49,8 @@ export function CreateChurchDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="bg-[#0F172A] hover:bg-[#1E293B]">Add Church</Button>} />
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">Add Church</Button>} />
+      <DialogContent className="sm:max-w-[550px] p-xl">
         <DialogHeader>
           <DialogTitle>Register New Church</DialogTitle>
           <DialogDescription>
@@ -60,31 +58,31 @@ export function CreateChurchDialog() {
           </DialogDescription>
         </DialogHeader>
         
-        <form id="create-church-form" action={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form id="create-church-form" action={handleSubmit} className="space-y-md pt-md">
+          <div className="grid grid-cols-2 gap-md">
             <div>
-              <label htmlFor="church_code" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="church_code" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 Church ID
               </label>
-              <Input id="church_code" name="church_code" placeholder="e.g., CH001" required />
+              <Input id="church_code" name="church_code" placeholder="e.g., CH001" className="h-9" required />
             </div>
             <div>
-              <label htmlFor="church_name" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="church_name" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 Church Name
               </label>
-              <Input id="church_name" name="church_name" placeholder="e.g., Grace Fellowship" required />
+              <Input id="church_name" name="church_name" placeholder="e.g., Grace Fellowship" className="h-9" required />
             </div>
           </div>
 
           <div>
-            <label htmlFor="region_id" className="block text-sm font-medium text-[#0F172A]">
+            <label htmlFor="region_id" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Region
             </label>
             <select
               id="region_id"
               name="region_id"
               required
-              className="mt-1 block w-full rounded-md border border-[#E2E8F0] px-3 py-2 text-[#0F172A] focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+              className="mt-1 block w-full h-9 rounded-md border border-border bg-card px-3 py-2 text-paragraph-small text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">Select a region...</option>
               {regions.map((region) => (
@@ -95,46 +93,43 @@ export function CreateChurchDialog() {
             </select>
           </div>
 
-          {/* NEW: Pastor Details */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-md">
             <div>
-              <label htmlFor="pastor_name" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="pastor_name" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 Pastor Name
               </label>
-              <Input id="pastor_name" name="pastor_name" placeholder="e.g., Rev. Peter" required />
+              <Input id="pastor_name" name="pastor_name" placeholder="e.g., Rev. Peter" className="h-9" required />
             </div>
             <div>
-              <label htmlFor="pastor_phone" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="pastor_phone" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 Pastor Phone
               </label>
-              <Input id="pastor_phone" name="pastor_phone" placeholder="e.g., 0723456789" required />
+              <Input id="pastor_phone" name="pastor_phone" placeholder="e.g., 0723456789" className="h-9" required />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-md">
             <div>
-              <label htmlFor="treasurer_name" className="block text-sm font-medium text-[#0F172A]">
+              <label htmlFor="treasurer_name" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 Treasurer Name
               </label>
-              <Input id="treasurer_name" name="treasurer_name" placeholder="e.g., John Doe" required />
+              <Input id="treasurer_name" name="treasurer_name" placeholder="e.g., John Doe" className="h-9" required />
             </div>
             <div>
-              <label htmlFor="contact_phone" className="block text-sm font-medium text-[#0F172A]">
-                Contact Phone
+              <label htmlFor="contact_phone" className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Treasurer Phone
               </label>
-              <Input id="contact_phone" name="contact_phone" placeholder="e.g., 0712345678" required />
+              <Input id="contact_phone" name="contact_phone" placeholder="e.g., 0712345678" className="h-9" required />
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-paragraph-small text-destructive mt-xs">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="mt-xl">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-9">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="bg-[#0F172A] hover:bg-[#1E293B]">
+            <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">
               {loading ? 'Saving...' : 'Save Church'}
             </Button>
           </DialogFooter>

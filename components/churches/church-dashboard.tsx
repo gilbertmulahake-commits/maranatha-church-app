@@ -7,19 +7,20 @@ import { ChurchTable, type ChurchRow } from './church-table'
 export function ChurchDashboard({ 
   initialData, 
   nationalStats, 
-  initialRegionFilter 
+  initialRegionFilter,
+  initialStatusFilter
 }: { 
   initialData: ChurchRow[]
   nationalStats: { total: number, compliant: number, partial: number, overdue: number }
   initialRegionFilter?: string 
+  initialStatusFilter?: string
 }) {
-  // Shared State
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || 'All')
   const [regionFilter, setRegionFilter] = useState<string>(initialRegionFilter || 'All')
 
-  // Calculate filtered data
-  const filteredData = useMemo(() => {
+  // Table data: filtered by region + status + search
+  const tableData = useMemo(() => {
     return initialData.filter((church) => {
       const s = search.toLowerCase()
       const matchesSearch = 
@@ -30,28 +31,23 @@ export function ChurchDashboard({
       
       const matchesStatus = statusFilter === 'All' || church.status === statusFilter
       const matchesRegion = regionFilter === 'All' || church.region?.name === regionFilter
-      
       return matchesSearch && matchesStatus && matchesRegion
     })
   }, [initialData, search, statusFilter, regionFilter])
 
-  // Calculate local stats based on the filtered data
-  const localStats = useMemo(() => {
-    let compliant = 0, partial = 0, overdue = 0
-    filteredData.forEach(c => {
-      if (c.status === 'Paid') compliant++
-      else if (c.status === 'Partial') partial++
-      else overdue++
-    })
-    return { total: filteredData.length, compliant, partial, overdue }
-  }, [filteredData])
-
   return (
-    <div className="space-y-6">
-      <ChurchKpiCards localStats={localStats} nationalStats={nationalStats} />
+    <div className="space-y-xl">
+      {/* KPI cards always show national scope */}
+      <ChurchKpiCards 
+        localStats={nationalStats} 
+        nationalStats={nationalStats}
+        onFilterChange={(status) => {
+          setStatusFilter(status)
+        }}
+      />
       
       <ChurchTable 
-        data={filteredData} 
+        data={tableData} 
         search={search} setSearch={setSearch}
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
         regionFilter={regionFilter} setRegionFilter={setRegionFilter}

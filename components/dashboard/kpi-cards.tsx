@@ -1,102 +1,153 @@
-import { Banknote, Target, CheckCircle2 } from 'lucide-react'
+import { Banknote, TrendingUp, AlertTriangle, CalendarDays } from 'lucide-react'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
+import { StackedBar } from './stacked-bar'
 
 interface KpiCardsProps {
-  totalCollected: number
-  totalCollectedAnnual: number
-  totalCollectedMonthly: number
-  totalExpectedAnnual: number
-  totalExpectedMonthly: number
-  outstanding: number
-  compliancePct: number
-  totalChurches: number
-  totalRegions: number
+  stats: {
+    totalCollected: number
+    totalCollectedAnnual: number
+    totalCollectedMonthly: number
+    thisMonthCollections: number
+    thisMonthTransactionCount: number
+    totalExpectedAnnual: number
+    totalExpectedMonthly: number
+    outstanding: number
+    outstandingAnnual: number
+    outstandingMonthly: number
+    collectionPct: number
+    compliancePct: number
+    compliantChurches: number
+    partialChurches: number
+    overdueChurches: number
+    totalChurches: number
+    totalRegions: number
+  }
 }
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
-    maximumFractionDigits: 0,
-  }).format(amount)
+  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
 }
 
-export function KpiCards({
-  totalCollected,
-  totalCollectedAnnual,
-  totalCollectedMonthly,
-  totalExpectedAnnual,
-  totalExpectedMonthly,
-  outstanding,
-  compliancePct,
-  totalChurches,
-  totalRegions,
-}: KpiCardsProps) {
-  const annualPct = totalExpectedAnnual > 0 ? (totalCollectedAnnual / totalExpectedAnnual) * 100 : 0
-  const monthlyPct = totalExpectedMonthly > 0 ? (totalCollectedMonthly / totalExpectedMonthly) * 100 : 0
+export function KpiCards({ stats }: KpiCardsProps) {
+  const totalExpected = stats.totalExpectedAnnual + stats.totalExpectedMonthly
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      {/* Card 1: Total Collected */}
-      <div className="relative overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <div className="absolute right-4 top-4 text-[#10B981] opacity-10">
-          <Banknote className="h-16 w-16" />
-        </div>
-        <p className="text-sm font-medium text-[#64748B]">Total Collected</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F172A]">
-          {formatCurrency(totalCollected)}
-        </p>
-        <p className="mt-2 text-xs font-medium text-[#10B981]">
-          {formatCurrency(outstanding)} remaining
-        </p>
-      </div>
+    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+      
+      {/* CARD 1: Total Collected with composition */}
+      <Link href="/dashboard/payments" className="block">
+        <Card className={cardClasses}>
+          <CardHeader>
+            <CardDescription>Total Collected</CardDescription>
+            <CardTitle className="text-heading-1 font-bold tabular-nums">
+              {formatCurrency(stats.totalCollected)}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
+                <TrendingUp className="h-3 w-3" /> YTD
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            <StackedBar
+              segments={[
+                { label: `Annual ${formatCurrency(stats.totalCollectedAnnual)}`, value: stats.totalCollectedAnnual, color: 'bg-blue-500' },
+                { label: `Monthly ${formatCurrency(stats.totalCollectedMonthly)}`, value: stats.totalCollectedMonthly, color: 'bg-emerald-500' },
+              ]}
+              total={totalExpected}
+            />
+            <p className="text-paragraph-mini text-muted-foreground">
+              {stats.collectionPct.toFixed(1)}% of {formatCurrency(totalExpected)} target
+            </p>
+          </CardFooter>
+        </Card>
+      </Link>
 
-      {/* Card 2: Annual Progress */}
-      <div className="relative overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <div className="absolute right-4 top-4 text-[#2563EB] opacity-10">
-          <Target className="h-16 w-16" />
-        </div>
-        <p className="text-sm font-medium text-[#64748B]">Annual Progress</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F172A]">
-          {annualPct.toFixed(1)}%
-        </p>
-        <div className="mt-3 h-2 w-full rounded-full bg-[#E2E8F0]">
-          <div className="h-2 rounded-full bg-[#2563EB]" style={{ width: `${Math.min(annualPct, 100)}%` }} />
-        </div>
-        <p className="mt-2 text-xs text-[#64748B]">
-          Target: {formatCurrency(totalExpectedAnnual)}
-        </p>
-      </div>
+      {/* CARD 2: Arrears with composition */}
+      <Link href="/dashboard/churches?status=Overdue" className="block">
+        <Card className={cardClasses}>
+          <CardHeader>
+            <CardDescription>Total Arrears</CardDescription>
+            <CardTitle className="text-heading-1 font-bold tabular-nums text-destructive">
+              {formatCurrency(stats.outstanding)}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">
+                <AlertTriangle className="h-3 w-3" /> Owed
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            <StackedBar
+              segments={[
+                { label: `Annual ${formatCurrency(stats.outstandingAnnual)}`, value: stats.outstandingAnnual, color: 'bg-red-500' },
+                { label: `Monthly ${formatCurrency(stats.outstandingMonthly)}`, value: stats.outstandingMonthly, color: 'bg-amber-500' },
+              ]}
+            />
+            <p className="text-paragraph-mini text-muted-foreground">
+              {((stats.outstanding / totalExpected) * 100).toFixed(1)}% of target outstanding
+            </p>
+          </CardFooter>
+        </Card>
+      </Link>
 
-      {/* Card 3: Monthly Progress */}
-      <div className="relative overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <div className="absolute right-4 top-4 text-[#F59E0B] opacity-10">
-          <Target className="h-16 w-16" />
-        </div>
-        <p className="text-sm font-medium text-[#64748B]">Monthly Progress</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F172A]">
-          {monthlyPct.toFixed(1)}%
-        </p>
-        <div className="mt-3 h-2 w-full rounded-full bg-[#E2E8F0]">
-          <div className="h-2 rounded-full bg-[#F59E0B]" style={{ width: `${Math.min(monthlyPct, 100)}%` }} />
-        </div>
-        <p className="mt-2 text-xs text-[#64748B]">
-          Target: {formatCurrency(totalExpectedMonthly)}
-        </p>
-      </div>
+      {/* CARD 3: Compliance Rate with church status composition */}
+      <Link href="/dashboard/regions" className="block">
+        <Card className={cardClasses}>
+          <CardHeader>
+            <CardDescription>Compliance Rate</CardDescription>
+            <CardTitle className="text-heading-1 font-bold tabular-nums">
+              {stats.compliancePct.toFixed(1)}%
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
+                <Banknote className="h-3 w-3" /> Rate
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            <StackedBar
+              segments={[
+                { label: `${stats.compliantChurches} paid`, value: stats.compliantChurches, color: 'bg-emerald-500' },
+                { label: `${stats.partialChurches} partial`, value: stats.partialChurches, color: 'bg-amber-500' },
+                { label: `${stats.overdueChurches} overdue`, value: stats.overdueChurches, color: 'bg-red-500' },
+              ]}
+            />
+            <p className="text-paragraph-mini text-muted-foreground">
+              Across {stats.totalRegions} regions
+            </p>
+          </CardFooter>
+        </Card>
+      </Link>
 
-      {/* Card 4: Fair Compliance Rate */}
-      <div className="relative overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <div className="absolute right-4 top-4 text-[#0F172A] opacity-10">
-          <CheckCircle2 className="h-16 w-16" />
-        </div>
-        <p className="text-sm font-medium text-[#64748B]">Compliance Rate</p>
-        <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F172A]">
-          {compliancePct.toFixed(1)}%
-        </p>
-        <p className="mt-2 text-xs font-medium text-[#64748B]">
-          {totalChurches} churches in {totalRegions} regions
-        </p>
-      </div>
+      {/* CARD 4: This Month's snapshot (no bar) */}
+      <Link href="/dashboard/payments" className="block">
+        <Card className={cardClasses}>
+          <CardHeader>
+            <CardDescription>This Month</CardDescription>
+            <CardTitle className="text-heading-1 font-bold tabular-nums">
+              {formatCurrency(stats.thisMonthCollections)}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline">
+                <CalendarDays className="h-3 w-3" /> Current
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+              {stats.thisMonthTransactionCount} payments received
+            </p>
+            <p className="text-paragraph-mini text-muted-foreground">
+              vs {formatCurrency(stats.totalExpectedMonthly / 12)} expected
+            </p>
+          </CardFooter>
+        </Card>
+      </Link>
+
     </div>
   )
 }

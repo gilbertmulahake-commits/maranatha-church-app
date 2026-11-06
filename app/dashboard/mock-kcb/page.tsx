@@ -10,7 +10,7 @@ export default function MockKCBPage() {
   const [churchCode, setChurchCode] = useState('')
   const [amount, setAmount] = useState('')
   const [phone, setPhone] = useState('')
-  const [paymentType, setPaymentType] = useState('Monthly') // NEW: State for payment type
+  const [paymentType, setPaymentType] = useState('Monthly')
   const [loading, setLoading] = useState(false)
   const [response, setResponse] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
@@ -19,7 +19,6 @@ export default function MockKCBPage() {
     setLoading(true)
     setResponse(null)
 
-    // Generate a unique transaction ID to avoid idempotency blocks during testing
     const transID = `MOCK${Math.random().toString(36).substring(2, 10).toUpperCase()}`
     
     const payload = {
@@ -29,7 +28,7 @@ export default function MockKCBPage() {
       MSISDN: phone,
       TransTime: new Date().toISOString(),
       FirstName: 'Test Payer',
-      payment_type: paymentType, // NEW: Include payment type in payload
+      payment_type: paymentType,
     }
 
     try {
@@ -46,7 +45,7 @@ export default function MockKCBPage() {
         setChurchCode('')
         setAmount('')
         setPhone('')
-        setPaymentType('Monthly') // Reset to default
+        setPaymentType('Monthly')
       } else {
         setResponse({ type: 'error', text: data.error || 'Failed to process payment' })
       }
@@ -61,8 +60,8 @@ export default function MockKCBPage() {
     <AppShell>
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A]">Mock KCB Simulator</h1>
-          <p className="mt-1 text-sm text-[#64748B]">
+          <h1 className="text-2xl font-bold text-foreground">Mock KCB Simulator</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Simulate an incoming M-Pesa payment from KCB to test the reconciliation engine.
           </p>
         </div>
@@ -77,22 +76,22 @@ export default function MockKCBPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#0F172A]">Church ID (BillRefNumber)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Church ID (BillRefNumber)</label>
                 <Input 
                   value={churchCode} 
                   onChange={(e) => setChurchCode(e.target.value)} 
                   placeholder="e.g., CH001" 
+                  className="h-9"
                   required 
                 />
               </div>
 
-              {/* NEW: Payment Type Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-[#0F172A]">Payment Type</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Payment Type</label>
                 <select
                   value={paymentType}
                   onChange={(e) => setPaymentType(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-[#E2E8F0] px-3 py-2 text-[#0F172A] focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                  className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="Monthly">Monthly (500)</option>
                   <option value="Annual">Annual (5000)</option>
@@ -100,32 +99,38 @@ export default function MockKCBPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#0F172A]">Amount (KES)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Amount (KES)</label>
                 <Input 
                   type="number"
                   value={amount} 
                   onChange={(e) => setAmount(e.target.value)} 
                   placeholder="e.g., 5000" 
+                  className="h-9"
                   required 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A]">Phone Number (MSISDN)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Phone Number (MSISDN)</label>
                 <Input 
                   value={phone} 
                   onChange={(e) => setPhone(e.target.value)} 
                   placeholder="e.g., 0712345678" 
+                  className="h-9"
                   required 
                 />
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full bg-[#0F172A] hover:bg-[#1E293B]">
+              <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-9">
                 {loading ? 'Sending Webhook...' : 'Simulate Payment'}
               </Button>
             </form>
 
             {response && (
-              <div className={`mt-4 p-4 rounded-md ${response.type === 'success' ? 'bg-[#D1FAE5] text-[#10B981]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
+              <div className={`mt-4 p-4 rounded-md border ${
+                response.type === 'success' 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}>
                 <p className="text-sm font-medium">{response.text}</p>
               </div>
             )}

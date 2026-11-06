@@ -1,6 +1,7 @@
-import { Building2, CheckCircle2, AlertCircle, XCircle, TrendingUp } from 'lucide-react'
+import { Building2, TrendingUp, AlertCircle, XCircle } from 'lucide-react'
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { StackedBar } from '@/components/dashboard/stacked-bar'
 
 interface ChurchStats {
   total: number
@@ -12,100 +13,119 @@ interface ChurchStats {
 interface ChurchKpiProps {
   localStats: ChurchStats
   nationalStats: ChurchStats
+  onFilterChange?: (status: string) => void
 }
 
 export function ChurchKpiCards({ 
   localStats = { total: 0, compliant: 0, partial: 0, overdue: 0 }, 
-  nationalStats = { total: 0, compliant: 0, partial: 0, overdue: 0 } 
+  nationalStats = { total: 0, compliant: 0, partial: 0, overdue: 0 },
+  onFilterChange
 }: ChurchKpiProps) {
   
-  // Helper to render "Local / National" fraction
-  const Fraction = ({ local, national }: { local: number, national: number }) => (
-    <span className="text-lg text-muted-foreground font-normal">
-      {' '}/ {national.toLocaleString()}
-    </span>
-  )
+  // UNIFIED CLASSES
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+
+  // Percentages within the current view (which, on the Churches tab, is always national-scope)
+  const compliantPct = localStats.total > 0 ? (localStats.compliant / localStats.total) * 100 : 0
+  const partialPct = localStats.total > 0 ? (localStats.partial / localStats.total) * 100 : 0
+  const overduePct = localStats.total > 0 ? (localStats.overdue / localStats.total) * 100 : 0
 
   return (
-    <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
       
-      <Card className="@container/card">
+      {/* CARD 1: Total Churches — always national scope, no "Filtered" badge */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Total Churches</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="text-heading-1 font-bold tabular-nums">
             {localStats.total.toLocaleString()}
-            <Fraction local={localStats.total} national={nationalStats.total} />
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <Building2 className="h-3 w-3" /> Filtered
+              <Building2 className="h-3 w-3" /> National
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Out of national total
-          </div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <StackedBar
+            segments={[
+              { label: `${localStats.compliant} paid`, value: localStats.compliant, color: 'bg-emerald-500' },
+              { label: `${localStats.partial} partial`, value: localStats.partial, color: 'bg-amber-500' },
+              { label: `${localStats.overdue} overdue`, value: localStats.overdue, color: 'bg-red-500' },
+            ]}
+          />
+          <p className="text-paragraph-mini text-muted-foreground">
+            Complete registry
+          </p>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      {/* CARD 2: Compliant */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Paid')}>
         <CardHeader>
           <CardDescription>Compliant</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums text-emerald-600 @[250px]/card:text-3xl">
+          <CardTitle className="text-heading-1 font-bold tabular-nums text-emerald-600">
             {localStats.compliant.toLocaleString()}
-            <Fraction local={localStats.compliant} national={nationalStats.compliant} />
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-              <TrendingUp className="h-3 w-3" /> Rate
+              <TrendingUp className="h-3 w-3" /> {compliantPct.toFixed(1)}%
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Fully up to date <CheckCircle2 className="size-4 text-emerald-500" />
-          </div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+            {compliantPct.toFixed(1)}% of {localStats.total} nationally
+          </p>
+          <p className="text-paragraph-mini text-muted-foreground">
+            Fully up to date
+          </p>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      {/* CARD 3: Partial */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Partial')}>
         <CardHeader>
           <CardDescription>Partial</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums text-amber-600 @[250px]/card:text-3xl">
+          <CardTitle className="text-heading-1 font-bold tabular-nums text-amber-600">
             {localStats.partial.toLocaleString()}
-            <Fraction local={localStats.partial} national={nationalStats.partial} />
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
-              <AlertCircle className="h-3 w-3" /> Lagging
+              <AlertCircle className="h-3 w-3" /> {partialPct.toFixed(1)}%
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Partially paid <AlertCircle className="size-4 text-amber-500" />
-          </div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+            {partialPct.toFixed(1)}% of {localStats.total} nationally
+          </p>
+          <p className="text-paragraph-mini text-muted-foreground">
+            Requires follow-up
+          </p>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      {/* CARD 4: Overdue */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Overdue')}>
         <CardHeader>
           <CardDescription>Overdue</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums text-destructive @[250px]/card:text-3xl">
+          <CardTitle className="text-heading-1 font-bold tabular-nums text-destructive">
             {localStats.overdue.toLocaleString()}
-            <Fraction local={localStats.overdue} national={nationalStats.overdue} />
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">
-              <XCircle className="h-3 w-3" /> Action
+              <XCircle className="h-3 w-3" /> {overduePct.toFixed(1)}%
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            No payment received <XCircle className="size-4 text-destructive" />
-          </div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+            {overduePct.toFixed(1)}% of {localStats.total} nationally
+          </p>
+          <p className="text-paragraph-mini text-muted-foreground">
+            Immediate reminder needed
+          </p>
         </CardFooter>
       </Card>
 

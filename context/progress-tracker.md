@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 09.1 - In Progress (Enterprise Consistency & Polish)
+Unit 09.1 - Complete
 
 ## Current Goal
-Complete the full CRUD actions for Churches and refactor the National Dashboard to the shadcn standard.
+Begin Unit 10.0: Financial Ledger Upgrade (Pre-requisite for Payments Tab)
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -47,31 +47,63 @@ Complete the full CRUD actions for Churches and refactor the National Dashboard 
 - **Unit 09: Financial Logic, Incentive Scoring & Design System Foundation**
   - Implemented Fair Compliance logic (Annual/Monthly "Expected to Date" calculation).
   - Built the Incentive Scoring Engine (40/30/20/10 weighted formula) and Leaderboard.
-  - Overhauled Regions Tab: New KPI cards, shadcn Data Table, Cross-filtering drill-downs, SMS/Edit actions.
-  - Overhauled Churches Tab: KPI cards with fractional local/national display, shadcn Data Table, Cross-filtering.
+  - Overhauled Regions Tab: New KPI cards, shadcn Data Table, Cross-filtering drill-downs.
+  - Overhauled Churches Tab: KPI cards, shadcn Data Table, Cross-filtering.
   - Mapped `globals.css` to semantic theme variables.
+- **Unit 09.1: Enterprise Consistency & Polish**
+  - **Global Fixes:**
+    - Fixed the broken `cn` utility in `lib/utils.ts` (using `clsx` and `tailwind-merge`). This resolved missing styles globally.
+    - Restored Tailwind container sizes and breakpoints in `globals.css` to fix collapsed search bars.
+    - Resolved Next.js 16 `cacheComponents` prerender errors by adding `export const instant = false` and `await connection()` to dashboard pages.
+  - **KPI Card Standardization:**
+    - Created `components/dashboard/stacked-bar.tsx` for composition visualization (Annual vs Monthly, Paid vs Partial vs Overdue).
+    - Standardized all KPI cards (`kpi-cards.tsx`, `regional-kpi-cards.tsx`, `region-kpi-cards.tsx`, `church-kpi-cards.tsx`).
+    - Applied identical wrapper (`h-full`, gradient background, hover lift), `text-heading-1 font-bold` for main figures, and unified footers.
+    - Implemented truthful tie-handling on the "Top Region" KPI card (displays "Tied with X other regions").
+  - **Table Standardization & Bulk Actions:**
+    - Created `components/ui/table-toolbar.tsx` to unify titles, subtitles, search (`maxWidth: 24rem`), filters, and bulk actions.
+    - Added functional checkboxes and bulk action bars to Churches, Regions, and Regional tables.
+    - Wired `sendBulkReminders` action to the "Send Reminders" button in the toolbar.
+  - **Role-Based Identity & Drill-Downs:**
+    - Updated `sendSms` and `sendBulkReminders` to accept `senderRole` parameter. Messages now stamped with "from the Maranatha National Office" or "from the Maranatha Regional Office".
+    - Built `/dashboard/regions/[id]` and `RegionDetailClient` for National Treasurer drill-downs.
+    - Adopted "Universal Capability, Contextual Identity" model: All roles can View, Edit, and Remind. No bottlenecks created.
+  - **Documentation:**
+    - Rewrote `ui-context.md` to strictly follow the Spec-Driven 10-section structure (Theme, Colors, Typography, Radii, Component Library, Layout, Icons, Visualization, Interaction, Role Identity).
+    - Updated `architecture.md` with sections on Communication Identity and Financial Ledger.
 
-## In Progress (Unit 09.1)
-- [x] **Phase 1:** Sidebar & Topbar refactored to semantic tokens (removed hardcoded hexes).
-- [ ] **Phase 2:** Church Actions (View/Edit/Delete) — Server Actions done, Dialogs pending.
-- [ ] **Phase 3:** Remaining corrections (KPI card defaults, searchParams fix).
-- [ ] **Phase 4:** National Dashboard refactor (KPI Cards + Charts).
+## In Progress
+- None.
 
 ## Next Up
-- Complete Unit 09.1 Phases 2-4.
-- Begin Unit 10: Payments Tab (Audit Ledger).
+- **Unit 10.0: Financial Ledger Upgrade**
+  - Add `billing_year` to the `Payment` model.
+  - Update `getExpectedToDate` to calculate cumulative expected vs. actual (track carry-forwards).
+  - Activate the Month/Year view toggle in `TableToolbar`.
+- **Unit 10: Payments Tab (Audit Ledger)**
+  - Build the transaction-level view with date range picker, search, and export.
+- **Unit 11: Reporting & Export**
+  - Build Daily Cashbook, Arrears Report, CSV/PDF exports.
+- **Unit 12: User Management & Settings**
+  - Build invitation system, role assignment.
 
 ## Open Questions
 - None.
 
 ## Architecture Decisions
-- **Design System:** All components must use shadcn semantic tokens (`bg-primary`, `text-muted-foreground`, etc.) defined in `globals.css`.
-- **Dialogs:** Controlled at the parent level to prevent Base UI unmounting flashes.
-- **Data Tables:** Custom React tables using shadcn `<Table>` primitives, featuring sorting, filtering, and cross-tab drill-downs.
-- **Financial Logic:** Fair compliance based on "Expected to Date" (Annual due after March 31st, Monthly accumulates).
-- **Auth & Security:** `proxy.ts` middleware and Supabase RLS.
+- **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes.
+- **KPI Cards:** All cards use `cardClasses` (gradient, hover lift, `h-full`), `text-heading-1` numbers, and `StackedBar` composition charts.
+- **Tables:** All tables use `TableToolbar`, checkboxes, and shadcn `<Table>` primitives.
+- **Role Identity:** Universal Capability, Contextual Identity. All authorized roles can act, but SMS reflects sender ("National Office" vs "Regional Office").
+- **Next.js 16:** `await connection()` and `export const instant = false` required for auth-protected dynamic routes.
+- **Financial Ledger:** Deferred to Unit 10.0 to correctly handle `billing_year` carry-forwards and prepaid lump sums, preventing silent revenue leakage.
+- **Sonner:** All user feedback (success, error, info) uses Sonner toasts. No `alert()`.
 
 ## Session Notes
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
-- **Browser Extension Warning:** Hydration mismatch occurs due to a browser extension injecting attributes. Harmless; use Incognito.
-- **Future Enhancements (Idea Log):** Client requested detailed profiles for Churches (membership, coords, history), Pastors (full bio, transfers), and Treasurers. To be addressed post-MVP.
+- **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development.
+- **Future Enhancements (Idea Log):** 
+  - Detailed profiles for Churches (membership, coordinates, history).
+  - Pastors (full bio, transfer tracking).
+  - Treasurers (full bio).
+  - These are post-MVP features requested by the client.

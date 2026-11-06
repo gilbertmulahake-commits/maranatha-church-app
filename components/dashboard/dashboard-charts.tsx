@@ -1,41 +1,18 @@
 'use client'
 
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts'
 
 interface DashboardChartsProps {
-  paymentMethods: {
-    mpesa: number
-    bank: number
-    cash: number
-  }
+  paymentMethods: { mpesa: number; bank: number; cash: number }
+  monthlyCollections: { name: string; amount: number }[]
 }
 
-// Sample data for the bar chart (we'll make this dynamic in a later unit)
-const monthlyData = [
-  { name: 'Jan', amount: 0 },
-  { name: 'Feb', amount: 0 },
-  { name: 'Mar', amount: 0 },
-  { name: 'Apr', amount: 0 },
-  { name: 'May', amount: 0 },
-  { name: 'Jun', amount: 0 },
-]
+const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)']
 
-const COLORS = ['#2563EB', '#10B981', '#F59E0B']
-
-export function DashboardCharts({ paymentMethods }: DashboardChartsProps) {
-  // Prepare data for the Pie chart
+export function DashboardCharts({ paymentMethods, monthlyCollections }: DashboardChartsProps) {
   const pieData = [
     { name: 'M-Pesa', value: paymentMethods.mpesa },
     { name: 'Bank Transfer', value: paymentMethods.bank },
@@ -45,59 +22,57 @@ export function DashboardCharts({ paymentMethods }: DashboardChartsProps) {
   const hasPieData = pieData.length > 0
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Bar Chart: Monthly Collections */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-[#0F172A]">Monthly Collections</h3>
-        <p className="mb-4 text-sm text-[#64748B]">Collections trend over the last 6 months</p>
-        <div className="h-[300px] w-full">
+    <div className="space-y-xl">
+      {/* Full-Width Bar Chart */}
+      <div className="rounded-xl border border-border bg-card p-xl shadow-sm">
+        <h3 className="text-heading-4 font-medium text-foreground">Monthly Collections</h3>
+        <p className="mb-md text-paragraph-small text-muted-foreground">Collections trend over the last 6 months</p>
+        <div className="h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+            <BarChart data={monthlyCollections}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }} />
               <Tooltip
-                cursor={{ fill: '#F8FAFC' }}
-                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0' }}
+                cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
+                contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)' }}
+                formatter={(value) => [`KES ${Number(value || 0).toLocaleString()}`, 'Collected']}
               />
-              <Bar dataKey="amount" fill="#2563EB" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="amount" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Donut Chart: Payment Methods */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-[#0F172A]">Payment Methods</h3>
-        <p className="mb-4 text-sm text-[#64748B]">Distribution of payment channels</p>
-        <div className="h-[300px] w-full">
-          {hasPieData ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0' }}
-                />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-[#64748B]">
-              No payment data yet. Simulate a payment to see the chart.
-            </div>
-          )}
+      {/* 2-Column Grid: Pie Chart & Leaderboard (or other viz) */}
+      <div className="grid grid-cols-1 gap-xl md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-xl shadow-sm">
+          <h3 className="text-heading-4 font-medium text-foreground">Payment Methods</h3>
+          <p className="mb-md text-paragraph-small text-muted-foreground">Distribution of payment channels</p>
+          <div className="h-[300px] w-full">
+            {hasPieData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value">
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--foreground)' }} />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: 'var(--foreground)', fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-paragraph-small text-muted-foreground">
+                No payment data yet. Simulate a payment to see the chart.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Placeholder for the leaderboard or other viz to be placed here */}
+        <div className="rounded-xl border border-border bg-card p-xl shadow-sm flex items-center justify-center">
+          <p className="text-paragraph-small text-muted-foreground">Leaderboard will be moved here</p>
         </div>
       </div>
     </div>

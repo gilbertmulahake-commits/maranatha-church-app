@@ -12,12 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Zap } from 'lucide-react'
 import { getRegionalScores } from '@/lib/actions/scoring-actions'
 import { RegionalLeaderboard } from '@/components/dashboard/regional-leaderboard'
+import { Skeleton } from '@/components/ui/skeleton'
+
+// Next.js 16 Cache Components: opt this route out of instant navigation validation.
+// This is required because AppShell uses auth cookies, which forces a blocking route.
+export const instant = false
 
 async function DashboardContent() {
-  // 1. Force dynamic rendering (Next.js 16 requirement for Auth/Cookies)
   await connection()
   
-  // 2. Check the user's role to enforce access control
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -26,65 +29,66 @@ async function DashboardContent() {
       where: { id: user.id },
     })
 
-    // 3. Redirect Regional roles to their specific dashboard
     if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       redirect('/dashboard/regional')
     }
+    
+    if (dbUser?.role === 'LOCAL_PASTOR' || dbUser?.role === 'CHURCH_TREASURER') {
+      redirect('/dashboard/local')
+    }
   }
 
-  // 4. Fetch all data in parallel for the National Dashboard
-  // (Only accessible by NATIONAL_TREASURER and NATIONAL_OVERSEER)
   const [stats, scores] = await Promise.all([
     getDashboardStats(),
     getRegionalScores(),
   ])
 
   return (
-    <div className="space-y-6">
-      {/* KPI Cards Component */}
-      <KpiCards
-        totalCollected={stats.totalCollected}
-        totalCollectedAnnual={stats.totalCollectedAnnual}
-        totalCollectedMonthly={stats.totalCollectedMonthly}
-        totalExpectedAnnual={stats.totalExpectedAnnual}
-        totalExpectedMonthly={stats.totalExpectedMonthly}
-        outstanding={stats.outstanding}
-        compliancePct={stats.compliancePct}
-        totalChurches={stats.totalChurches}
-        totalRegions={stats.totalRegions}
+    <div className="space-y-xl">
+      <KpiCards stats={stats} />
+      <DashboardCharts 
+        paymentMethods={stats.paymentMethods} 
+        monthlyCollections={stats.monthlyCollections} 
       />
-
-      {/* Charts Component (Monthly Collections & Payment Methods) */}
-      <DashboardCharts paymentMethods={stats.paymentMethods} />
-
-      {/* Regional Leaderboard Component */}
       <RegionalLeaderboard scores={scores} />
     </div>
   )
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   return (
     <AppShell>
-      <div className="space-y-6">
-        {/* Page Header with Quick Action Button */}
+      <div className="space-y-xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A]">National Dashboard</h1>
-            <p className="mt-1 text-sm text-[#64748B]">
+            <h1 className="text-heading-2 font-medium text-foreground">National Dashboard</h1>
+            <p className="mt-xs text-paragraph-small text-muted-foreground">
               Real-time overview of Maranatha Faith Assemblies Kenya collections.
             </p>
           </div>
           <Link href="/dashboard/mock-kcb">
-            <Button className="bg-[#0F172A] hover:bg-[#1E293B]">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">
               <Zap className="mr-2 h-4 w-4" />
               Simulate Payment
             </Button>
           </Link>
         </div>
 
-        {/* Suspense Boundary for Server-Side Data Fetching */}
-        <Suspense fallback={<p className="text-sm text-[#64748B]">Loading dashboard data...</p>}>
+        <Suspense fallback={
+          <div className="space-y-xl">
+            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+              <Skeleton className="h-[120px] rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 gap-xl md:grid-cols-2">
+              <Skeleton className="h-[350px] rounded-xl" />
+              <Skeleton className="h-[350px] rounded-xl" />
+            </div>
+            <Skeleton className="h-[300px] rounded-xl" />
+          </div>
+        }>
           <DashboardContent />
         </Suspense>
       </div>

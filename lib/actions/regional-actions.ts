@@ -14,6 +14,7 @@ export type RegionalChurchData = {
   contact_phone: string
   status: 'Paid' | 'Partial' | 'Overdue'
   amountPaid: number
+  outstanding: number
 }
 
 export type RegionalStatsSuccess = {
@@ -25,7 +26,12 @@ export type RegionalStatsSuccess = {
   totalExpectedAnnual: number
   totalExpectedMonthly: number
   outstanding: number
+  outstandingAnnual: number    // NEW
+  outstandingMonthly: number   // NEW
   compliancePct: number
+  compliantChurches: number    // NEW
+  partialChurches: number      // NEW
+  overdueChurches: number      // NEW
   churches: RegionalChurchData[]
 }
 
@@ -38,9 +44,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return { error: 'Not authenticated' }
-    }
+    if (!user) return { error: 'Not authenticated' }
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
@@ -61,9 +65,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       },
     })
 
-    if (!region) {
-      return { error: 'Region not found' }
-    }
+    if (!region) return { error: 'Region not found' }
 
     const totalChurches = region.churches.length
     const totalExpectedAnnual = totalChurches * ANNUAL_FEE
@@ -76,26 +78,32 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
     let totalCollectedAnnual = 0
     let totalCollectedMonthly = 0
     let compliantChurches = 0
+    let partialChurches = 0
+    let overdueChurches = 0
 
     const churchesData: RegionalChurchData[] = region.churches.map((church) => {
       let churchTotalPaid = 0
+      let churchPaidAnnual = 0
+      let churchPaidMonthly = 0
 
       church.payments.forEach((payment) => {
-        churchTotalPaid += Number(payment.amount_paid)
+        const amount = Number(payment.amount_paid)
+        churchTotalPaid += amount
         if (payment.payment_type === 'Annual') {
-          totalCollectedAnnual += Number(payment.amount_paid)
+          totalCollectedAnnual += amount
+          churchPaidAnnual += amount
         } else {
-          totalCollectedMonthly += Number(payment.amount_paid)
+          totalCollectedMonthly += amount
+          churchPaidMonthly += amount
         }
       })
 
       totalCollected += churchTotalPaid
 
-      // Determine status using the financial utility
       const status = getChurchStatus(churchTotalPaid, expectedToDate)
-      if (status === 'Paid') {
-        compliantChurches++
-      }
+      if (status === 'Paid') compliantChurches++
+      else if (status === 'Partial') partialChurches++
+      else overdueChurches++
 
       return {
         id: church.id,
@@ -107,10 +115,14 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         contact_phone: church.contact_phone,
         status: status,
         amountPaid: churchTotalPaid,
+        // Outstanding per church is calculated against expected-to-date for the table
+        outstanding: Math.max(0, expectedToDate - churchTotalPaid), 
       }
     })
 
     const outstanding = totalExpected - totalCollected
+    const outstandingAnnual = totalExpectedAnnual - totalCollectedAnnual
+    const outstandingMonthly = totalExpectedMonthly - totalCollectedMonthly
     const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
 
     return {
@@ -122,7 +134,12 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       totalExpectedAnnual,
       totalExpectedMonthly,
       outstanding,
+      outstandingAnnual,
+      outstandingMonthly,
       compliancePct,
+      compliantChurches,
+      partialChurches,
+      overdueChurches,
       churches: churchesData,
     }
   } catch (error) {
