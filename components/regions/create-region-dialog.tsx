@@ -33,14 +33,15 @@ export function CreateRegionDialog() {
     } else {
       setOpen(false)
       setLoading(false)
-      router.refresh() // Refresh the page to show the new region
+      router.refresh()
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="bg-[#0F172A] hover:bg-[#1E293B]">Add Region</Button>} />
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">Add Region</Button>} />
+      
+      <DialogContent className="sm:max-w-[425px] p-xl">
         <DialogHeader>
           <DialogTitle>Add New Region</DialogTitle>
           <DialogDescription>
@@ -48,35 +49,33 @@ export function CreateRegionDialog() {
           </DialogDescription>
         </DialogHeader>
         
-        <form action={handleSubmit} className="space-y-4 pt-4">
+        <form action={handleSubmit} className="space-y-md pt-md">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-[#0F172A]">
+            <label htmlFor="name" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Region Name
             </label>
-            <Input id="name" name="name" placeholder="e.g., Northern" required />
+            <Input id="name" name="name" placeholder="e.g., Northern" className="h-9" required />
           </div>
           <div>
-            <label htmlFor="chairman_name" className="block text-sm font-medium text-[#0F172A]">
+            <label htmlFor="chairman_name" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Chairman Name
             </label>
-            <Input id="chairman_name" name="chairman_name" placeholder="e.g., Rev. John Doe" required />
+            <Input id="chairman_name" name="chairman_name" placeholder="e.g., Rev. John Doe" className="h-9" required />
           </div>
           <div>
-            <label htmlFor="contact_phone" className="block text-sm font-medium text-[#0F172A]">
+            <label htmlFor="contact_phone" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Contact Phone
             </label>
-            <Input id="contact_phone" name="contact_phone" placeholder="e.g., 0712345678" required />
+            <Input id="contact_phone" name="contact_phone" placeholder="e.g., 0712345678" className="h-9" required />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-paragraph-small text-destructive mt-xs">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="mt-xl">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-9">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="bg-[#0F172A] hover:bg-[#1E293B]">
+            <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">
               {loading ? 'Saving...' : 'Save Region'}
             </Button>
           </DialogFooter>

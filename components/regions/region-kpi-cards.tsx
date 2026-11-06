@@ -1,30 +1,66 @@
-import { AlertTriangle, TrendingUp, Banknote, Trophy } from 'lucide-react'
+import { AlertTriangle, Banknote, Trophy, TrendingUp } from 'lucide-react'
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { StackedBar } from '@/components/dashboard/stacked-bar'
 
 interface RegionKpiProps {
   stats: {
+    totalCollected: number
+    totalCollectedAnnual: number
+    totalCollectedMonthly: number
     totalArrears: number
+    totalArrearsAnnual: number
+    totalArrearsMonthly: number
     averageCompliance: number
     regionsAtRisk: number
     topRegionName: string
     topRegionPct: number
+    topRegionTieCount: number
   }
+  onFilterChange?: (filter: string) => void
 }
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
 }
 
-export function RegionKpiCards({ stats }: RegionKpiProps) {
+export function RegionKpiCards({ stats, onFilterChange }: RegionKpiProps) {
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+
   return (
-    <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
       
-      {/* 1. Total Regional Arrears */}
-      <Card className="@container/card">
+      {/* CARD 1: Total Collected (all regions) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
-          <CardDescription>Total Regional Arrears</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums text-destructive @[250px]/card:text-3xl">
+          <CardDescription>Total Collected</CardDescription>
+          <CardTitle className="text-heading-1 font-bold tabular-nums">
+            {formatCurrency(stats.totalCollected)}
+          </CardTitle>
+          <CardAction>
+            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
+              <Banknote className="h-3 w-3" /> Portfolio
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <StackedBar
+            segments={[
+              { label: `Annual ${formatCurrency(stats.totalCollectedAnnual)}`, value: stats.totalCollectedAnnual, color: 'bg-blue-500' },
+              { label: `Monthly ${formatCurrency(stats.totalCollectedMonthly)}`, value: stats.totalCollectedMonthly, color: 'bg-emerald-500' },
+            ]}
+          />
+          <p className="text-paragraph-mini text-muted-foreground">
+            Across all regions
+          </p>
+        </CardFooter>
+      </Card>
+
+      {/* CARD 2: Total Arrears (all regions) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
+        <CardHeader>
+          <CardDescription>Total Arrears</CardDescription>
+          <CardTitle className="text-heading-1 font-bold tabular-nums text-destructive">
             {formatCurrency(stats.totalArrears)}
           </CardTitle>
           <CardAction>
@@ -33,40 +69,24 @@ export function RegionKpiCards({ stats }: RegionKpiProps) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Outstanding collections
-          </div>
-          <div className="text-muted-foreground">Across all regions</div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <StackedBar
+            segments={[
+              { label: `Annual ${formatCurrency(stats.totalArrearsAnnual)}`, value: stats.totalArrearsAnnual, color: 'bg-red-500' },
+              { label: `Monthly ${formatCurrency(stats.totalArrearsMonthly)}`, value: stats.totalArrearsMonthly, color: 'bg-amber-500' },
+            ]}
+          />
+          <p className="text-paragraph-mini text-muted-foreground">
+            Across all regions
+          </p>
         </CardFooter>
       </Card>
 
-      {/* 2. Average Compliance Rate */}
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Average Compliance</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.averageCompliance.toFixed(1)}%
-          </CardTitle>
-          <CardAction>
-            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
-              <TrendingUp className="h-3 w-3" /> Rate
-            </Badge>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            National health
-          </div>
-          <div className="text-muted-foreground">Average across regions</div>
-        </CardFooter>
-      </Card>
-
-      {/* 3. Regions At Risk */}
-      <Card className="@container/card">
+      {/* CARD 3: Regions At Risk */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('AtRisk')}>
         <CardHeader>
           <CardDescription>Regions At Risk</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums text-amber-600 @[250px]/card:text-3xl">
+          <CardTitle className="text-heading-1 font-bold tabular-nums text-amber-600">
             {stats.regionsAtRisk}
           </CardTitle>
           <CardAction>
@@ -75,32 +95,50 @@ export function RegionKpiCards({ stats }: RegionKpiProps) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
             Below 50% compliance
-          </div>
-          <div className="text-muted-foreground">Immediate follow-up</div>
+          </p>
+          <p className="text-paragraph-mini text-muted-foreground">
+            Immediate follow-up required
+          </p>
         </CardFooter>
       </Card>
 
-      {/* 4. Top Performing Region */}
-      <Card className="@container/card">
+      {/* CARD 4: Top Region (with tie handling) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Top')}>
         <CardHeader>
           <CardDescription>Top Region</CardDescription>
-          <CardTitle className="text-2xl font-semibold truncate @[250px]/card:text-3xl">
-            {stats.topRegionName}
+          <CardTitle className="text-heading-1 font-bold truncate">
+            {stats.topRegionPct === 0 ? 'None Yet' : stats.topRegionName}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-              <Trophy className="h-3 w-3" /> {stats.topRegionPct.toFixed(1)}%
+            <Badge 
+              variant="outline" 
+              className={
+                stats.topRegionPct === 0 
+                  ? 'text-muted-foreground border-border bg-muted' 
+                  : 'text-emerald-600 border-emerald-200 bg-emerald-50'
+              }
+            >
+              <Trophy className="h-3 w-3" /> 
+              {stats.topRegionPct === 0 ? '0%' : `${stats.topRegionPct.toFixed(1)}%`}
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Best performing
-          </div>
-          <div className="text-muted-foreground">Highest compliance rate</div>
+        <CardFooter className="flex-col items-start gap-2 text-sm">
+          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+            {stats.topRegionPct === 0 
+              ? 'No collections yet'
+              : stats.topRegionTieCount > 1
+                ? `Tied with ${stats.topRegionTieCount - 1} other region${stats.topRegionTieCount > 2 ? 's' : ''}`
+                : 'Highest compliance rate'}
+          </p>
+          <p className="text-paragraph-mini text-muted-foreground">
+            {stats.topRegionPct === 0 
+              ? 'All regions at 0%'
+              : 'Click to view leaderboard'}
+          </p>
         </CardFooter>
       </Card>
 

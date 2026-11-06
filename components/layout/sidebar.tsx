@@ -13,30 +13,49 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Regions', href: '/dashboard/regions', icon: MapPin },
-  { name: 'Churches', href: '/dashboard/churches', icon: Church },
-  { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileText },
-  { name: 'Mock KCB', href: '/dashboard/mock-kcb', icon: Zap },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-]
+type Role = 'NATIONAL_TREASURER' | 'NATIONAL_OVERSEER' | 'REGIONAL_CHAIRMAN' | 'REGIONAL_TREASURER' | 'LOCAL_PASTOR' | 'CHURCH_TREASURER' | null
 
-export function Sidebar() {
+export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname()
 
+  const baseItems = [
+    { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ]
+
+  let roleSpecificItems: any[] = []
+
+  if (role === 'NATIONAL_TREASURER' || role === 'NATIONAL_OVERSEER') {
+    roleSpecificItems = [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Regions', href: '/dashboard/regions', icon: MapPin },
+      { name: 'Churches', href: '/dashboard/churches', icon: Church },
+      { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
+      { name: 'Mock KCB', href: '/dashboard/mock-kcb', icon: Zap },
+    ]
+  } else if (role === 'REGIONAL_CHAIRMAN' || role === 'REGIONAL_TREASURER') {
+    roleSpecificItems = [
+      { name: 'Dashboard', href: '/dashboard/regional', icon: LayoutDashboard },
+    ]
+  } else if (role === 'LOCAL_PASTOR' || role === 'CHURCH_TREASURER') {
+    roleSpecificItems = [
+      { name: 'Church Dashboard', href: '/dashboard/local', icon: LayoutDashboard },
+    ]
+  }
+
+  const navItems = [...roleSpecificItems, ...baseItems]
+
   return (
-    <aside className="flex h-screen w-64 flex-col bg-[#0F172A] text-white fixed left-0 top-0 z-40">
+    <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground fixed left-0 top-0 z-40 border-r border-sidebar-border">
       {/* Brand */}
-      <div className="flex h-16 items-center border-b border-[#1E293B] px-6">
-        <h1 className="text-lg font-bold tracking-tight">
-          Maranatha <span className="text-[#2563EB]">Kenya</span>
+      <div className="flex h-16 items-center border-b border-sidebar-border px-xl">
+        <h1 className="text-heading-4 font-medium tracking-tight">
+          Maranatha <span className="text-primary-foreground/70">Kenya</span>
         </h1>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-xs px-sm py-md">
         {navItems.map((item) => {
           const isActive = pathname === item.href
           return (
@@ -44,13 +63,13 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center gap-sm rounded-md px-md py-sm text-paragraph-small font-medium transition-colors',
                 isActive
-                  ? 'bg-[#2563EB] text-white'
-                  : 'text-[#94A3B8] hover:bg-[#1E293B] hover:text-white'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-4 w-4" />
               {item.name}
             </Link>
           )
@@ -58,8 +77,8 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-[#1E293B] p-4">
-        <p className="text-xs text-[#64748B]">
+      <div className="border-t border-sidebar-border p-md">
+        <p className="text-paragraph-mini text-sidebar-foreground/50">
           &copy; 2026 Maranatha Faith Assemblies
         </p>
       </div>

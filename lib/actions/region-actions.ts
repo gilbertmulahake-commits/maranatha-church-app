@@ -14,7 +14,7 @@ const regionSchema = z.object({
 
 // --- Read Operations ---
 
-// Basic fetch (used for dropdowns in other pages)
+// Basic fetch (used for dropdowns)
 export async function getRegions() {
   try {
     return await prisma.region.findMany({
@@ -44,10 +44,12 @@ export async function getRegionsWithStats() {
 
     return regions.map((region) => {
       let compliantChurches = 0
+      let totalCollected = 0
       const churchCount = region.churches.length
 
       region.churches.forEach((church) => {
         const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
+        totalCollected += totalPaid
         if (getChurchStatus(totalPaid, totalExpected) === 'Paid') {
           compliantChurches++
         }
@@ -62,6 +64,7 @@ export async function getRegionsWithStats() {
         contact_phone: region.contact_phone,
         churchCount,
         compliancePct,
+        totalCollected,
       }
     })
   } catch (error) {
@@ -70,7 +73,7 @@ export async function getRegionsWithStats() {
   }
 }
 
-// Fetch KPI Stats for the Regions Dashboard
+// Fetch KPI Stats for the Regions Dashboard (all regions aggregated)
 export async function getRegionStats() {
   try {
     const regions = await prisma.region.findMany({
@@ -85,54 +88,184 @@ export async function getRegionStats() {
 
     const { totalExpected } = getExpectedToDate()
 
+    let totalCollected = 0
+    let totalCollectedAnnual = 0
+    let totalCollectedMonthly = 0
     let totalArrears = 0
+    let totalArrearsAnnual = 0
+    let totalArrearsMonthly = 0
     let totalCompliancePct = 0
     let regionsAtRisk = 0
-    let topRegion = { name: 'N/A', compliancePct: 0 }
+
+    let topRegions: { name: string, compliancePct: number }[] = []
+    let maxCompliance = -1
 
     regions.forEach((region) => {
       let compliantChurches = 0
-      let regionCollected = 0
+      let regionCollectedAnnual = 0
+      let regionCollectedMonthly = 0
       const churchCount = region.churches.length
-      const regionExpected = churchCount * totalExpected
-      
+
+      const regionExpectedAnnual = churchCount * 5000
+      const regionExpectedMonthly = churchCount * 6000
+
       region.churches.forEach((church) => {
+        church.payments.forEach(p => {
+          const amt = Number(p.amount_paid)
+          if (p.payment_type === 'Annual') regionCollectedAnnual += amt
+          else regionCollectedMonthly += amt
+        })
         const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
-        regionCollected += totalPaid
-        if (getChurchStatus(totalPaid, totalExpected) === 'Paid') {
-          compliantChurches++
-        }
+        if (getChurchStatus(totalPaid, totalExpected) === 'Paid') compliantChurches++
       })
 
-      totalArrears += Math.max(0, regionExpected - regionCollected)
+      totalCollectedAnnual += regionCollectedAnnual
+      totalCollectedMonthly += regionCollectedMonthly
+      totalCollected += (regionCollectedAnnual + regionCollectedMonthly)
+
+      const regionArrearsAnnual = Math.max(0, regionExpectedAnnual - regionCollectedAnnual)
+      const regionArrearsMonthly = Math.max(0, regionExpectedMonthly - regionCollectedMonthly)
+      totalArrearsAnnual += regionArrearsAnnual
+      totalArrearsMonthly += regionArrearsMonthly
+      totalArrears += (regionArrearsAnnual + regionArrearsMonthly)
 
       const compliancePct = churchCount > 0 ? (compliantChurches / churchCount) * 100 : 0
       totalCompliancePct += compliancePct
 
       if (compliancePct < 50) regionsAtRisk++
-      if (compliancePct > topRegion.compliancePct) {
-        topRegion = { name: region.name, compliancePct }
+
+      if (compliancePct > maxCompliance) {
+        maxCompliance = compliancePct
+        topRegions = [{ name: region.name, compliancePct }]
+      } else if (compliancePct === maxCompliance) {
+        topRegions.push({ name: region.name, compliancePct })
       }
     })
 
+    topRegions.sort((a, b) => a.name.localeCompare(b.name))
     const averageCompliance = regions.length > 0 ? totalCompliancePct / regions.length : 0
 
     return {
+      totalCollected,
+      totalCollectedAnnual,
+      totalCollectedMonthly,
       totalArrears,
+      totalArrearsAnnual,
+      totalArrearsMonthly,
       averageCompliance,
       regionsAtRisk,
-      topRegionName: topRegion.name,
-      topRegionPct: topRegion.compliancePct,
+      topRegionName: topRegions[0]?.name ?? 'N/A',
+      topRegionPct: maxCompliance >= 0 ? maxCompliance : 0,
+      topRegionTieCount: topRegions.length,
     }
   } catch (error) {
     console.error('Failed to fetch region stats:', error)
     return {
-      totalArrears: 0,
-      averageCompliance: 0,
-      regionsAtRisk: 0,
-      topRegionName: 'N/A',
-      topRegionPct: 0,
+      totalCollected: 0, totalCollectedAnnual: 0, totalCollectedMonthly: 0,
+      totalArrears: 0, totalArrearsAnnual: 0, totalArrearsMonthly: 0,
+      averageCompliance: 0, regionsAtRisk: 0,
+      topRegionName: 'N/A', topRegionPct: 0, topRegionTieCount: 0,
     }
+  }
+}
+
+// NEW: Fetch stats for a SINGLE region (used by /dashboard/regions/[id])
+export async function getSingleRegionStats(regionId: string) {
+  try {
+    const region = await prisma.region.findUnique({
+      where: { id: regionId },
+      include: {
+        churches: {
+          include: {
+            payments: true,
+          },
+        },
+      },
+    })
+
+    if (!region) return { error: 'Region not found' }
+
+    const totalChurches = region.churches.length
+    const totalExpectedAnnual = totalChurches * 5000
+    const totalExpectedMonthly = totalChurches * 6000
+    const totalExpected = totalExpectedAnnual + totalExpectedMonthly
+
+    const { totalExpected: expectedToDate } = getExpectedToDate()
+
+    let totalCollected = 0
+    let totalCollectedAnnual = 0
+    let totalCollectedMonthly = 0
+    let totalThisMonth = 0
+    let compliantChurches = 0
+    let partialChurches = 0
+    let overdueChurches = 0
+
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+
+    const churchesData = region.churches.map((church) => {
+      let churchTotalPaid = 0
+
+      church.payments.forEach((payment) => {
+        const amount = Number(payment.amount_paid)
+        churchTotalPaid += amount
+
+        if (payment.payment_type === 'Annual') totalCollectedAnnual += amount
+        else totalCollectedMonthly += amount
+
+        const pDate = new Date(payment.payment_date)
+        if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
+          totalThisMonth += amount
+        }
+      })
+
+      totalCollected += churchTotalPaid
+
+      const status = getChurchStatus(churchTotalPaid, expectedToDate)
+      if (status === 'Paid') compliantChurches++
+      else if (status === 'Partial') partialChurches++
+      else overdueChurches++
+
+      return {
+        id: church.id,
+        church_code: church.church_code,
+        church_name: church.church_name,
+        pastor_name: church.pastor_name,
+        pastor_phone: church.pastor_phone,
+        treasurer_name: church.treasurer_name,
+        contact_phone: church.contact_phone,
+        status: status,
+        amountPaid: churchTotalPaid,
+        outstanding: Math.max(0, expectedToDate - churchTotalPaid),
+      }
+    })
+
+    const outstanding = totalExpected - totalCollected
+    const outstandingAnnual = totalExpectedAnnual - totalCollectedAnnual
+    const outstandingMonthly = totalExpectedMonthly - totalCollectedMonthly
+    const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
+
+    return {
+      regionName: region.name,
+      chairmanName: region.chairman_name,
+      totalCollected,
+      totalCollectedAnnual,
+      totalCollectedMonthly,
+      totalThisMonth,
+      totalExpectedAnnual,
+      totalExpectedMonthly,
+      outstanding,
+      outstandingAnnual,
+      outstandingMonthly,
+      compliancePct,
+      compliantChurches,
+      partialChurches,
+      overdueChurches,
+      churches: churchesData,
+    }
+  } catch (error) {
+    console.error('Failed to fetch single region stats:', error)
+    return { error: 'Internal Server Error' }
   }
 }
 

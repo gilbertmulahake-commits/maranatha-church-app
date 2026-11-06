@@ -10,19 +10,21 @@ export function SendReminderButton({
   churchId, 
   churchName, 
   pastorName,
-  phone 
+  phone,
+  senderRole = 'REGIONAL'
 }: { 
   churchId: string
   churchName: string
   pastorName: string
   phone: string 
+  senderRole?: 'NATIONAL' | 'REGIONAL'
 }) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   async function handleSend() {
     setLoading(true)
-    const result = await sendReminder(churchId, churchName, pastorName, phone)
+    const result = await sendReminder(churchId, churchName, pastorName, phone, senderRole)
     
     if (result?.error) {
       alert(result.error)
@@ -41,7 +43,7 @@ export function SendReminderButton({
       size="sm" 
       onClick={handleSend} 
       disabled={loading}
-      className="h-8 text-xs text-[#2563EB] border-[#2563EB] hover:bg-[#DBEAFE]"
+      className="h-8 text-xs text-primary border-primary/20 hover:bg-primary/10"
     >
       {loading ? (
         <Loader2 className="mr-2 h-3 w-3 animate-spin" />
