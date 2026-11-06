@@ -5,9 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  Receipt
+  Download
 } from 'lucide-react'
 import { PaymentRow } from '@/lib/actions/payment-actions'
+import { exportToCsv } from '@/lib/utils/export'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TableToolbar } from '@/components/ui/table-toolbar'
@@ -48,7 +49,6 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 15
 
-  // Filtering Logic
   const filteredData = useMemo(() => {
     return data.filter((payment) => {
       const s = search.toLowerCase()
@@ -59,7 +59,6 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
 
       const matchesType = typeFilter === 'All' || payment.payment_type === typeFilter
       
-      // Map raw DB method values to readable strings for the filter
       const readableMethod = 
         payment.payment_method === 'M_Pesa' ? 'M-Pesa' :
         payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'
@@ -70,7 +69,6 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
     })
   }, [data, search, typeFilter, methodFilter])
 
-  // Sorting Logic
   const sortedData = useMemo(() => {
     let sortableItems = [...filteredData]
     if (sortConfig !== null) {
@@ -93,10 +91,24 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
     setSortConfig({ key, direction })
   }
 
-  // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage)
+
+  const handleExport = () => {
+    const exportData = sortedData.map((p) => ({
+      'Transaction ID': p.transaction_id,
+      'Church Code': p.church_code,
+      'Church Name': p.church_name,
+      'Amount (KES)': p.amount_paid,
+      'Type': p.payment_type,
+      'Method': p.payment_method === 'M_Pesa' ? 'M-Pesa' : p.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
+      'Date': formatDate(p.payment_date),
+      'Status': p.status
+    }))
+    const date = new Date().toISOString().split('T')[0]
+    exportToCsv(`payments-ledger-${date}`, exportData)
+  }
 
   return (
     <div className="space-y-md">
@@ -126,6 +138,15 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
               <option value="Bank">Bank</option>
               <option value="Cash">Cash</option>
             </select>
+            
+            <Button 
+              variant="outline" 
+              onClick={handleExport} 
+              disabled={filteredData.length === 0}
+              className="h-9 ml-2"
+            >
+              <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
           </div>
         }
       />
@@ -236,7 +257,6 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
         </Table>
       </div>
 
-      {/* Pagination Controls */}
       <div className="flex items-center justify-between">
         <p className="text-paragraph-small text-muted-foreground">
           Showing {paginatedData.length} of {sortedData.length} transactions

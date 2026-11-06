@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2, CalendarDays } from 'lucide-react'
+import { Loader2, CalendarDays, Download } from 'lucide-react'
 import { getDailyCashbook, CashbookRow } from '@/lib/actions/report-actions'
-import { TableToolbar } from '@/components/ui/table-toolbar'
+import { exportToCsv } from '@/lib/utils/export'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -45,7 +46,6 @@ export function CashbookTable() {
     async function fetchData() {
       setLoading(true)
       const targetDate = new Date(selectedDate)
-      // Ensure the date is parsed in local time for the DB query
       targetDate.setMinutes(targetDate.getMinutes() + targetDate.getTimezoneOffset())
       
       const result = await getDailyCashbook(targetDate)
@@ -61,6 +61,19 @@ export function CashbookTable() {
 
   const totalCollected = data.reduce((sum, row) => sum + row.amount_paid, 0)
 
+  const handleExport = () => {
+    const exportData = data.map((row) => ({
+      'Time': formatTime(row.payment_date),
+      'Transaction ID': row.transaction_id,
+      'Church Code': row.church_code,
+      'Church Name': row.church_name,
+      'Type': row.payment_type,
+      'Method': row.payment_method === 'M_Pesa' ? 'M-Pesa' : row.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
+      'Amount (KES)': row.amount_paid,
+    }))
+    exportToCsv(`cashbook-${selectedDate}`, exportData)
+  }
+
   return (
     <div className="space-y-md">
       <div className="flex items-center justify-between">
@@ -69,15 +82,26 @@ export function CashbookTable() {
           <p className="text-paragraph-small text-muted-foreground">Reconcile the physical KCB statement against this view.</p>
         </div>
         
-        {/* Date Picker */}
-        <div className="flex items-center gap-2 bg-card p-1 rounded-md border border-border">
-          <CalendarDays className="h-4 w-4 text-muted-foreground ml-2" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="h-8 rounded-md bg-transparent px-2 text-paragraph-small text-foreground focus:outline-none"
-          />
+        <div className="flex items-center gap-sm">
+          {/* Date Picker */}
+          <div className="flex items-center gap-2 bg-card p-1 rounded-md border border-border h-9">
+            <CalendarDays className="h-4 w-4 text-muted-foreground ml-2" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="h-8 rounded-md bg-transparent px-2 text-paragraph-small text-foreground focus:outline-none"
+            />
+          </div>
+
+          <Button 
+            variant="outline" 
+            onClick={handleExport} 
+            disabled={data.length === 0 || loading}
+            className="h-9"
+          >
+            <Download className="mr-2 h-4 w-4" /> Export
+          </Button>
         </div>
       </div>
 

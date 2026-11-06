@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowUpDown, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { ArrearsRow } from '@/lib/actions/report-actions'
+import { exportToCsv } from '@/lib/utils/export'
 import { Button } from '@/components/ui/button'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import {
@@ -66,20 +67,42 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
   const startIndex = (currentPage - 1) * rowsPerPage
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage)
 
-  // Calculate grand totals for the footer
   const grandTotalAnnual = filteredData.reduce((sum, row) => sum + row.annualOutstanding, 0)
   const grandTotalMonthly = filteredData.reduce((sum, row) => sum + row.monthlyOutstanding, 0)
   const grandTotal = grandTotalAnnual + grandTotalMonthly
+
+  const handleExport = () => {
+    const exportData = sortedData.map((row) => ({
+      'Church Code': row.church_code,
+      'Church Name': row.church_name,
+      'Region': row.region_name,
+      'Annual Outstanding (KES)': row.annualOutstanding,
+      'Monthly Outstanding (KES)': row.monthlyOutstanding,
+      'Total Outstanding (KES)': row.totalOutstanding,
+    }))
+    const date = new Date().toISOString().split('T')[0]
+    exportToCsv(`arrears-report-${date}`, exportData)
+  }
 
   return (
     <div className="space-y-md">
       <TableToolbar
         title="Outstanding Balances"
-        subtitle={`${filteredData.length} churches with outstanding balances`}
+        subtitle={`${filteredData.length} churches with unpaid balances`}
         search={search}
         setSearch={setSearch}
         statusFilter="All"
         setStatusFilter={() => {}}
+        filterSlot={
+          <Button 
+            variant="outline" 
+            onClick={handleExport} 
+            disabled={filteredData.length === 0}
+            className="h-9"
+          >
+            <Download className="mr-2 h-4 w-4" /> Export
+          </Button>
+        }
       />
 
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
