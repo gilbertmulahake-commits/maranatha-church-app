@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 10.1 - Complete
+Unit 10.2 - Complete
 
 ## Current Goal
-Begin Unit 10.2: Payments Tab (Audit Ledger)
+Begin Unit 11: Reporting & Export
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -51,37 +51,34 @@ Begin Unit 10.2: Payments Tab (Audit Ledger)
   - Overhauled Churches Tab: KPI cards, shadcn Data Table, Cross-filtering.
   - Mapped `globals.css` to semantic theme variables.
 - **Unit 09.1: Enterprise Consistency & Polish**
-  - **Global Fixes:**
-    - Fixed the broken `cn` utility in `lib/utils.ts` (using `clsx` and `tailwind-merge`). This resolved missing styles globally.
-    - Restored Tailwind container sizes and breakpoints in `globals.css` to fix collapsed search bars.
-    - Resolved Next.js 16 `cacheComponents` prerender errors by adding `export const instant = false` and `await connection()` to dashboard pages.
-  - **KPI Card Standardization:**
-    - Created `components/dashboard/stacked-bar.tsx` for composition visualization (Annual vs Monthly, Paid vs Partial vs Overdue).
-    - Standardized all KPI cards (`kpi-cards.tsx`, `regional-kpi-cards.tsx`, `region-kpi-cards.tsx`, `church-kpi-cards.tsx`).
-    - Applied identical wrapper (`h-full`, gradient background, hover lift), `text-heading-1 font-bold` for main figures, and unified footers.
-    - Implemented truthful tie-handling on the "Top Region" KPI card (displays "Tied with X other regions").
-  - **Table Standardization & Bulk Actions:**
-    - Created `components/ui/table-toolbar.tsx` to unify titles, subtitles, search (`maxWidth: 24rem`), filters, and bulk actions.
-    - Added functional checkboxes and bulk action bars to Churches, Regions, and Regional tables.
-    - Wired `sendBulkReminders` action to the "Send Reminders" button in the toolbar.
-  - **Role-Based Identity & Drill-Downs:**
-    - Updated `sendSms` and `sendBulkReminders` to accept `senderRole` parameter. Messages now stamped with "from the Maranatha National Office" or "from the Maranatha Regional Office".
-    - Built `/dashboard/regions/[id]` and `RegionDetailClient` for National Treasurer drill-downs.
-    - Adopted "Universal Capability, Contextual Identity" model: All roles can View, Edit, and Remind. No bottlenecks created.
-  - **Documentation:**
-    - Rewrote `ui-context.md` to strictly follow the Spec-Driven 10-section structure (Theme, Colors, Typography, Radii, Component Library, Layout, Icons, Visualization, Interaction, Role Identity).
-    - Updated `architecture.md` with sections on Communication Identity and Financial Ledger.
+  - **Global Fixes:** Fixed `cn` utility, restored Tailwind container sizes, standardized KPI cards (gradients, hover lift), and implemented `TableToolbar`.
+  - **Role Identity:** Adopted "Universal Capability, Contextual Identity" model. SMS messages stamped with sender ("National Office" vs "Regional Office").
+  - **Drill-Downs:** Built `/dashboard/regions/[id]` for National Treasurer drill-downs.
+- **Unit 10.0: Financial Ledger Upgrade (Pre-requisite for Payments Tab)**
+  - Added `billing_year Int` to the `Payment` model.
+  - Upgraded financial logic from a "reset on Jan 1" model to a cumulative lifetime calculation via `getExpectedUpToDate(startDate, upToDate)`.
+  - Implemented the Month/Year toggle in the `TableToolbar` and updated all table views to swap columns based on the active period.
+  - *Deviation:* Used a temporary `@default(2026)` migration workaround for existing test data instead of a separate backfill script.
+- **Unit 10.1: Strict Bucket Isolation & Dynamic Statuses**
+  - Enforced **Strict Bucket Isolation**: Annual and Monthly contributions are treated as completely separate ledgers. Overpayment in one does not cover arrears in the other.
+  - Implemented **Dynamic Statuses**: Tables and KPI cards now swap between `annualStatus` and `monthlyStatus` based on the active `periodView`.
+  - Added `'N/A'` status for churches that owe 0 in a specific bucket (e.g., joined after the Annual deadline).
+  - Built dynamic KPI footers (Annual vs Monthly breakdowns, This Month expected vs collected).
+  - Updated `sendReminder` and `sendBulkReminders` to generate intelligent, bucket-specific SMS messages.
+- **Unit 10.2: Payments Tab (Audit Ledger)**
+  - Built the transaction-level ledger with role-based isolation (National sees all, Regional sees only their region).
+  - Implemented a full data table with sorting, pagination, global search, and specific filters for Payment Type and Method.
+  - Added 4 KPI cards for Total Transactions, Total Volume, Annual/Monthly Split, and This Month volume.
+  - *Architecture Note:* Kept KPI cards static (global lifetime totals) rather than dynamic, to ensure the ledger remains a stable source of truth for auditors.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 10.2: Payments Tab (Audit Ledger)**
-  - Build the transaction-level view with date range picker, search, and export.
 - **Unit 11: Reporting & Export**
   - Build Daily Cashbook, Arrears Report, CSV/PDF exports.
 - **Unit 12: User Management & Settings**
-  - Build invitation system, role assignment.
+  - Build invitation system, role assignment, profile management.
 
 ## Open Questions
 - None.
@@ -91,8 +88,9 @@ Begin Unit 10.2: Payments Tab (Audit Ledger)
 - **KPI Cards:** All cards use `cardClasses` (gradient, hover lift, `h-full`), `text-heading-1` numbers, and `StackedBar` composition charts.
 - **Tables:** All tables use `TableToolbar`, checkboxes, and shadcn `<Table>` primitives.
 - **Role Identity:** Universal Capability, Contextual Identity. All authorized roles can act, but SMS reflects sender ("National Office" vs "Regional Office").
-- **Next.js 16:** `await connection()` and `export const instant = false` required for auth-protected dynamic routes.
-- **Financial Ledger:** Deferred to Unit 10.0 to correctly handle `billing_year` carry-forwards and prepaid lump sums, preventing silent revenue leakage.
+- **Next.js 16:** Abandoned `export const instant = false`. All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component to resolve `cacheComponents` prerender errors.
+- **Financial Ledger:** Cumulative lifetime calculation via `getExpectedUpToDate()`. Strict Bucket Isolation applies across all tables, KPIs, and SMS messages.
+- **Audit Ledger:** Uses Static Global KPIs. The table below filters and searches, but the KPIs represent the total lifetime inflow for the user's role scope.
 - **Sonner:** All user feedback (success, error, info) uses Sonner toasts. No `alert()`.
 
 ## Session Notes
