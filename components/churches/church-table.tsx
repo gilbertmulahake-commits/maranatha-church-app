@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,10 +40,6 @@ import { sendBulkReminders } from '@/lib/actions/sms-actions'
 import { ViewChurchDialog } from './view-church-dialog'
 import { EditChurchDialog } from './edit-church-dialog'
 
-/**
- * Row shape mirrors `getChurches()` from Phase B.
- * Updated for STRICT BUCKET ISOLATION: annual and monthly credits are separate.
- */
 export type ChurchRow = {
   id: string
   church_code: string
@@ -52,20 +49,15 @@ export type ChurchRow = {
   pastor_phone: string
   treasurer_name: string
   contact_phone: string
-
   amountPaid: number
   expected: number
   outstanding: number
-  
-  // Strictly separated credits
   annualCredit: number
   monthlyCredit: number
-
   annualPaid: number
   monthlyPaid: number
   annualOutstanding: number
   monthlyOutstanding: number
-
   status: 'Paid' | 'Partial' | 'Overdue'
   annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A'
   monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
@@ -311,12 +303,17 @@ export function ChurchTable({
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-paragraph-small">
-                        {church.church_name}
-                      </div>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">
-                        {church.church_code}
-                      </div>
+                      <Link 
+                        href={`/dashboard/churches/${church.church_code}`} 
+                        className="group block"
+                      >
+                        <div className="font-medium text-foreground text-paragraph-small group-hover:underline">
+                          {church.church_name}
+                        </div>
+                        <div className="font-mono text-paragraph-mini text-muted-foreground">
+                          {church.church_code}
+                        </div>
+                      </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-paragraph-small">
                       {church.region?.name ?? 'Unassigned'}
@@ -342,7 +339,6 @@ export function ChurchTable({
                       {formatCurrency(isMonthly ? church.monthlyPaid : church.annualPaid)}
                     </TableCell>
 
-                    {/* STRICT BUCKET ISOLATION: Swap credit and outstanding based on view */}
                     <TableCell className="tabular-nums font-medium text-paragraph-small">
                       {isMonthly ? (
                         church.monthlyCredit > 0 ? (
@@ -377,7 +373,7 @@ export function ChurchTable({
                             ? 'bg-amber-100 text-amber-700 border-amber-200'
                             : activeStatus === 'Overdue'
                             ? 'bg-red-100 text-red-700 border-red-200'
-                            : 'bg-gray-100 text-gray-700 border-gray-200' // N/A
+                            : 'bg-gray-100 text-gray-700 border-gray-200'
                         }
                       >
                         {activeStatus}
@@ -394,6 +390,7 @@ export function ChurchTable({
                           }
                         ></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {/* WRAPPED IN GROUP FOR BASE UI */}
                           <DropdownMenuGroup>
                             <DropdownMenuLabel className="text-paragraph-small">
                               Actions
@@ -404,7 +401,7 @@ export function ChurchTable({
                             className="cursor-pointer text-paragraph-small"
                             onClick={() => setViewingChurch(church)}
                           >
-                            <Eye className="mr-2 h-4 w-4" /> View Details
+                            <Eye className="mr-2 h-4 w-4" /> Quick View
                           </DropdownMenuItem>
 
                           <DropdownMenuItem

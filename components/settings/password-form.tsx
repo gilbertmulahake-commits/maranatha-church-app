@@ -28,9 +28,7 @@ export function PasswordForm() {
     }
 
     setLoading(true)
-
     const { error } = await supabase.auth.updateUser({ password })
-
     setLoading(false)
 
     if (error) {
@@ -43,15 +41,15 @@ export function PasswordForm() {
   }
 
   return (
-    <Card className="h-full">
+    <Card className="h-full w-full min-w-0">
       <CardHeader>
         <CardTitle>Security</CardTitle>
         <CardDescription>
           Update the password associated with your account.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="min-w-0">
+        <form onSubmit={handleSubmit} className="space-y-4 w-full">
           <div>
             <label className="block text-paragraph-small font-medium text-foreground mb-xs">
               New Password

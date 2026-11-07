@@ -1,18 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Lock } from 'lucide-react'
 
-export function MockKCBForm() {
-  const [churchCode, setChurchCode] = useState('')
+export function MockKCBForm({
+  userRole,
+  lockedChurchCode,
+}: {
+  userRole: string
+  lockedChurchCode: string | null
+}) {
+  const [churchCode, setChurchCode] = useState(lockedChurchCode || '')
   const [amount, setAmount] = useState('')
   const [phone, setPhone] = useState('')
   const [paymentType, setPaymentType] = useState('Monthly')
   const [billingYear, setBillingYear] = useState(new Date().getFullYear().toString())
   const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [response, setResponse] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const isLocked = !!lockedChurchCode
+
+  useEffect(() => {
+    if (lockedChurchCode) {
+      setChurchCode(lockedChurchCode)
+    }
+  }, [lockedChurchCode])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -20,13 +35,14 @@ export function MockKCBForm() {
     setResponse(null)
 
     const transID = `MOCK${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-    
+
     const payload = {
       TransID: transID,
       TransAmount: amount,
       BillRefNumber: churchCode.toUpperCase(),
       MSISDN: phone,
-      TransTime: new Date(`${billingYear}-06-15T10:00:00Z`).toISOString(),
+      // FIX: Using the real current date so the chart updates correctly
+      TransTime: new Date().toISOString(), 
       FirstName: 'Test Payer',
       payment_type: paymentType,
     }
@@ -42,7 +58,7 @@ export function MockKCBForm() {
 
       if (res.ok) {
         setResponse({ type: 'success', text: data.message + ` (Church: ${data.church_name})` })
-        setChurchCode('')
+        if (!isLocked) setChurchCode('')
         setAmount('')
         setPhone('')
         setPaymentType('Monthly')
@@ -58,36 +74,42 @@ export function MockKCBForm() {
   }
 
   return (
+    // INLINE STYLE SOLUTION RESTORED
     <div className="space-y-xl" style={{ width: '100%', maxWidth: '42rem' }}>
-      <div>
-        <h1 className="text-heading-2 font-medium text-foreground">Mock KCB Simulator</h1>
-        <p className="mt-xs text-paragraph-small text-muted-foreground">
-          Simulate an incoming M-Pesa payment from KCB to test the reconciliation engine.
-        </p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Simulate Payment</CardTitle>
           <CardDescription>
-            Enter the church ID and amount. The system will send a webhook to the backend.
+            {isLocked
+              ? `You are simulating a payment for your assigned church (${lockedChurchCode}).`
+              : 'Enter any church ID and amount. The system will send a webhook to the backend.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-md">
             <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">Church ID (BillRefNumber)</label>
-              <Input 
-                value={churchCode} 
-                onChange={(e) => setChurchCode(e.target.value)} 
-                placeholder="e.g., CH001" 
-                className="h-9"
-                required 
+              <label className="block text-paragraph-small font-medium text-foreground mb-xs flex items-center justify-between">
+                <span>Church ID (BillRefNumber)</span>
+                {isLocked && (
+                  <span className="text-primary text-[10px] flex items-center">
+                    <Lock className="h-3 w-3 mr-1" /> Locked to your church
+                  </span>
+                )}
+              </label>
+              <Input
+                value={churchCode}
+                onChange={(e) => setChurchCode(e.target.value)}
+                placeholder="e.g., CH001"
+                className={`h-9 ${isLocked ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`}
+                disabled={isLocked}
+                required
               />
             </div>
 
             <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">Payment Type</label>
+              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Payment Type
+              </label>
               <select
                 value={paymentType}
                 onChange={(e) => setPaymentType(e.target.value)}
@@ -99,14 +121,16 @@ export function MockKCBForm() {
             </div>
 
             <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">Billing Year</label>
-              <Input 
+              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Billing Year
+              </label>
+              <Input
                 type="number"
-                value={billingYear} 
-                onChange={(e) => setBillingYear(e.target.value)} 
-                placeholder="e.g., 2026" 
+                value={billingYear}
+                onChange={(e) => setBillingYear(e.target.value)}
+                placeholder="e.g., 2026"
                 className="h-9"
-                required 
+                required
               />
               <p className="text-paragraph-mini text-muted-foreground mt-xs">
                 Simulate a payment for a past year to test carry-forward arrears.
@@ -114,39 +138,49 @@ export function MockKCBForm() {
             </div>
 
             <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">Amount (KES)</label>
-              <Input 
+              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Amount (KES)
+              </label>
+              <Input
                 type="number"
-                value={amount} 
-                onChange={(e) => setAmount(e.target.value)} 
-                placeholder="e.g., 5000" 
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g., 5000"
                 className="h-9"
-                required 
+                required
               />
             </div>
 
             <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">Phone Number (MSISDN)</label>
-              <Input 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                placeholder="e.g., 0712345678" 
+              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Phone Number (MSISDN)
+              </label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g., 0712345678"
                 className="h-9"
-                required 
+                required
               />
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-9">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-9"
+            >
               {loading ? 'Sending Webhook...' : 'Simulate Payment'}
             </Button>
           </form>
 
           {response && (
-            <div className={`mt-md p-md rounded-md border ${
-              response.type === 'success' 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                : 'bg-red-50 text-red-700 border-red-200'
-            }`}>
+            <div
+              className={`mt-md p-md rounded-md border ${
+                response.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}
+            >
               <p className="text-paragraph-small font-medium">{response.text}</p>
             </div>
           )}

@@ -5,6 +5,7 @@ import { Shield, MapPin, Church, Calendar } from 'lucide-react'
 import { SystemUser } from '@/lib/actions/user-actions'
 import { Badge } from '@/components/ui/badge'
 import { TableToolbar } from '@/components/ui/table-toolbar'
+import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import {
   Table,
   TableBody,
@@ -25,6 +26,8 @@ export function UsersTable({
   churches: { id: string, church_name: string, church_code: string }[]
 }) {
   const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const rowsPerPage = 15
 
   const filteredData = users.filter((u) => {
     const s = search.toLowerCase()
@@ -34,6 +37,10 @@ export function UsersTable({
       (u.regionName || '').toLowerCase().includes(s)
     )
   })
+
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage)
+  const startIndex = (currentPage - 1) * rowsPerPage
+  const paginatedData = filteredData.slice(startIndex, startIndex + rowsPerPage)
 
   const formatRole = (role: string) => {
     return role.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
@@ -57,6 +64,7 @@ export function UsersTable({
         }
       />
 
+      {/* STANDARD TABLE SHELL */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -68,14 +76,14 @@ export function UsersTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-paragraph-small text-muted-foreground">
                   No users found matching your search.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData.map((user) => (
+              paginatedData.map((user) => (
                 <TableRow key={user.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium text-foreground text-paragraph-small">
                     {user.email}
@@ -109,6 +117,16 @@ export function UsersTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* STANDARD PAGINATION FOOTER */}
+      <DataTablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredData.length}
+        showingItems={paginatedData.length}
+        setCurrentPage={setCurrentPage}
+        itemName="users"
+      />
     </div>
   )
 }

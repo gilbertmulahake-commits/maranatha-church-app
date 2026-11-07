@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import {
-  ChevronLeft,
-  ChevronRight,
   ArrowUpDown,
   Download
 } from 'lucide-react'
@@ -12,6 +10,7 @@ import { exportToCsv } from '@/lib/utils/export'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TableToolbar } from '@/components/ui/table-toolbar'
+import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import {
   Table,
   TableBody,
@@ -257,34 +256,14 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-paragraph-small text-muted-foreground">
-          Showing {paginatedData.length} of {sortedData.length} transactions
-        </p>
-        <div className="flex items-center gap-xs">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="h-8 text-paragraph-small"
-          >
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </Button>
-          <span className="text-paragraph-small text-muted-foreground">
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages || totalPages === 0}
-            className="h-8 text-paragraph-small"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={sortedData.length}
+        showingItems={paginatedData.length}
+        setCurrentPage={setCurrentPage}
+        itemName="transactions"
+      />
     </div>
   )
 }

@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 12.2 - Complete (MVP Build Complete)
+Unit 13.2 - Complete
 
 ## Current Goal
-Deployment Preparation & Final Polish
+Begin Unit 14: Lump Sum Allocations & Prepaid UI
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -88,17 +88,26 @@ Deployment Preparation & Final Polish
   - Built the `UsersTable` to display all system users, their roles, and their region/church assignments.
   - Built the `InviteUserDialog` with dynamic form fields (showing Regions for Regional roles, and Churches for Local roles).
   - Integrated Supabase Admin Auth creation with Prisma DB insertion and a rollback safety catch.
+- **Unit 13.1: Local Church Dashboard & RBAC**
+  - Built dedicated Local Pastor dashboard with Strict Bucket Isolation.
+  - Added interactive filtering (Clicking Annual/Monthly cards filters the payment history).
+  - Enforced RBAC in sidebar (removed Reports for Local roles).
+- **Unit 13.2: National Dashboard Upgrade & UI Stabilization**
+  - Transformed National Dashboard into a 12-column Command Center (Hero, Live Feed, Charts, Leaderboard).
+  - Implemented year-specific Hero target logic (This Year vs 17.6M).
+  - Upgraded all charts to shadcn ChartContainer and semantic CSS variables.
+  - Standardized all tables with `<DataTablePagination>` and fixed Base UI dropdown context bugs.
+  - Stabilized layout collapses using inline `maxWidth` for Settings and Mock KCB.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Deployment**: Set up Vercel, connect Supabase production keys, run `prisma migrate deploy`.
-- **V2 Enhancements**: 
-  - Real Africa's Talking SMS API integration.
-  - Real KCB Daraja API integration.
-  - FIFO Payment Allocation Ledger.
-  - Background jobs (Inngest/Trigger.dev) for SMS queues.
+- **Unit 14: Lump Sum Allocations & Prepaid UI**
+  - Allow KCB webhook to split large payments into multiple years.
+  - Update UI to show "X Years Prepaid".
+- **Deployment**: 
+  - Connect Vercel, set up production Supabase, run `prisma migrate deploy`.
 
 ## Open Questions
 - None.

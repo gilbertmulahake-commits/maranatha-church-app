@@ -1,13 +1,17 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { AppShell } from '@/components/layout/app-shell'
 import { getArrearsReport } from '@/lib/actions/report-actions'
 import { ReportsClient } from '@/components/reports/reports-client'
+import { Skeleton } from '@/components/ui/skeleton'
 
 async function ReportsContent() {
-  // Fetch initial Arrears data on the server for fast initial load
+  await connection()
   const arrearsData = await getArrearsReport()
 
+  return <ReportsClient initialArrears={arrearsData} />
+}
+
+export default function ReportsPage() {
   return (
     <div className="space-y-xl">
       <div>
@@ -17,26 +21,16 @@ async function ReportsContent() {
         </p>
       </div>
 
-      <ReportsClient initialArrears={arrearsData} />
-    </div>
-  )
-}
-
-async function Content() {
-  await connection()
-  return (
-    <AppShell>
-      <Suspense fallback={<div className="p-xl text-muted-foreground">Loading reports...</div>}>
+      <Suspense
+        fallback={
+          <div className="space-y-xl">
+            <Skeleton className="h-10 w-[300px] rounded-lg" />
+            <Skeleton className="h-[600px] rounded-xl" />
+          </div>
+        }
+      >
         <ReportsContent />
       </Suspense>
-    </AppShell>
-  )
-}
-
-export default function ReportsPage() {
-  return (
-    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
-      <Content />
-    </Suspense>
+    </div>
   )
 }

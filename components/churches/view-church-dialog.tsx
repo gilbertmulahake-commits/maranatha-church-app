@@ -97,7 +97,8 @@ export function ViewChurchDialog({ church, onClose }: { church: ChurchRow | null
             </div>
 
             <DialogFooter className="mt-xl gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
-              <Link href={`/dashboard/churches/${church.id}`} passHref>
+              {/* FIXED: Link to church_code instead of id */}
+              <Link href={`/dashboard/churches/${church.church_code}`} passHref>
                 <Button variant="outline" className="h-9 w-full sm:w-auto">
                   <History className="mr-2 h-4 w-4" /> View Full Profile
                 </Button>

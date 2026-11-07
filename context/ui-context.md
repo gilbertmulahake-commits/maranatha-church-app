@@ -110,6 +110,13 @@ We strictly use shadcn/ui (Base UI variant).
 - **KPI Cards:** `grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4`.
 - **Charts:** `grid grid-cols-1 gap-xl md:grid-cols-2`.
 - **Data Tables:** Always wrap tables in `overflow-x-auto`. Hide non-essential columns on smaller screens.
+### The 12-Column Command Center Grid
+For the main National Dashboard, we strictly use a 12-column CSS grid.
+- **Top Row:** Hero Target (col-span-8), Live Feed (col-span-4).
+- **Second Row:** 4 KPI Cards (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`).
+- **Third Row:** Area Chart (col-span-8), Donut Chart (col-span-4).
+- **Fourth Row:** Regional Leaderboard (col-span-12).
+- **Interactivity:** Every chart, KPI card, and leaderboard row must be a clickable link or filter trigger. Static elements are forbidden.
 
 ## 10. Interaction, Animations & UX Rules
 - **Transitions:** All interactive elements must have `transition-colors` or `transition-all duration-200`.
