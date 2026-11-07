@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 13.2 - Complete
+Unit 14.0 - Complete
 
 ## Current Goal
-Begin Unit 14: Lump Sum Allocations & Prepaid UI
+Begin Unit 15: Deployment Preparation & Final Polish
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -54,40 +54,36 @@ Begin Unit 14: Lump Sum Allocations & Prepaid UI
   - **Global Fixes:** Fixed `cn` utility, restored Tailwind container sizes, standardized KPI cards (gradients, hover lift), and implemented `TableToolbar`.
   - **Role Identity:** Adopted "Universal Capability, Contextual Identity" model. SMS messages stamped with sender ("National Office" vs "Regional Office").
   - **Drill-Downs:** Built `/dashboard/regions/[id]` for National Treasurer drill-downs.
-- **Unit 10.0: Financial Ledger Upgrade (Pre-requisite for Payments Tab)**
+- **Unit 10.0: Financial Ledger Upgrade**
   - Added `billing_year Int` to the `Payment` model.
   - Upgraded financial logic from a "reset on Jan 1" model to a cumulative lifetime calculation via `getExpectedUpToDate(startDate, upToDate)`.
   - Implemented the Month/Year toggle in the `TableToolbar` and updated all table views to swap columns based on the active period.
-  - *Deviation:* Used a temporary `@default(2026)` migration workaround for existing test data instead of a separate backfill script.
 - **Unit 10.1: Strict Bucket Isolation & Dynamic Statuses**
-  - Enforced **Strict Bucket Isolation**: Annual and Monthly contributions are treated as completely separate ledgers. Overpayment in one does not cover arrears in the other.
+  - Enforced **Strict Bucket Isolation**: Annual and Monthly contributions are treated as completely separate ledgers.
   - Implemented **Dynamic Statuses**: Tables and KPI cards now swap between `annualStatus` and `monthlyStatus` based on the active `periodView`.
   - Added `'N/A'` status for churches that owe 0 in a specific bucket (e.g., joined after the Annual deadline).
   - Built dynamic KPI footers (Annual vs Monthly breakdowns, This Month expected vs collected).
   - Updated `sendReminder` and `sendBulkReminders` to generate intelligent, bucket-specific SMS messages.
 - **Unit 10.2: Payments Tab (Audit Ledger)**
-  - Built the transaction-level ledger with role-based isolation (National sees all, Regional sees only their region).
+  - Built the transaction-level ledger with role-based isolation.
   - Implemented a full data table with sorting, pagination, global search, and specific filters for Payment Type and Method.
   - Added 4 KPI cards for Total Transactions, Total Volume, Annual/Monthly Split, and This Month volume.
   - *Architecture Note:* Kept KPI cards static (global lifetime totals) rather than dynamic, to ensure the ledger remains a stable source of truth for auditors.
 - **Unit 11.1: Reporting UI (Arrears & Cashbook)**
-  - Built the `/dashboard/reports` page with a custom segmented toggle (Arrears vs. Cashbook).
+  - Built the `/dashboard/reports` page with a custom segmented toggle.
   - Arrears table displays strict bucket isolation with a sticky summary footer for grand totals.
   - Cashbook table features a dynamic date picker to view daily transactions.
 - **Unit 11.2: CSV Export Engine**
   - Created a generic `exportToCsv` utility (`lib/utils/export.ts`).
   - Added "Export" buttons to the Payments Ledger, Arrears Report, and Daily Cashbook.
-  - Export logic strictly exports the *currently filtered* data, maintaining the active view's context.
 - **Unit 12.1: User Profile & Settings**
   - Built the `/dashboard/settings` page.
   - Added read-only Profile Card showing Email, Role, Region, and Church assignments.
   - Built a secure password update form using Supabase Auth client and Sonner toasts.
-  - Applied inline style width resolution (`style={{ width: '100%', maxWidth: '64rem' }}`) to fix flex-collapse layout issues.
 - **Unit 12.2: User Management (Admin)**
   - Added the `/dashboard/users` route (strictly restricted to National HQ).
-  - Built the `UsersTable` to display all system users, their roles, and their region/church assignments.
-  - Built the `InviteUserDialog` with dynamic form fields (showing Regions for Regional roles, and Churches for Local roles).
-  - Integrated Supabase Admin Auth creation with Prisma DB insertion and a rollback safety catch.
+  - Built the `UsersTable` to display all system users.
+  - Built the `InviteUserDialog` with dynamic form fields and rollback safety catch.
 - **Unit 13.1: Local Church Dashboard & RBAC**
   - Built dedicated Local Pastor dashboard with Strict Bucket Isolation.
   - Added interactive filtering (Clicking Annual/Monthly cards filters the payment history).
@@ -98,16 +94,21 @@ Begin Unit 14: Lump Sum Allocations & Prepaid UI
   - Upgraded all charts to shadcn ChartContainer and semantic CSS variables.
   - Standardized all tables with `<DataTablePagination>` and fixed Base UI dropdown context bugs.
   - Stabilized layout collapses using inline `maxWidth` for Settings and Mock KCB.
+- **Unit 14.0: Prepaid Status UI**
+  - Translated backend credit values into human-readable "Paid (X Years/Months Prepaid)" text.
+  - Updated `church-table.tsx` and `regional-table.tsx` to use the new `formatPrepaidStatus` helper.
+  - Deferred full webhook splitting and `PaymentAllocation` table to V2.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 14: Lump Sum Allocations & Prepaid UI**
-  - Allow KCB webhook to split large payments into multiple years.
-  - Update UI to show "X Years Prepaid".
-- **Deployment**: 
-  - Connect Vercel, set up production Supabase, run `prisma migrate deploy`.
+- **Unit 15: Deployment Preparation**
+  - Set up Vercel, connect Supabase production keys, run `prisma migrate deploy`.
+- **V2 Enhancements**: 
+  - Full FIFO Payment Allocation Ledger.
+  - Real Africa's Talking SMS API integration.
+  - Real KCB Daraja API integration.
 
 ## Open Questions
 - None.
@@ -121,12 +122,10 @@ Begin Unit 14: Lump Sum Allocations & Prepaid UI
 - **Financial Ledger:** Cumulative lifetime calculation via `getExpectedUpToDate()`. Strict Bucket Isolation applies across all tables, KPIs, and SMS messages.
 - **Audit Ledger:** Uses Static Global KPIs. The table below filters and searches, but the KPIs represent the total lifetime inflow for the user's role scope.
 - **Sonner:** All user feedback (success, error, info) uses Sonner toasts. No `alert()`.
+- **Prepaid Status (Phase 1):** UI-only translation of credits. No webhook splitting (protects 1:1 bank reconciliation). Deferring `PaymentAllocation` table to V2.
 
 ## Session Notes
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development.
-- **Future Enhancements (Idea Log):** 
-  - Detailed profiles for Churches (membership, coordinates, history).
-  - Pastors (full bio, transfer tracking).
-  - Treasurers (full bio).
-  - These are post-MVP features requested by the client.
+- **Stable Stack (Do Not Blindly Upgrade):** Next.js 16, Prisma 7, Tailwind v4, Base UI (shadcn). Dependency tree is clean (no Radix leakage). Do not run `npm update` without testing.
+- **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper. For specific pages (Settings, Mock KCB), inline `style={{ width: '100%', maxWidth: 'X' }}` is used as a bulletproof workaround.

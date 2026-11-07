@@ -12,7 +12,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatCurrency } from '@/lib/utils/format'
+import { formatCurrency, formatPrepaidStatus } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -293,6 +293,9 @@ export function ChurchTable({
             ) : (
               paginatedData.map((church) => {
                 const activeStatus = isMonthly ? church.monthlyStatus : church.annualStatus
+                const prepaidStatus = isMonthly
+                  ? formatPrepaidStatus(church.monthlyCredit, 'Monthly')
+                  : formatPrepaidStatus(church.annualCredit, 'Annual')
 
                 return (
                   <TableRow key={church.id} className="hover:bg-muted/50">
@@ -339,27 +342,14 @@ export function ChurchTable({
                       {formatCurrency(isMonthly ? church.monthlyPaid : church.annualPaid)}
                     </TableCell>
 
+                    {/* Dynamic Outstanding Cell — shows Prepaid status or Arrears */}
                     <TableCell className="tabular-nums font-medium text-paragraph-small">
-                      {isMonthly ? (
-                        church.monthlyCredit > 0 ? (
-                          <span className="text-emerald-600">
-                            Credit: {formatCurrency(church.monthlyCredit)}
-                          </span>
-                        ) : (
-                          <span className="text-destructive">
-                            {formatCurrency(church.monthlyOutstanding)}
-                          </span>
-                        )
+                      {prepaidStatus ? (
+                        <span className="text-emerald-600">{prepaidStatus}</span>
                       ) : (
-                        church.annualCredit > 0 ? (
-                          <span className="text-emerald-600">
-                            Credit: {formatCurrency(church.annualCredit)}
-                          </span>
-                        ) : (
-                          <span className="text-destructive">
-                            {formatCurrency(church.annualOutstanding)}
-                          </span>
-                        )
+                        <span className="text-destructive">
+                          {formatCurrency(isMonthly ? church.monthlyOutstanding : church.annualOutstanding)}
+                        </span>
                       )}
                     </TableCell>
 

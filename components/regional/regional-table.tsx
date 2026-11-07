@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
-import { DataTablePagination } from '@/components/ui/data-table-pagination' // <-- IMPORTED
+import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import {
   Table,
   TableBody,
@@ -37,6 +37,7 @@ import { SendReminderButton } from '@/components/dashboard/send-reminder-button'
 import { ViewChurchDialog } from '@/components/churches/view-church-dialog'
 import { EditChurchDialog } from '@/components/churches/edit-church-dialog'
 import type { ChurchRow } from '@/components/churches/church-table'
+import { formatPrepaidStatus } from '@/lib/utils/format'
 
 interface Props {
   churches: RegionalChurchData[]
@@ -263,6 +264,9 @@ export function RegionalTable({
                 const activeStatus = isMonthly
                   ? church.monthlyStatus
                   : church.annualStatus
+                const prepaidStatus = isMonthly
+                  ? formatPrepaidStatus(church.monthlyCredit, 'Monthly')
+                  : formatPrepaidStatus(church.annualCredit, 'Annual')
 
                 return (
                   <TableRow key={church.id} className="hover:bg-muted/50">
@@ -302,27 +306,15 @@ export function RegionalTable({
                         isMonthly ? church.monthlyPaid : church.annualPaid
                       )}
                     </TableCell>
+
+                    {/* FIXED: This now correctly uses the prepaidStatus variable */}
                     <TableCell className="tabular-nums font-medium text-paragraph-small">
-                      {isMonthly ? (
-                        church.monthlyCredit > 0 ? (
-                          <span className="text-emerald-600">
-                            Credit: {formatCurrency(church.monthlyCredit)}
-                          </span>
-                        ) : (
-                          <span className="text-destructive">
-                            {formatCurrency(church.monthlyOutstanding)}
-                          </span>
-                        )
+                      {prepaidStatus ? (
+                        <span className="text-emerald-600">{prepaidStatus}</span>
                       ) : (
-                        church.annualCredit > 0 ? (
-                          <span className="text-emerald-600">
-                            Credit: {formatCurrency(church.annualCredit)}
-                          </span>
-                        ) : (
-                          <span className="text-destructive">
-                            {formatCurrency(church.annualOutstanding)}
-                          </span>
-                        )
+                        <span className="text-destructive">
+                          {formatCurrency(isMonthly ? church.monthlyOutstanding : church.annualOutstanding)}
+                        </span>
                       )}
                     </TableCell>
 
@@ -397,7 +389,6 @@ export function RegionalTable({
         </Table>
       </div>
 
-      {/* STANDARD PAGINATION FOOTER */}
       <DataTablePagination
         currentPage={currentPage}
         totalPages={totalPages}
