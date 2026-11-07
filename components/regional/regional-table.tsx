@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import {
-  ChevronLeft,
-  ChevronRight,
   ArrowUpDown,
   MoreHorizontal,
   Eye,
@@ -14,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
+import { DataTablePagination } from '@/components/ui/data-table-pagination' // <-- IMPORTED
 import {
   Table,
   TableBody,
@@ -83,10 +82,6 @@ export function RegionalTable({
   const [selectedChurches, setSelectedChurches] = useState<string[]>([])
   const [isBulkSending, setIsBulkSending] = useState(false)
 
-  /**
-   * Adapter: RegionalChurchData → ChurchRow.
-   * Includes the strictly isolated credits and the updated statuses.
-   */
   const mapToChurchRow = (church: RegionalChurchData): ChurchRow => ({
     id: church.id,
     church_code: church.church_code,
@@ -307,8 +302,6 @@ export function RegionalTable({
                         isMonthly ? church.monthlyPaid : church.annualPaid
                       )}
                     </TableCell>
-                    
-                    {/* STRICT BUCKET ISOLATION */}
                     <TableCell className="tabular-nums font-medium text-paragraph-small">
                       {isMonthly ? (
                         church.monthlyCredit > 0 ? (
@@ -343,7 +336,7 @@ export function RegionalTable({
                             ? 'bg-amber-100 text-amber-700 border-amber-200'
                             : activeStatus === 'Overdue'
                             ? 'bg-red-100 text-red-700 border-red-200'
-                            : 'bg-gray-100 text-gray-700 border-gray-200' // N/A
+                            : 'bg-gray-100 text-gray-700 border-gray-200'
                         }
                       >
                         {activeStatus}
@@ -382,7 +375,6 @@ export function RegionalTable({
 
                           <DropdownMenuSeparator />
 
-                          {/* Only show reminder if there is an actual balance due in the active view */}
                           {(activeStatus === 'Partial' || activeStatus === 'Overdue') && (
                             <SendReminderButton
                               churchId={church.church_code}
@@ -405,34 +397,15 @@ export function RegionalTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-paragraph-small text-muted-foreground">
-          Showing {paginatedData.length} of {sortedChurches.length} churches
-        </p>
-        <div className="flex items-center gap-xs">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="h-8 text-paragraph-small"
-          >
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </Button>
-          <span className="text-paragraph-small text-muted-foreground">
-            Page {currentPage} of {totalPages || 1}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages || totalPages === 0}
-            className="h-8 text-paragraph-small"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      {/* STANDARD PAGINATION FOOTER */}
+      <DataTablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={sortedChurches.length}
+        showingItems={paginatedData.length}
+        setCurrentPage={setCurrentPage}
+        itemName="churches"
+      />
 
       <ViewChurchDialog church={viewingChurch} onClose={() => setViewingChurch(null)} />
       <EditChurchDialog church={editingChurch} onClose={() => setEditingChurch(null)} />

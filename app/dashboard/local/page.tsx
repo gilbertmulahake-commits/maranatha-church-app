@@ -1,13 +1,14 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { AppShell } from '@/components/layout/app-shell'
 import { getLocalChurchStats } from '@/lib/actions/local-actions'
-import { LocalKpiCards } from '@/components/local/local-kpi-cards'
-import { LocalPaymentHistory } from '@/components/local/local-payment-history'
+import { LocalDashboardClient } from '@/components/local/local-dashboard-client'
 import { Badge } from '@/components/ui/badge'
 import { MapPin } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 async function LocalContent() {
+  await connection()
+
   const stats = await getLocalChurchStats()
 
   if ('error' in stats) {
@@ -26,8 +27,8 @@ async function LocalContent() {
 
   return (
     <div className="space-y-xl" style={{ width: '100%', maxWidth: '100%' }}>
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Contextual Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-heading-2 font-bold text-foreground">{stats.churchName}</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -40,32 +41,29 @@ async function LocalContent() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <LocalKpiCards stats={stats} />
-
-      {/* Payment History */}
-      <LocalPaymentHistory payments={stats.payments} />
+      {/* New Client Wrapper handles the filtering */}
+      <LocalDashboardClient stats={stats} />
     </div>
-  )
-}
-
-async function Content() {
-  // Force dynamic rendering (auth-protected via AppShell)
-  await connection()
-
-  return (
-    <AppShell>
-      <Suspense fallback={<div className="p-xl text-muted-foreground">Loading local dashboard...</div>}>
-        <LocalContent />
-      </Suspense>
-    </AppShell>
   )
 }
 
 export default function LocalChurchDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
-      <Content />
+    <Suspense
+      fallback={
+        <div className="space-y-xl">
+          <Skeleton className="h-[80px] w-[300px]" />
+          <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+            <Skeleton className="h-[140px] rounded-xl" />
+            <Skeleton className="h-[140px] rounded-xl" />
+            <Skeleton className="h-[140px] rounded-xl" />
+            <Skeleton className="h-[140px] rounded-xl" />
+          </div>
+          <Skeleton className="h-[400px] rounded-xl" />
+        </div>
+      }
+    >
+      <LocalContent />
     </Suspense>
   )
 }

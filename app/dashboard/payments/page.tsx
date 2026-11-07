@@ -1,13 +1,23 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { AppShell } from '@/components/layout/app-shell'
 import { getPayments } from '@/lib/actions/payment-actions'
 import { PaymentsKpiCards } from '@/components/payments/payments-kpi-cards'
 import { PaymentsTable } from '@/components/payments/payments-table'
+import { Skeleton } from '@/components/ui/skeleton'
 
 async function PaymentsContent() {
+  await connection()
   const { payments, stats } = await getPayments()
 
+  return (
+    <>
+      <PaymentsKpiCards stats={stats} />
+      <PaymentsTable data={payments} />
+    </>
+  )
+}
+
+export default function PaymentsPage() {
   return (
     <div className="space-y-xl">
       <div>
@@ -17,32 +27,21 @@ async function PaymentsContent() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <PaymentsKpiCards stats={stats} />
-
-      {/* Data Table */}
-      <PaymentsTable data={payments} />
-    </div>
-  )
-}
-
-async function Content() {
-  // Force dynamic rendering (auth-protected via AppShell)
-  await connection()
-
-  return (
-    <AppShell>
-      <Suspense fallback={<div className="p-xl text-muted-foreground">Loading payments ledger...</div>}>
+      <Suspense
+        fallback={
+          <div className="space-y-xl">
+            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+              <Skeleton className="h-[140px] rounded-xl" />
+              <Skeleton className="h-[140px] rounded-xl" />
+              <Skeleton className="h-[140px] rounded-xl" />
+              <Skeleton className="h-[140px] rounded-xl" />
+            </div>
+            <Skeleton className="h-[600px] rounded-xl" />
+          </div>
+        }
+      >
         <PaymentsContent />
       </Suspense>
-    </AppShell>
-  )
-}
-
-export default function PaymentsPage() {
-  return (
-    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
-      <Content />
-    </Suspense>
+    </div>
   )
 }

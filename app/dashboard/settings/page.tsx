@@ -1,20 +1,28 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { AppShell } from '@/components/layout/app-shell'
 import { getCurrentUserProfile } from '@/lib/actions/user-actions'
 import { ProfileCard } from '@/components/settings/profile-card'
 import { PasswordForm } from '@/components/settings/password-form'
 import { redirect } from 'next/navigation'
+import { Skeleton } from '@/components/ui/skeleton'
 
 async function SettingsContent() {
+  await connection()
   const profile = await getCurrentUserProfile()
 
-  if (!profile) {
-    redirect('/login')
-  }
+  if (!profile) redirect('/login')
 
   return (
-    // INLINE STYLE SOLUTION to bypass flex collapse
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-md items-start w-full">
+      <ProfileCard profile={profile} />
+      <PasswordForm />
+    </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    // INLINE STYLE SOLUTION RESTORED
     <div className="space-y-xl" style={{ width: '100%', maxWidth: '64rem' }}>
       <div>
         <h1 className="text-heading-2 font-medium text-foreground">Settings</h1>
@@ -23,31 +31,16 @@ async function SettingsContent() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-md items-start">
-        <ProfileCard profile={profile} />
-        <PasswordForm />
-      </div>
-    </div>
-  )
-}
-
-async function Content() {
-  // Force dynamic rendering (auth-protected via AppShell)
-  await connection()
-
-  return (
-    <AppShell>
-      <Suspense fallback={<div className="p-xl text-muted-foreground">Loading settings...</div>}>
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-md items-start w-full">
+            <Skeleton className="h-[400px] rounded-xl" />
+            <Skeleton className="h-[400px] rounded-xl" />
+          </div>
+        }
+      >
         <SettingsContent />
       </Suspense>
-    </AppShell>
-  )
-}
-
-export default function SettingsPage() {
-  return (
-    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading...</div>}>
-      <Content />
-    </Suspense>
+    </div>
   )
 }

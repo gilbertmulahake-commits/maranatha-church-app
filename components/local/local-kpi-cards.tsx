@@ -1,4 +1,4 @@
-import { Banknote, CalendarDays, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { Banknote, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LocalChurchStats } from '@/lib/actions/local-actions'
@@ -6,6 +6,7 @@ import { StackedBar } from '@/components/dashboard/stacked-bar'
 
 interface Props {
   stats: LocalChurchStats
+  onFilterChange?: (filter: 'All' | 'Annual' | 'Monthly') => void
 }
 
 function formatCurrency(amount: number) {
@@ -16,10 +17,10 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-export function LocalKpiCards({ stats }: Props) {
-  const cardClasses = "h-full bg-gradient-to-t from-primary/5 to-card"
+export function LocalKpiCards({ stats, onFilterChange }: Props) {
+  // SYSTEM STANDARD CLASSES: Gradient, Hover Lift, Shadow, Cursor
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
 
-  // Helper for status badges
   const getBadge = (status: string) => {
     if (status === 'Paid') return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200"><CheckCircle className="mr-1 h-3 w-3"/> Paid</Badge>
     if (status === 'Partial') return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200"><AlertTriangle className="mr-1 h-3 w-3"/> Partial</Badge>
@@ -30,8 +31,8 @@ export function LocalKpiCards({ stats }: Props) {
   return (
     <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
       
-      {/* CARD 1: Total Paid */}
-      <Card className={cardClasses}>
+      {/* CARD 1: Total Paid (Filters to All) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Total Contributions</CardDescription>
           <CardTitle className="text-heading-1 font-bold tabular-nums text-emerald-600">
@@ -52,13 +53,13 @@ export function LocalKpiCards({ stats }: Props) {
             total={stats.totalPaid || 1}
           />
           <p className="text-paragraph-mini text-muted-foreground">
-            Annual vs Monthly split
+            Click to view all transactions
           </p>
         </CardFooter>
       </Card>
 
-      {/* CARD 2: Annual Status */}
-      <Card className={cardClasses}>
+      {/* CARD 2: Annual Fee (Filters to Annual) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Annual')}>
         <CardHeader>
           <CardDescription>Annual Fee</CardDescription>
           <CardTitle className="text-heading-1 font-bold tabular-nums">
@@ -80,8 +81,8 @@ export function LocalKpiCards({ stats }: Props) {
         </CardFooter>
       </Card>
 
-      {/* CARD 3: Monthly Status */}
-      <Card className={cardClasses}>
+      {/* CARD 3: Monthly Fees (Filters to Monthly) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('Monthly')}>
         <CardHeader>
           <CardDescription>Monthly Fees</CardDescription>
           <CardTitle className="text-heading-1 font-bold tabular-nums">
@@ -103,8 +104,8 @@ export function LocalKpiCards({ stats }: Props) {
         </CardFooter>
       </Card>
 
-      {/* CARD 4: Overall Health */}
-      <Card className={cardClasses}>
+      {/* CARD 4: Overall Health (Filters to All) */}
+      <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Overall Compliance</CardDescription>
           <CardTitle className="text-heading-1 font-bold tabular-nums">

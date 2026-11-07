@@ -38,6 +38,8 @@ import { SendChairmanButton } from './send-chairman-button'
 import { EditRegionDialog } from './edit-region-dialog'
 import { useRouter } from 'next/navigation'
 
+const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-')
+
 export type RegionRow = {
   id: string
   name: string
@@ -251,13 +253,14 @@ export function RegionTable({ data }: { data: RegionRow[] }) {
                         </DropdownMenuTrigger>
                         
                         <DropdownMenuContent align="end">
+                          {/* WRAPPED IN GROUP FOR BASE UI */}
                           <DropdownMenuGroup>
                             <DropdownMenuLabel className="text-paragraph-small">Actions</DropdownMenuLabel>
                           </DropdownMenuGroup>
                           
                           <DropdownMenuItem 
                             className="cursor-pointer text-paragraph-small" 
-                            onClick={() => router.push(`/dashboard/regions/${region.id}`)}
+                            onClick={() => router.push(`/dashboard/regions/${slugify(region.name)}`)}
                           >
                             <Eye className="mr-2 h-4 w-4" /> View Churches
                           </DropdownMenuItem>

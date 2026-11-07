@@ -1,38 +1,36 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { AppShell } from '@/components/layout/app-shell'
 import { getRegionsWithStats, getRegionStats } from '@/lib/actions/region-actions'
 import { CreateRegionDialog } from '@/components/regions/create-region-dialog'
 import { RegionDashboard } from '@/components/regions/region-dashboard'
 import { Skeleton } from '@/components/ui/skeleton'
 
 async function RegionsContent() {
+  await connection()
+
   const [regions, stats] = await Promise.all([
     getRegionsWithStats(),
-    getRegionStats()
+    getRegionStats(),
   ])
 
   return <RegionDashboard initialData={regions} stats={stats} />
 }
 
-async function Content() {
-  // Force this route to render dynamically (auth-protected via AppShell)
-  await connection()
-
+export default function RegionsPage() {
   return (
-    <AppShell>
-      <div className="space-y-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-heading-2 font-medium text-foreground">Regions</h1>
-            <p className="mt-xs text-paragraph-small text-muted-foreground">
-              Manage the 60 regional units and monitor their performance.
-            </p>
-          </div>
-          <CreateRegionDialog />
+    <div className="space-y-xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-heading-2 font-medium text-foreground">Regions</h1>
+          <p className="mt-xs text-paragraph-small text-muted-foreground">
+            Manage the 60 regional units and monitor their performance.
+          </p>
         </div>
+        <CreateRegionDialog />
+      </div>
 
-        <Suspense fallback={
+      <Suspense
+        fallback={
           <div className="space-y-xl">
             <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
               <Skeleton className="h-[120px] rounded-xl" />
@@ -42,18 +40,10 @@ async function Content() {
             </div>
             <Skeleton className="h-[400px] rounded-xl" />
           </div>
-        }>
-          <RegionsContent />
-        </Suspense>
-      </div>
-    </AppShell>
-  )
-}
-
-export default function RegionsPage() {
-  return (
-    <Suspense fallback={<div className="p-xl text-muted-foreground">Loading regions...</div>}>
-      <Content />
-    </Suspense>
+        }
+      >
+        <RegionsContent />
+      </Suspense>
+    </div>
   )
 }

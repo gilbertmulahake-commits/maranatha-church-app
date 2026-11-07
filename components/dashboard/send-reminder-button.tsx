@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { sendReminder } from '@/lib/actions/sms-actions'
-import { Button } from '@/components/ui/button'
 import { MessageSquare, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 export function SendReminderButton({ 
   churchId, 
@@ -30,7 +30,6 @@ export function SendReminderButton({
   async function handleSend() {
     setLoading(true)
     
-    // Pass the strictly separated outstanding amounts to the server action
     const result = await sendReminder(
       churchId, 
       churchName, 
@@ -54,19 +53,17 @@ export function SendReminderButton({
   }
 
   return (
-    <Button 
-      variant="outline" 
-      size="sm" 
+    <DropdownMenuItem 
       onClick={handleSend} 
       disabled={loading}
-      className="h-8 text-xs text-primary border-primary/20 hover:bg-primary/10"
+      className="cursor-pointer text-primary focus:bg-primary/10 focus:text-primary"
     >
       {loading ? (
-        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
-        <MessageSquare className="mr-2 h-3 w-3" />
+        <MessageSquare className="mr-2 h-4 w-4" />
       )}
       {loading ? 'Sending...' : 'Remind Pastor'}
-    </Button>
+    </DropdownMenuItem>
   )
 }

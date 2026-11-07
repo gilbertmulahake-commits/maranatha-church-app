@@ -119,10 +119,14 @@ export async function getChurchStats() {
       else overdue++
     })
 
-    return { total: churches.length, compliant, partial, overdue }
+    // FIX: `na` is required by ChurchDashboard's periodStats type. At the overall
+    // level there is no N/A concept (a church is always Paid, Partial, or Overdue),
+    // so we return 0. The real per-period N/A count is computed client-side from
+    // initialData inside computePeriodStats().
+    return { total: churches.length, compliant, partial, overdue, na: 0 }
   } catch (error) {
     console.error('Failed to fetch church stats:', error)
-    return { total: 0, compliant: 0, partial: 0, overdue: 0 }
+    return { total: 0, compliant: 0, partial: 0, overdue: 0, na: 0 }
   }
 }
 
