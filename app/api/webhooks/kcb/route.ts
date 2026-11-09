@@ -2,26 +2,23 @@ import { sendSms } from '@/lib/actions/sms-actions'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { computeExpectedPeriods, calculateAllocations } from '@/lib/utils/allocation'
 
-// 1. Define the exact shape of the KCB payload we expect
 const kcbWebhookSchema = z.object({
-  TransID: z.string(),         // Unique transaction ID (Idempotency key)
-  TransAmount: z.coerce.number(), // Amount (coerce string to number)
-  BillRefNumber: z.string(),   // Church ID (e.g., CH001)
-  MSISDN: z.string(),          // Phone number
-  TransTime: z.string(),       // Date/Time string
-  FirstName: z.string().optional(), // Optional payer name
-  payment_type: z.enum(['Monthly', 'Annual']).default('Monthly'), // NEW: Specify payment type
+  TransID: z.string(),
+  TransAmount: z.coerce.number(),
+  BillRefNumber: z.string(),
+  MSISDN: z.string(),
+  TransTime: z.string(),
+  FirstName: z.string().optional(),
+  payment_type: z.enum(['Monthly', 'Annual', 'Auto']).default('Monthly'),
 })
 
 export async function POST(request: Request) {
   try {
-    // 2. Parse the incoming JSON body
     const body = await request.json()
-
-    // 3. Validate the payload with Zod
     const validatedData = kcbWebhookSchema.safeParse(body)
-    
+
     if (!validatedData.success) {
       return NextResponse.json(
         { error: 'Invalid webhook payload', details: validatedData.error.issues },
@@ -29,64 +26,132 @@ export async function POST(request: Request) {
       )
     }
 
-    // Destructure the validated data including the new payment_type
-    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type } = validatedData.data
+    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type } =
+      validatedData.data
 
-    // 4. Idempotency Check: Has this transaction already been processed?
+    // 1. Idempotency — reject duplicate webhook retries
     const existingPayment = await prisma.payment.findUnique({
       where: { transaction_id: TransID },
     })
-
     if (existingPayment) {
-      return NextResponse.json({ message: 'Payment already processed (Idempotent)' }, { status: 200 })
+      return NextResponse.json(
+        { message: 'Payment already processed (Idempotent)' },
+        { status: 200 }
+      )
     }
 
-    // 5. Reconciliation: Find the church by its code (BillRefNumber)
+    // 2. Find the church + load existing allocations (needed for Auto mode)
     const church = await prisma.church.findUnique({
       where: { church_code: BillRefNumber },
+      include: {
+        payments: {
+          include: { allocations: true },
+        },
+      },
     })
 
     if (!church) {
-      // The payment came in, but the Church ID is invalid.
-      // In a full production system, we would save this to an "UnmatchedPayment" table.
       return NextResponse.json(
         { error: `Unmatched Payment: Church ID '${BillRefNumber}' not found.` },
         { status: 404 }
       )
     }
 
-       // 6. Save the Payment record
-    const newPayment = await prisma.payment.create({
-      data: {
-        church_id: church.id,
-        transaction_id: TransID,
-        payment_type: payment_type,
-        amount_paid: TransAmount,
-        payment_date: new Date(TransTime),
-        payment_method: 'M_Pesa',
-        status: 'Paid',
-        month_covered: new Date(TransTime).toLocaleString('default', { month: 'long', year: 'numeric' }),
-        billing_year: new Date(TransTime).getFullYear(), // NEW: Stamp the year from the transaction time
-      },
-    })
+    // 3. Parse transaction date ONCE
+    const transDate = new Date(TransTime)
 
-    // 7. Trigger Automated SMS Receipt
-    // Note: In production, this would be sent to a background queue, but we await it for MVP testing.
+    // 4. Flatten existing allocations — convert Prisma.Decimal → number for the helper
+    const existingAllocations = church.payments.flatMap((p) =>
+      p.allocations.map((a) => ({
+        allocation_type: a.allocation_type,
+        billing_year: a.billing_year,
+        billing_month: a.billing_month,
+        amount: Number(a.amount),
+      }))
+    )
+
+    // 5. Compute allocations based on payment_type
+    let allocations: ReturnType<typeof calculateAllocations>
+
+    if (payment_type === 'Auto') {
+      const { expectedAnnuals, expectedMonthlies } = computeExpectedPeriods(
+        church.created_at,
+        existingAllocations,
+        transDate
+      )
+      allocations = calculateAllocations(TransAmount, expectedAnnuals, expectedMonthlies)
+    } else {
+      const currentYear = transDate.getFullYear()
+      const currentMonth = transDate.getMonth() + 1
+      allocations = [
+        {
+          allocation_type: payment_type,
+          billing_year: currentYear,
+          billing_month: payment_type === 'Monthly' ? currentMonth : null,
+          amount: TransAmount,
+        },
+      ]
+    }
+
+    // 6. For Auto mode, Payment.payment_type needs a stored value — default to Annual.
+    const storedPaymentType = payment_type === 'Auto' ? 'Annual' : payment_type
+
+    // 7. Create Payment + all Allocations in ONE atomic transaction
+    //    - createMany sends all allocations in a single SQL statement (one round-trip)
+    //    - timeout: 15000 gives headroom for larger payments / slower networks
+    const newPayment = await prisma.$transaction(
+      async (tx) => {
+        const payment = await tx.payment.create({
+          data: {
+            church_id: church.id,
+            transaction_id: TransID,
+            payment_type: storedPaymentType,
+            amount_paid: TransAmount,
+            payment_date: transDate,
+            payment_method: 'M_Pesa',
+            status: 'Paid',
+            month_covered: transDate.toLocaleString('default', {
+              month: 'long',
+              year: 'numeric',
+            }),
+            billing_year: transDate.getFullYear(),
+          },
+        })
+
+        // Bulk insert — one DB round-trip regardless of allocation count
+        if (allocations.length > 0) {
+          await tx.paymentAllocation.createMany({
+            data: allocations.map((alloc) => ({
+              payment_id: payment.id,
+              allocation_type: alloc.allocation_type,
+              billing_year: alloc.billing_year,
+              billing_month: alloc.billing_month,
+              amount: alloc.amount,
+            })),
+          })
+        }
+
+        return payment
+      },
+      { timeout: 15000 }
+    )
+
+    // 8. Automated SMS receipt (outside transaction — SMS failure must not roll back payment)
     const smsMessage = `Payment of KES ${TransAmount.toLocaleString()} for ${church.church_name} (${BillRefNumber}) received. Ref: ${TransID}. Thank you. - Maranatha`
     await sendSms(MSISDN, smsMessage, 'Receipt')
 
-    // 8. Return success
-    return NextResponse.json({ 
-      message: 'Payment successfully reconciled', 
-      payment_id: newPayment.id,
-      church_name: church.church_name
-    }, { status: 201 })
-
+    // 9. Return success
+    return NextResponse.json(
+      {
+        message: 'Payment successfully reconciled',
+        payment_id: newPayment.id,
+        church_name: church.church_name,
+        allocations_count: allocations.length,
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Webhook processing error:', error)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

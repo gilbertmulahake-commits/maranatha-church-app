@@ -38,7 +38,11 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
         church: {
           include: {
             region: true,
-            payments: { where: { status: 'Paid' }, orderBy: { payment_date: 'desc' } }
+            payments: { 
+              where: { status: 'Paid' }, 
+              orderBy: { payment_date: 'desc' },
+              include: { allocations: true }
+            }
           }
         }
       }
@@ -54,16 +58,24 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
     let annualPaid = 0
     let monthlyPaid = 0
 
+    // READ FROM ALLOCATIONS
     church.payments.forEach((p) => {
-      const amount = Number(p.amount_paid)
-      if (p.payment_type === 'Annual') annualPaid += amount
-      else monthlyPaid += amount
+      if (p.allocations.length === 0) {
+        const amount = Number(p.amount_paid)
+        if (p.payment_type === 'Annual') annualPaid += amount
+        else monthlyPaid += amount
+      } else {
+        p.allocations.forEach((a) => {
+          const amount = Number(a.amount)
+          if (a.allocation_type === 'Annual') annualPaid += amount
+          else monthlyPaid += amount
+        })
+      }
     })
 
     const totalPaid = annualPaid + monthlyPaid
     const { expectedAnnual, expectedMonthly, totalExpected } = getExpectedUpToDate(church.created_at, now)
 
-    // STRICT BUCKET ISOLATION
     const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
     const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
 

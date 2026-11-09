@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
+import { getExpectedUpToDate, getCreditBalance, getPeriodStatus } from '@/lib/utils/financial'
 
 const churchSchema = z.object({
   church_code: z.string().min(1, 'Church Code is required'),
@@ -18,9 +18,12 @@ const churchSchema = z.object({
 export async function getChurches() {
   try {
     const churches = await prisma.church.findMany({
-      include: { 
+      include: {
         region: true,
-        payments: { where: { status: 'Paid' } } 
+        payments: {
+          where: { status: 'Paid' },
+          include: { allocations: true },
+        },
       },
       orderBy: { church_code: 'asc' },
     })
@@ -28,27 +31,42 @@ export async function getChurches() {
     const now = new Date()
 
     return churches.map((church) => {
+      // Split by allocation_type (authoritative for Annual vs Monthly)
       let annualPaid = 0
       let monthlyPaid = 0
 
-      church.payments.forEach(p => {
-        const amount = Number(p.amount_paid)
-        if (p.payment_type === 'Annual') annualPaid += amount
-        else monthlyPaid += amount
+      church.payments.forEach((p) => {
+        if (p.allocations.length === 0) {
+          // Defensive fallback for pre-backfill data — shouldn't happen post-migration
+          const amount = Number(p.amount_paid)
+          if (p.payment_type === 'Annual') annualPaid += amount
+          else monthlyPaid += amount
+        } else {
+          p.allocations.forEach((a) => {
+            const amount = Number(a.amount)
+            if (a.allocation_type === 'Annual') annualPaid += amount
+            else monthlyPaid += amount
+          })
+        }
       })
 
       const totalPaid = annualPaid + monthlyPaid
-      const { expectedAnnual, expectedMonthly, totalExpected } = getExpectedUpToDate(church.created_at, now)
+      const { expectedAnnual, expectedMonthly, totalExpected } = getExpectedUpToDate(
+        church.created_at,
+        now
+      )
 
       const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
       const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
       const totalOutstanding = annualOutstanding + monthlyOutstanding
 
-      // STRICT BUCKET ISOLATION
       const annualCredit = Math.max(0, annualPaid - expectedAnnual)
       const monthlyCredit = Math.max(0, monthlyPaid - expectedMonthly)
-      
-      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual) as any
+
+      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(
+        annualPaid,
+        expectedAnnual
+      ) as any
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) {
@@ -57,7 +75,8 @@ export async function getChurches() {
 
       let overallStatus: 'Paid' | 'Partial' | 'Overdue' = 'Partial'
       if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
-      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue')
+        overallStatus = 'Overdue'
 
       return {
         id: church.id,
@@ -68,18 +87,18 @@ export async function getChurches() {
         pastor_phone: church.pastor_phone,
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
-        
+
         amountPaid: totalPaid,
         expected: totalExpected,
         outstanding: totalOutstanding,
-        
+
         annualCredit,
         monthlyCredit,
         annualPaid,
         monthlyPaid,
         annualOutstanding,
         monthlyOutstanding,
-        
+
         status: overallStatus,
         annualStatus,
         monthlyStatus,
@@ -94,7 +113,12 @@ export async function getChurches() {
 export async function getChurchStats() {
   try {
     const churches = await prisma.church.findMany({
-      include: { payments: { where: { status: 'Paid' } } },
+      include: {
+        payments: {
+          where: { status: 'Paid' },
+          include: { allocations: true },
+        },
+      },
     })
 
     let compliant = 0
@@ -103,11 +127,30 @@ export async function getChurchStats() {
     const now = new Date()
 
     churches.forEach((church) => {
-      const annualPaid = church.payments.filter(p => p.payment_type === 'Annual').reduce((sum, p) => sum + Number(p.amount_paid), 0)
-      const monthlyPaid = church.payments.filter(p => p.payment_type === 'Monthly').reduce((sum, p) => sum + Number(p.amount_paid), 0)
+      // Sum from allocations (authoritative)
+      let annualPaid = 0
+      let monthlyPaid = 0
+
+      church.payments.forEach((p) => {
+        if (p.allocations.length === 0) {
+          const amount = Number(p.amount_paid)
+          if (p.payment_type === 'Annual') annualPaid += amount
+          else monthlyPaid += amount
+        } else {
+          p.allocations.forEach((a) => {
+            const amount = Number(a.amount)
+            if (a.allocation_type === 'Annual') annualPaid += amount
+            else monthlyPaid += amount
+          })
+        }
+      })
+
       const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(church.created_at, now)
-      
-      const aStat = expectedAnnual === 0 && annualPaid === 0 ? 'N/A' : getPeriodStatus(annualPaid, expectedAnnual)
+
+      const aStat =
+        expectedAnnual === 0 && annualPaid === 0
+          ? 'N/A'
+          : getPeriodStatus(annualPaid, expectedAnnual)
       const mStat = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       let overallStatus = 'Partial'
@@ -119,10 +162,6 @@ export async function getChurchStats() {
       else overdue++
     })
 
-    // FIX: `na` is required by ChurchDashboard's periodStats type. At the overall
-    // level there is no N/A concept (a church is always Paid, Partial, or Overdue),
-    // so we return 0. The real per-period N/A count is computed client-side from
-    // initialData inside computePeriodStats().
     return { total: churches.length, compliant, partial, overdue, na: 0 }
   } catch (error) {
     console.error('Failed to fetch church stats:', error)
