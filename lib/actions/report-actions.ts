@@ -33,7 +33,6 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
 
-    // Enforce Regional Isolation
     let whereClause = {}
     if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       whereClause = { region_id: dbUser.region_id }
@@ -43,7 +42,10 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
       where: whereClause,
       include: {
         region: true,
-        payments: { where: { status: 'Paid' } },
+        payments: { 
+          where: { status: 'Paid' },
+          include: { allocations: true }
+        },
       },
       orderBy: { church_code: 'asc' },
     })
@@ -55,20 +57,27 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
       let annualPaid = 0
       let monthlyPaid = 0
 
+      // READ FROM ALLOCATIONS
       church.payments.forEach((p) => {
-        const amount = Number(p.amount_paid)
-        if (p.payment_type === 'Annual') annualPaid += amount
-        else monthlyPaid += amount
+        if (p.allocations.length === 0) {
+          const amount = Number(p.amount_paid)
+          if (p.payment_type === 'Annual') annualPaid += amount
+          else monthlyPaid += amount
+        } else {
+          p.allocations.forEach((a) => {
+            const amount = Number(a.amount)
+            if (a.allocation_type === 'Annual') annualPaid += amount
+            else monthlyPaid += amount
+          })
+        }
       })
 
       const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(church.created_at, now)
 
-      // Strict Bucket Isolation: Calculate outstanding separately
       const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
       const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
       const totalOutstanding = annualOutstanding + monthlyOutstanding
 
-      // Only include churches that actually owe money
       if (totalOutstanding > 0) {
         arrearsData.push({
           id: church.id,
@@ -82,7 +91,6 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
       }
     })
 
-    // Sort by highest total outstanding first
     return arrearsData.sort((a, b) => b.totalOutstanding - a.totalOutstanding)
 
   } catch (error) {
@@ -99,14 +107,12 @@ export async function getDailyCashbook(targetDate: Date): Promise<CashbookRow[]>
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
 
-    // Date boundaries for the requested day (00:00:00 to 23:59:59)
     const startOfDay = new Date(targetDate)
     startOfDay.setHours(0, 0, 0, 0)
     
     const endOfDay = new Date(targetDate)
     endOfDay.setHours(23, 59, 59, 999)
 
-    // Enforce Regional Isolation
     let whereClause: any = {
       payment_date: {
         gte: startOfDay,

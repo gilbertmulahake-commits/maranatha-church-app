@@ -41,8 +41,7 @@ export function MockKCBForm({
       TransAmount: amount,
       BillRefNumber: churchCode.toUpperCase(),
       MSISDN: phone,
-      // FIX: Using the real current date so the chart updates correctly
-      TransTime: new Date().toISOString(), 
+      TransTime: new Date().toISOString(),
       FirstName: 'Test Payer',
       payment_type: paymentType,
     }
@@ -57,7 +56,10 @@ export function MockKCBForm({
       const data = await res.json()
 
       if (res.ok) {
-        setResponse({ type: 'success', text: data.message + ` (Church: ${data.church_name})` })
+        setResponse({
+          type: 'success',
+          text: `${data.message} (Church: ${data.church_name}, ${data.allocations_count} allocations)`,
+        })
         if (!isLocked) setChurchCode('')
         setAmount('')
         setPhone('')
@@ -74,7 +76,6 @@ export function MockKCBForm({
   }
 
   return (
-    // INLINE STYLE SOLUTION RESTORED
     <div className="space-y-xl" style={{ width: '100%', maxWidth: '42rem' }}>
       <Card>
         <CardHeader>
@@ -117,7 +118,13 @@ export function MockKCBForm({
               >
                 <option value="Monthly">Monthly (500)</option>
                 <option value="Annual">Annual (5000)</option>
+                <option value="Auto">Auto — Split by Annual Priority</option>
               </select>
+              {paymentType === 'Auto' && (
+                <p className="text-paragraph-mini text-muted-foreground mt-xs">
+                  System will apply the amount to Annual arrears first, then Monthly, then future months.
+                </p>
+              )}
             </div>
 
             <div>

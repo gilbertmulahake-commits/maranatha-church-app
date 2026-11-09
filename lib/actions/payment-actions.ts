@@ -13,6 +13,7 @@ export type PaymentRow = {
   payment_method: string
   payment_date: string
   status: string
+  is_mixed: boolean
 }
 
 export async function getPayments(): Promise<{ 
@@ -28,7 +29,6 @@ export async function getPayments(): Promise<{
     cashCount: number
   } 
 }> {
-  // Fallback empty state to ensure the UI never crashes on undefined
   const emptyState = { 
     payments: [], 
     stats: { 
@@ -63,6 +63,7 @@ export async function getPayments(): Promise<{
       where: whereClause,
       include: {
         church: true,
+        allocations: true,
       },
       orderBy: { payment_date: 'desc' },
     })
@@ -75,7 +76,6 @@ export async function getPayments(): Promise<{
     let bankCount = 0
     let cashCount = 0
 
-    // Date boundary for "This Month" calculation
     const today = new Date()
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     let thisMonthVolume = 0
@@ -84,15 +84,27 @@ export async function getPayments(): Promise<{
       const amount = Number(p.amount_paid)
       totalVolume += amount
 
-      if (p.payment_type === 'Annual') annualVolume += amount
-      else monthlyVolume += amount
+      // READ FROM ALLOCATIONS
+      let isMixed = false
+      if (p.allocations.length === 0) {
+        if (p.payment_type === 'Annual') annualVolume += amount
+        else monthlyVolume += amount
+      } else {
+        const uniqueTypes = new Set(p.allocations.map(a => a.allocation_type))
+        if (uniqueTypes.size > 1) isMixed = true
+
+        p.allocations.forEach((a) => {
+          const allocAmount = Number(a.amount)
+          if (a.allocation_type === 'Annual') annualVolume += allocAmount
+          else monthlyVolume += allocAmount
+        })
+      }
 
       if (p.payment_method === 'M_Pesa') mpesaCount++
       else if (p.payment_method === 'Bank_Transfer') bankCount++
       else if (p.payment_method === 'Cash') cashCount++
 
-      // Check if the payment falls within the current calendar month
-      if (p.payment_date >= startOfMonth) {
+      if (new Date(p.payment_date) >= startOfMonth) {
         thisMonthVolume += amount
       }
 
@@ -106,6 +118,7 @@ export async function getPayments(): Promise<{
         payment_method: p.payment_method,
         payment_date: p.payment_date.toISOString(),
         status: p.status,
+        is_mixed: isMixed,
       }
     })
 
@@ -116,7 +129,7 @@ export async function getPayments(): Promise<{
         totalVolume,
         annualVolume,
         monthlyVolume,
-        thisMonthVolume, // <-- Included
+        thisMonthVolume,
         mpesaCount,
         bankCount,
         cashCount

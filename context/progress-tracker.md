@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 14.0 - Complete
+Unit 14.5 - Complete
 
 ## Current Goal
-Begin Unit 15: Deployment Preparation & Final Polish
+Begin Unit 15: Deployment Preparation
 
 ## Completed
 - **Unit 01: Database Initialization**
@@ -98,17 +98,24 @@ Begin Unit 15: Deployment Preparation & Final Polish
   - Translated backend credit values into human-readable "Paid (X Years/Months Prepaid)" text.
   - Updated `church-table.tsx` and `regional-table.tsx` to use the new `formatPrepaidStatus` helper.
   - Deferred full webhook splitting and `PaymentAllocation` table to V2.
+- **Unit 14.0: Prepaid Status UI**
+  - Translated backend credit values into human-readable "Paid (X Years/Months Prepaid)" text.
+  - Updated `church-table.tsx` and `regional-table.tsx` to use the new `formatPrepaidStatus` helper.
+- **Unit 14.5: Payment Allocation Engine**
+  - Added `PaymentAllocation` model to track exact period-by-period attribution.
+  - Built pure allocation engine (`lib/utils/allocation.ts`) using a Year-by-Year priority model (Annual arrears → Current Annual → Monthly arrears → Current Month → Future Years).
+  - Updated KCB Webhook to accept `Auto` mode, split payments using `createMany`, and handle mixed deposits.
+  - Created and ran `scripts/backfill-allocations.ts` to retroactively allocate 6 historical payments into 8 records.
+  - Refactored all 8 Server Action files to read Annual/Monthly sums from `allocations` rather than `payment_type`.
+  - Added "Mixed" badge to Payments Ledger.
+  - **Global Fix:** Replaced broken `import { cn } from "cn"` with `import { cn } from "@/lib/utils"` across 9 shadcn primitives.
 
 ## In Progress
 - None.
 
 ## Next Up
 - **Unit 15: Deployment Preparation**
-  - Set up Vercel, connect Supabase production keys, run `prisma migrate deploy`.
-- **V2 Enhancements**: 
-  - Full FIFO Payment Allocation Ledger.
-  - Real Africa's Talking SMS API integration.
-  - Real KCB Daraja API integration.
+  - Vercel integration, production Supabase keys, `prisma migrate deploy`.
 
 ## Open Questions
 - None.
@@ -123,6 +130,7 @@ Begin Unit 15: Deployment Preparation & Final Polish
 - **Audit Ledger:** Uses Static Global KPIs. The table below filters and searches, but the KPIs represent the total lifetime inflow for the user's role scope.
 - **Sonner:** All user feedback (success, error, info) uses Sonner toasts. No `alert()`.
 - **Prepaid Status (Phase 1):** UI-only translation of credits. No webhook splitting (protects 1:1 bank reconciliation). Deferring `PaymentAllocation` table to V2.
+- **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.
 
 ## Session Notes
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.

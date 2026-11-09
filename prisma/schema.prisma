@@ -44,15 +44,35 @@ model Payment {
   id             String   @id @default(uuid())
   church_id      String
   church         Church   @relation(fields: [church_id], references: [id])
-  transaction_id String   @unique // KCB/M-Pesa reference code (Invariant: Idempotency)
+  transaction_id String   @unique
   payment_type   PaymentType
   amount_paid    Decimal
   payment_date   DateTime
   payment_method PaymentMethod
   status         PaymentStatus @default(Pending)
-  month_covered  String?  // e.g., "January 2026"
-  billing_year   Int      // NEW: Tracks the financial year this payment applies to
+  month_covered  String?
+  billing_year   Int      // Added in Unit 10.0
   created_at     DateTime @default(now())
+  
+  // NEW RELATION
+  allocations    PaymentAllocation[]
+}
+
+model PaymentAllocation {
+  id              String      @id @default(uuid())
+  payment_id      String
+  payment         Payment     @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  
+  // Reusing your existing enum (Annual | Monthly)
+  allocation_type PaymentType 
+  
+  billing_year    Int
+  billing_month   Int?        // Null for Annual, 1-12 for Monthly
+  amount          Decimal
+  
+  created_at      DateTime    @default(now())
+
+  @@index([payment_id])
 }
 
 model RegionalScore {
