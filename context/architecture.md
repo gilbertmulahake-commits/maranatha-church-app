@@ -12,6 +12,7 @@
 | Validation | Zod | Schema validation for forms, API inputs, and webhook payloads |
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic |
 | Integrations | KCB Bank API (Mocked for v1) | Listens for incoming payment webhooks (IPN) |
+| Integrations | Equity Bank API (Planned for v2) | Dual-bank support via Jenga API |
 | Integrations | Africa's Talking SMS API (Mocked) | Automated SMS reminders and receipts |
 | Exports | `xlsx`, `jspdf`, `jspdf-autotable` | Generates Excel and branded PDF reports |
 | Background Jobs | Supabase Edge Functions / Inngest | Process webhooks, send SMS, calculate scores async |
@@ -21,6 +22,10 @@
 - **Next.js 16 Middleware:** The `middleware.ts` convention is deprecated. Route protection is handled by `proxy.ts`.
 - **Case Sensitivity:** All imports and paths are case-sensitive. Avoid renaming folders after they have been pushed to GitHub to prevent sync issues.
 - **Tailwind Merge Configuration:** Because we use custom Figma typography tokens (e.g., `text-heading-1`, `p-xl`), we extended `tailwind-merge` in `lib/utils.ts`. This prevents `twMerge` from silently dropping our custom classes when they conflict with standard Tailwind colors or sizes. Do not remove this configuration.
+- **Pastorate Layer (Reserved):** The schema includes a `Pastorate` model that sits between `Region` and `Church`. It is currently dormant (`pastorate_id` is nullable on `Church`) and does NOT participate in the financial flow. It exists to support the optional communication and reporting hierarchy (`National → Region → Pastorate → Church`) if the Ministry adopts it.
+- **Bank Adapter Pattern (Future):** The system is architected to support dual-bank webhooks (KCB + Equity). Both will normalize their payloads into a standard `NormalizedTransaction` shape before hitting the Reconciliation Engine. This allows the Ministry to drop or add banks without affecting the allocation logic.
+- **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments for development, staging, and UAT. The system will only switch to live production endpoints once the client provides the live credentials. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
+- **Dynamic Fund & Channel Architecture (Future):** The current `PaymentType` and `PaymentMethod` enums will be migrated to `Fund` and `PaymentChannel` tables in V2. This enables admin-created payment categories (e.g., "Bishop's Retreat 2027") without code changes.
 
 ## 2. System Boundaries
 - `app/` — Next.js routes, layouts, and page composition. Contains dashboards for Church, Region, and National HQ.
@@ -74,3 +79,4 @@
 - **Dynamic Statuses:** A church's status is evaluated per bucket (`annualStatus` vs `monthlyStatus`). The UI dynamically swaps the badge and KPI counts based on the active `periodView` (Month/Year). If a church owes 0 in a bucket (e.g., joined after the annual deadline), it shows an `N/A` status.
 - **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit` rather than a generic total credit.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.
+- **Fund Accounting (Future):** All payments are currently split into `Annual` and `Monthly` buckets. In V2, the system will support arbitrary **Funds**. Each fund is a separate ledger. The Reconciliation Engine will route incoming funds based on a fund code included in the payment reference (e.g., `CH001-BUILD`).
