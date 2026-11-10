@@ -1,33 +1,44 @@
 'use client'
 
-import { useState } from 'react'
-import { RegionKpiCards } from './region-kpi-cards'
+import { useState, useMemo } from 'react'
 import { RegionTable, type RegionRow } from './region-table'
+import { RegionKpiCards } from './region-kpi-cards'
 
-export function RegionDashboard({ 
-  initialData, 
-  stats 
-}: { 
+interface RegionDashboardProps {
   initialData: RegionRow[]
-  stats: any
-}) {
-  // State to track which KPI card was clicked (All, AtRisk, Top)
-  const [tableFilter, setTableFilter] = useState('All')
+  stats: {
+    totalCollected: number
+    totalCollectedAnnual: number
+    totalCollectedMonthly: number
+    totalArrears: number
+    totalArrearsAnnual: number
+    totalArrearsMonthly: number
+    averageCompliance: number
+    regionsAtRisk: number
+    topRegionName: string
+    topRegionPct: number
+    topRegionTieCount: number
+  }
+}
 
-  // Filter the data based on the KPI clicked
-  const filteredData = initialData.filter((region) => {
-    if (tableFilter === 'AtRisk') return region.compliancePct < 50
-    if (tableFilter === 'Top') return region.compliancePct > 80
-    return true
-  })
+export function RegionDashboard({ initialData, stats }: RegionDashboardProps) {
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [currentPage, setCurrentPage] = useState(1)
 
   return (
     <div className="space-y-xl">
-      {/* Pass the setter so KPI cards can filter the table */}
-      <RegionKpiCards stats={stats} onFilterChange={setTableFilter} />
+      <RegionKpiCards stats={stats} />
       
-      {/* Pass the filtered data to the table */}
-      <RegionTable data={filteredData} />
+      <RegionTable
+        data={initialData}
+        search={search}
+        setSearch={setSearch}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+      />
     </div>
   )
 }

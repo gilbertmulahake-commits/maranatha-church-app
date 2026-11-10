@@ -9,6 +9,7 @@ export type ArrearsRow = {
   church_code: string
   church_name: string
   region_name: string
+  contact_phone: string // <-- ADDED
   annualOutstanding: number
   monthlyOutstanding: number
   totalOutstanding: number
@@ -33,9 +34,11 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
 
-    let whereClause = {}
+    let whereClause: any = {}
     if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       whereClause = { region_id: dbUser.region_id }
+    } else if (dbUser?.role === 'LOCAL_PASTOR' || dbUser?.role === 'CHURCH_TREASURER') {
+      whereClause = { id: dbUser.church_id } // Strictly their own church
     }
 
     const churches = await prisma.church.findMany({
@@ -57,7 +60,6 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
       let annualPaid = 0
       let monthlyPaid = 0
 
-      // READ FROM ALLOCATIONS
       church.payments.forEach((p) => {
         if (p.allocations.length === 0) {
           const amount = Number(p.amount_paid)
@@ -84,6 +86,7 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
           church_code: church.church_code,
           church_name: church.church_name,
           region_name: church.region.name,
+          contact_phone: church.contact_phone, // <-- ADDED
           annualOutstanding,
           monthlyOutstanding,
           totalOutstanding,
@@ -123,6 +126,8 @@ export async function getDailyCashbook(targetDate: Date): Promise<CashbookRow[]>
 
     if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       whereClause.church = { region_id: dbUser.region_id }
+    } else if (dbUser?.role === 'LOCAL_PASTOR' || dbUser?.role === 'CHURCH_TREASURER') {
+      whereClause.church_id = dbUser.church_id // Strictly their own church
     }
 
     const payments = await prisma.payment.findMany({

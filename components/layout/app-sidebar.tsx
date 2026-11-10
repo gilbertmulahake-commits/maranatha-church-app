@@ -9,7 +9,7 @@ import {
   IconFileText,
   IconUsers,
   IconSettings,
-  IconBolt,              // ← FIXED: was IconZap
+  IconBolt,
   IconBuildingBank,
 } from '@tabler/icons-react'
 import {
@@ -46,18 +46,19 @@ export function AppSidebar({ role, userEmail }: { role: Role; userEmail?: string
       { title: 'Payments', url: '/dashboard/payments', icon: IconCreditCard },
       { title: 'Users', url: '/dashboard/users', icon: IconUsers },
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
-      { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt }, // ← FIXED
+      { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt },
     ]
   } else if (role === 'REGIONAL_CHAIRMAN' || role === 'REGIONAL_TREASURER') {
     navMain = [
       { title: 'Regional Dashboard', url: '/dashboard/regional', icon: IconLayoutDashboard },
+      { title: 'Regional Payments', url: '/dashboard/payments', icon: IconCreditCard },
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
-      { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt }, // ← FIXED
     ]
   } else {
+    // Local Church (Pastors & Treasurers)
     navMain = [
       { title: 'Church Dashboard', url: '/dashboard/local', icon: IconLayoutDashboard },
-      { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt }, // ← FIXED
+      { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
     ]
   }
 

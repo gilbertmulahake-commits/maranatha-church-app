@@ -1,69 +1,54 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { sendReminder } from '@/lib/actions/sms-actions'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
+import { sendReminder } from '@/lib/actions/sms-actions'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
-export function SendReminderButton({ 
-  churchId, 
-  churchName, 
-  pastorName,
-  phone,
-  senderRole = 'REGIONAL',
-  annualOutstanding = 0,
-  monthlyOutstanding = 0
-}: { 
+interface Props {
   churchId: string
   churchName: string
   pastorName: string
-  phone: string 
-  senderRole?: 'NATIONAL' | 'REGIONAL'
-  annualOutstanding?: number
-  monthlyOutstanding?: number
-}) {
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  phone: string
+  senderRole: 'NATIONAL' | 'REGIONAL'
+  annualOutstanding: number
+  monthlyOutstanding: number
+}
 
-  async function handleSend() {
-    setLoading(true)
-    
-    const result = await sendReminder(
-      churchId, 
-      churchName, 
-      pastorName, 
-      phone, 
+export function SendReminderButton({
+  churchId,
+  churchName,
+  pastorName,
+  phone,
+  senderRole,
+  annualOutstanding,
+  monthlyOutstanding,
+}: Props) {
+  // FIXED: Removed the `e: Event` parameter entirely
+  const handleSend = async () => {
+    const res = await sendReminder(
+      churchId,
+      churchName,
+      pastorName,
+      phone,
       senderRole,
       annualOutstanding,
       monthlyOutstanding
     )
-    
-    if (result?.error) {
-      toast.error(result.error)
-      setLoading(false)
+
+    if (res.error) {
+      toast.error(res.error)
     } else {
-      toast.success('Reminder sent successfully')
-      setTimeout(() => {
-        setLoading(false)
-        router.refresh()
-      }, 500)
+      toast.success(`Reminder sent to ${pastorName}`)
     }
   }
 
   return (
     <DropdownMenuItem 
       onClick={handleSend} 
-      disabled={loading}
-      className="cursor-pointer text-primary focus:bg-primary/10 focus:text-primary"
+      className="cursor-pointer text-paragraph-small whitespace-nowrap"
     >
-      {loading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <MessageSquare className="mr-2 h-4 w-4" />
-      )}
-      {loading ? 'Sending...' : 'Remind Pastor'}
+      <MessageSquare className="mr-2 h-4 w-4" /> Remind Pastor
     </DropdownMenuItem>
   )
 }

@@ -1,196 +1,188 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Lock } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
+import { Loader2, ArrowRight, ShieldCheck, HelpCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
-export function MockKCBForm({
-  userRole,
-  lockedChurchCode,
-}: {
-  userRole: string
-  lockedChurchCode: string | null
-}) {
-  const [churchCode, setChurchCode] = useState(lockedChurchCode || '')
-  const [amount, setAmount] = useState('')
-  const [phone, setPhone] = useState('')
-  const [paymentType, setPaymentType] = useState('Monthly')
+export function MockKcbForm() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [churchId, setChurchId] = useState('CH001')
+  const [amount, setAmount] = useState('5000')
+  const [phone, setPhone] = useState('0712345678')
+  const [paymentType, setPaymentType] = useState('Auto')
   const [billingYear, setBillingYear] = useState(new Date().getFullYear().toString())
-  const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const isLocked = !!lockedChurchCode
-
-  useEffect(() => {
-    if (lockedChurchCode) {
-      setChurchCode(lockedChurchCode)
-    }
-  }, [lockedChurchCode])
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setResponse(null)
-
-    const transID = `MOCK${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-
-    const payload = {
-      TransID: transID,
-      TransAmount: amount,
-      BillRefNumber: churchCode.toUpperCase(),
-      MSISDN: phone,
-      TransTime: new Date().toISOString(),
-      FirstName: 'Test Payer',
-      payment_type: paymentType,
-    }
+    setIsLoading(true)
 
     try {
-      const res = await fetch('/api/webhooks/kcb', {
+      const response = await fetch('/api/webhooks/kcb', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          TransID: `MOCK-${Date.now()}`,
+          BillRefNumber: churchId,
+          TransAmount: Number(amount),
+          MSISDN: phone,
+          TransTime: new Date().toISOString(),
+          payment_type: paymentType, // Fixed casing
+          billing_year: Number(billingYear), // Fixed casing
+        }),
       })
 
-      const data = await res.json()
+      const data = await response.json()
 
-      if (res.ok) {
-        setResponse({
-          type: 'success',
-          text: `${data.message} (Church: ${data.church_name}, ${data.allocations_count} allocations)`,
-        })
-        if (!isLocked) setChurchCode('')
-        setAmount('')
-        setPhone('')
-        setPaymentType('Monthly')
-        setBillingYear(new Date().getFullYear().toString())
-      } else {
-        setResponse({ type: 'error', text: data.error || 'Failed to process payment' })
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process mock payment')
       }
-    } catch (error) {
-      setResponse({ type: 'error', text: 'Network error occurred.' })
+
+      toast.success('Payment simulated successfully')
+    } catch (error: any) {
+      toast.error(error.message)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-xl" style={{ width: '100%', maxWidth: '42rem' }}>
-      <Card>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-xl items-start w-full">
+      {/* Left Column: The Form */}
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Simulate Payment</CardTitle>
+          <CardTitle className="text-heading-4 font-bold text-foreground">Simulate KCB Payment</CardTitle>
           <CardDescription>
-            {isLocked
-              ? `You are simulating a payment for your assigned church (${lockedChurchCode}).`
-              : 'Enter any church ID and amount. The system will send a webhook to the backend.'}
+            Trigger a mock IPN webhook to test the reconciliation and allocation engine.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-md">
-            <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs flex items-center justify-between">
-                <span>Church ID (BillRefNumber)</span>
-                {isLocked && (
-                  <span className="text-primary text-[10px] flex items-center">
-                    <Lock className="h-3 w-3 mr-1" /> Locked to your church
-                  </span>
-                )}
-              </label>
-              <Input
-                value={churchCode}
-                onChange={(e) => setChurchCode(e.target.value)}
-                placeholder="e.g., CH001"
-                className={`h-9 ${isLocked ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`}
-                disabled={isLocked}
-                required
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-md">
+            <div className="space-y-sm">
+              <Label htmlFor="churchId">Church ID (BillRefNumber)</Label>
+              <Input 
+                id="churchId" 
+                value={churchId} 
+                onChange={(e) => setChurchId(e.target.value)} 
+                placeholder="e.g. CH001" 
+                required 
               />
             </div>
 
-            <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
-                Payment Type
-              </label>
-              <select
-                value={paymentType}
-                onChange={(e) => setPaymentType(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-border bg-card px-3 py-1 text-paragraph-small text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="Monthly">Monthly (500)</option>
-                <option value="Annual">Annual (5000)</option>
-                <option value="Auto">Auto — Split by Annual Priority</option>
-              </select>
-              {paymentType === 'Auto' && (
-                <p className="text-paragraph-mini text-muted-foreground mt-xs">
-                  System will apply the amount to Annual arrears first, then Monthly, then future months.
-                </p>
+            <div className="space-y-sm">
+              <Label htmlFor="amount">Amount (KES)</Label>
+              <Input 
+                id="amount" 
+                type="number" 
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+                placeholder="e.g. 5000" 
+                required 
+              />
+            </div>
+
+            <div className="space-y-sm">
+              <Label htmlFor="phone">Phone Number (MSISDN)</Label>
+              <Input 
+                id="phone" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                placeholder="e.g. 0712345678" 
+                required 
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-md">
+              <div className="space-y-sm">
+                <Label htmlFor="paymentType">Payment Type</Label>
+                <Select value={paymentType} onValueChange={(val) => setPaymentType(val || 'Auto')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Auto">Auto (Smart Split)</SelectItem>
+                    <SelectItem value="Annual">Annual</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-sm">
+                <Label htmlFor="billingYear">Billing Year</Label>
+                <Input 
+                  id="billingYear" 
+                  type="number" 
+                  value={billingYear} 
+                  onChange={(e) => setBillingYear(e.target.value)} 
+                  required 
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Send Mock Webhook
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
               )}
-            </div>
-
-            <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
-                Billing Year
-              </label>
-              <Input
-                type="number"
-                value={billingYear}
-                onChange={(e) => setBillingYear(e.target.value)}
-                placeholder="e.g., 2026"
-                className="h-9"
-                required
-              />
-              <p className="text-paragraph-mini text-muted-foreground mt-xs">
-                Simulate a payment for a past year to test carry-forward arrears.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
-                Amount (KES)
-              </label>
-              <Input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g., 5000"
-                className="h-9"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-paragraph-small font-medium text-foreground mb-xs">
-                Phone Number (MSISDN)
-              </label>
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g., 0712345678"
-                className="h-9"
-                required
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-9"
-            >
-              {loading ? 'Sending Webhook...' : 'Simulate Payment'}
             </Button>
-          </form>
+          </CardFooter>
+        </form>
+      </Card>
 
-          {response && (
-            <div
-              className={`mt-md p-md rounded-md border ${
-                response.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-red-50 text-red-700 border-red-200'
-              }`}
-            >
-              <p className="text-paragraph-small font-medium">{response.text}</p>
+      {/* Right Column: Testing Guide */}
+      <Card className="bg-muted/30 border-dashed w-full">
+        <CardHeader>
+          <div className="flex items-center gap-sm">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            <CardTitle className="text-heading-3 font-bold text-foreground">Testing Guide</CardTitle>
+          </div>
+          <CardDescription>
+            Use this simulator to test the allocation engine.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-lg text-paragraph-small">
+          <div>
+            <h4 className="font-medium text-foreground mb-xs flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              Payment Priorities (Auto Mode)
+            </h4>
+            <p className="text-muted-foreground mb-sm">
+              When you select <strong>"Auto"</strong>, the allocation engine splits a single lump sum using this exact priority FIFO model:
+            </p>
+            <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+              <li>Past-year Annual arrears</li>
+              <li>Past-year Monthly arrears</li>
+              <li>Current-year Annual</li>
+              <li>Current-year Monthly arrears</li>
+              <li>Remaining months of Current Year</li>
+              <li>Future Years (Annual, then Monthly)</li>
+            </ol>
+          </div>
+          
+          <div className="pt-md border-t border-border">
+            <h4 className="font-medium text-foreground mb-xs">Try a mixed deposit</h4>
+            <p className="text-muted-foreground mb-sm">
+              Send <strong>KES 20,000</strong> with <strong>"Auto"</strong> selected. 
+              The system will automatically pay off all arrears, cover the current year, and allocate the remaining funds to future prepayments.
+            </p>
+            <div className="flex gap-2 mt-2">
+              <Badge variant="outline" className="text-xs">1 Payment Record</Badge>
+              <Badge variant="outline" className="text-xs">Multiple Allocations</Badge>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>

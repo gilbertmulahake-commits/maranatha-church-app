@@ -1,4 +1,4 @@
-import { Banknote, AlertTriangle, CheckCircle2, CalendarDays, CheckCircle } from 'lucide-react'
+import { Banknote, AlertTriangle, CheckCircle2, CalendarDays } from 'lucide-react'
 import {
   Card,
   CardAction,
@@ -33,21 +33,21 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
   let periodNa = 0
 
   stats.churches.forEach((church) => {
-    const s =
-      periodView === 'year'
-        ? church.annualStatus ?? church.status
-        : church.monthlyStatus ?? church.status
+    const s = periodView === 'year' ? church.annualStatus ?? church.status : church.monthlyStatus ?? church.status
     if (s === 'Paid') periodCompliant++
     else if (s === 'Partial') periodPartial++
     else if (s === 'Overdue') periodOverdue++
-    else periodNa++ // N/A
+    else periodNa++
   })
   
   const periodTotal = stats.churches.length
   const periodCompliancePct = periodTotal > 0 ? (periodCompliant / periodTotal) * 100 : 0
+  
   const netCredit = Math.max(0, stats.totalCollected - stats.totalExpected)
-  const inCredit = netCredit > 0
   const viewLabel = periodView === 'year' ? 'annual view' : 'monthly view'
+
+  const isCollectionExceeded = (stats.totalExpected > 0 ? (stats.totalCollected / stats.totalExpected) * 100 : 0) > 100
+  const isThisMonthExceeded = stats.thisMonthCollectionPct > 100
 
   const cardClasses =
     'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card'
@@ -57,10 +57,10 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Region Collected</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
             {formatCurrency(stats.totalCollected)}
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
               <Banknote className="h-3 w-3" /> YTD
             </Badge>
@@ -75,13 +75,14 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
             total={Math.max(stats.totalCollected, totalExpected)}
           />
           <div className="flex flex-col gap-0.5">
-            <p className="text-paragraph-mini text-foreground">
-              <span className="font-medium">Annual</span> {formatCurrency(stats.totalCollectedAnnual)}
-              <span className="mx-1.5 text-muted-foreground">·</span>
-              <span className="font-medium">Monthly</span> {formatCurrency(stats.totalCollectedMonthly)}
-            </p>
             <p className="text-paragraph-mini text-muted-foreground">
-              {totalExpected > 0 ? ((stats.totalCollected / totalExpected) * 100).toFixed(1) : '0.0'}% of {formatCurrency(totalExpected)} expected
+              {isCollectionExceeded ? (
+                <span className="text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Target Exceeded
+                </span>
+              ) : (
+                `${totalExpected > 0 ? ((stats.totalCollected / totalExpected) * 100).toFixed(1) : '0.0'}% of ${formatCurrency(totalExpected)} expected`
+              )}
             </p>
           </div>
         </CardFooter>
@@ -89,24 +90,18 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
 
       <Card className={cardClasses} onClick={() => onFilterChange?.('Overdue')}>
         <CardHeader>
-          <CardDescription>{inCredit ? 'Net Credit' : 'Region Arrears'}</CardDescription>
-          <CardTitle className={`text-heading-1 font-bold tabular-nums ${inCredit ? 'text-emerald-600' : 'text-destructive'}`}>
-            {formatCurrency(inCredit ? netCredit : stats.outstanding)}
+          <CardDescription>Region Arrears</CardDescription>
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate">
+            {formatCurrency(stats.outstanding)}
           </CardTitle>
-          <CardAction>
-            {inCredit ? (
-              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-                <CheckCircle className="h-3 w-3" /> In Credit
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">
-                <AlertTriangle className="h-3 w-3" /> Action
-              </Badge>
-            )}
+          <CardAction className="shrink-0">
+            <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">
+              <AlertTriangle className="h-3 w-3" /> Owed
+            </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
-          {!inCredit && (
+          {stats.outstanding > 0 && (
             <StackedBar
               segments={[
                 { label: `Annual ${formatCurrency(stats.outstandingAnnual)}`, value: stats.outstandingAnnual, color: 'bg-red-500' },
@@ -114,28 +109,26 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
               ]}
             />
           )}
-          {!inCredit ? (
-            <div className="flex flex-col gap-0.5">
-              <p className="text-paragraph-mini text-foreground">
-                <span className="font-medium">Annual</span> {formatCurrency(stats.outstandingAnnual)}
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="font-medium">Monthly</span> {formatCurrency(stats.outstandingMonthly)}
+          <div className="flex flex-col gap-0.5">
+            {stats.outstanding === 0 && (
+              <p className="text-paragraph-mini text-emerald-600 font-medium">All contributions are up to date.</p>
+            )}
+            {netCredit > 0 && (
+              <p className="text-paragraph-mini text-emerald-600 font-medium mt-1">
+                Region Net Credit: {formatCurrency(netCredit)}
               </p>
-              <p className="text-paragraph-mini text-muted-foreground">View churches with arrears</p>
-            </div>
-          ) : (
-            <p className="text-paragraph-mini text-muted-foreground">All contributions are up to date in this region.</p>
-          )}
+            )}
+          </div>
         </CardFooter>
       </Card>
 
       <Card className={cardClasses} onClick={() => onFilterChange?.('Paid')}>
         <CardHeader>
           <CardDescription>Compliance Rate</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
             {periodCompliancePct.toFixed(1)}%
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
               <CheckCircle2 className="h-3 w-3" /> {periodView === 'year' ? 'Annual' : 'Monthly'}
             </Badge>
@@ -159,10 +152,10 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>This Month</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
             {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline">
               <CalendarDays className="h-3 w-3" /> Current
             </Badge>
@@ -177,13 +170,14 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
             total={Math.max(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly, stats.thisMonthExpected)}
           />
           <div className="flex flex-col gap-0.5">
-            <p className="text-paragraph-mini text-foreground">
-              <span className="font-medium">Annual</span> {formatCurrency(stats.thisMonthCollectedAnnual)}
-              <span className="mx-1.5 text-muted-foreground">·</span>
-              <span className="font-medium">Monthly</span> {formatCurrency(stats.thisMonthCollectedMonthly)}
-            </p>
             <p className="text-paragraph-mini text-muted-foreground">
-              {stats.thisMonthCollectionPct.toFixed(1)}% of {formatCurrency(stats.thisMonthExpected)} due this month
+              {isThisMonthExceeded ? (
+                <span className="text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Target Exceeded
+                </span>
+              ) : (
+                `${stats.thisMonthCollectionPct.toFixed(1)}% of ${formatCurrency(stats.thisMonthExpected)} due this month`
+              )}
             </p>
           </div>
         </CardFooter>

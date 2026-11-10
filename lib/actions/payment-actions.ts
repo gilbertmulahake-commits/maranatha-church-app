@@ -9,11 +9,17 @@ export type PaymentRow = {
   church_code: string
   church_name: string
   amount_paid: number
-  payment_type: 'Monthly' | 'Annual'
+  payment_type: string
   payment_method: string
   payment_date: string
   status: string
   is_mixed: boolean
+  allocations: {
+    allocation_type: string
+    billing_year: number
+    billing_month: number | null
+    amount: number
+  }[]
 }
 
 export async function getPayments(): Promise<{ 
@@ -84,14 +90,24 @@ export async function getPayments(): Promise<{
       const amount = Number(p.amount_paid)
       totalVolume += amount
 
-      // READ FROM ALLOCATIONS
       let isMixed = false
+      let displayType = p.payment_type as string
+
+      // READ FROM ALLOCATIONS
       if (p.allocations.length === 0) {
         if (p.payment_type === 'Annual') annualVolume += amount
         else monthlyVolume += amount
       } else {
         const uniqueTypes = new Set(p.allocations.map(a => a.allocation_type))
-        if (uniqueTypes.size > 1) isMixed = true
+        
+        if (uniqueTypes.size > 1) {
+          isMixed = true
+          displayType = 'Mixed'
+        } else if (uniqueTypes.size === 1) {
+          // Override stored fallback type with the actual allocation type
+          // Example: An Auto payment that ended up 100% Monthly
+          displayType = Array.from(uniqueTypes)[0]
+        }
 
         p.allocations.forEach((a) => {
           const allocAmount = Number(a.amount)
@@ -114,11 +130,17 @@ export async function getPayments(): Promise<{
         church_code: p.church.church_code,
         church_name: p.church.church_name,
         amount_paid: amount,
-        payment_type: p.payment_type as 'Monthly' | 'Annual',
+        payment_type: displayType,
         payment_method: p.payment_method,
         payment_date: p.payment_date.toISOString(),
         status: p.status,
         is_mixed: isMixed,
+        allocations: p.allocations.map(a => ({
+          allocation_type: a.allocation_type,
+          billing_year: a.billing_year,
+          billing_month: a.billing_month,
+          amount: Number(a.amount)
+        }))
       }
     })
 

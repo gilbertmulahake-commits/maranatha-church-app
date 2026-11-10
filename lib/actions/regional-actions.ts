@@ -89,6 +89,10 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
     let totalCollectedAnnual = 0
     let totalCollectedMonthly = 0
 
+    let outstanding = 0
+    let outstandingAnnual = 0
+    let outstandingMonthly = 0
+
     let thisMonthCollectedAnnual = 0
     let thisMonthCollectedMonthly = 0
     let thisMonthExpected = 0
@@ -108,10 +112,14 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         const amount = Number(p.amount_paid)
         churchTotalPaid += amount
 
-        // READ FROM ALLOCATIONS (Fallback to payment_type if no allocations exist)
         if (p.allocations.length === 0) {
-          if (p.payment_type === 'Annual') annualPaid += amount
-          else monthlyPaid += amount
+          if (p.payment_type === 'Annual') {
+            annualPaid += amount
+            if (pDate >= startOfMonth) thisMonthCollectedAnnual += amount
+          } else {
+            monthlyPaid += amount
+            if (pDate >= startOfMonth) thisMonthCollectedMonthly += amount
+          }
         } else {
           p.allocations.forEach((a) => {
             const allocAmount = Number(a.amount)
@@ -150,6 +158,15 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       else if (overallStatus === 'Partial') partialChurches++
       else overdueChurches++
 
+      outstanding += Math.max(0, churchExpectedToday - churchTotalPaid)
+      outstandingAnnual += Math.max(0, expectedAnnual - annualPaid)
+      outstandingMonthly += Math.max(0, expectedMonthly - monthlyPaid)
+
+      if (churchTotalPaid > 0) {
+        totalCollectedAnnual += annualPaid
+        totalCollectedMonthly += monthlyPaid
+      }
+
       return {
         id: church.id,
         church_code: church.church_code,
@@ -173,15 +190,6 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       }
     })
 
-    // Sum totals from the mapped data
-    churchesData.forEach(d => {
-      totalCollectedAnnual += d.annualPaid
-      totalCollectedMonthly += d.monthlyPaid
-    })
-
-    const outstanding = Math.max(0, totalExpected - totalCollected)
-    const outstandingAnnual = Math.max(0, totalExpectedAnnual - totalCollectedAnnual)
-    const outstandingMonthly = Math.max(0, totalExpectedMonthly - totalCollectedMonthly)
     const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
     const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
     const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0

@@ -3,7 +3,8 @@ import { connection } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { getSingleRegionStats } from '@/lib/actions/region-actions'
-import { RegionDetailClient } from '@/components/regions/region-detail-client'
+// IMPORT the exact client component used on the Chairman's main dashboard
+import { RegionalDashboardClient } from '@/components/regional/regional-dashboard-client'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -50,7 +51,8 @@ async function RegionDetailContent({ params }: { params: Promise<{ slug: string 
         </div>
       </div>
 
-      <RegionDetailClient stats={stats} />
+      {/* Use the Chairman's exact dashboard client component */}
+      <RegionalDashboardClient stats={stats} />
     </div>
   )
 }

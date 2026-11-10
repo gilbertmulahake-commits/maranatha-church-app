@@ -11,7 +11,8 @@ const kcbWebhookSchema = z.object({
   MSISDN: z.string(),
   TransTime: z.string(),
   FirstName: z.string().optional(),
-  payment_type: z.enum(['Monthly', 'Annual', 'Auto']).default('Monthly'),
+  payment_type: z.enum(['Monthly', 'Annual', 'Auto']).default('Auto'), // Default changed to Auto for safety
+  billing_year: z.coerce.number().optional(),
 })
 
 export async function POST(request: Request) {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type } =
+    const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type, billing_year } =
       validatedData.data
 
     // 1. Idempotency — reject duplicate webhook retries
@@ -79,15 +80,15 @@ export async function POST(request: Request) {
         existingAllocations,
         transDate
       )
-      allocations = calculateAllocations(TransAmount, expectedAnnuals, expectedMonthlies)
+      allocations = calculateAllocations(TransAmount, expectedAnnuals, expectedMonthlies, transDate)
     } else {
-      const currentYear = transDate.getFullYear()
-      const currentMonth = transDate.getMonth() + 1
+      const targetYear = billing_year || transDate.getFullYear()
+      const targetMonth = transDate.getMonth() + 1
       allocations = [
         {
           allocation_type: payment_type,
-          billing_year: currentYear,
-          billing_month: payment_type === 'Monthly' ? currentMonth : null,
+          billing_year: targetYear,
+          billing_month: payment_type === 'Monthly' ? targetMonth : null,
           amount: TransAmount,
         },
       ]
@@ -97,8 +98,6 @@ export async function POST(request: Request) {
     const storedPaymentType = payment_type === 'Auto' ? 'Annual' : payment_type
 
     // 7. Create Payment + all Allocations in ONE atomic transaction
-    //    - createMany sends all allocations in a single SQL statement (one round-trip)
-    //    - timeout: 15000 gives headroom for larger payments / slower networks
     const newPayment = await prisma.$transaction(
       async (tx) => {
         const payment = await tx.payment.create({
@@ -114,7 +113,7 @@ export async function POST(request: Request) {
               month: 'long',
               year: 'numeric',
             }),
-            billing_year: transDate.getFullYear(),
+            billing_year: billing_year || transDate.getFullYear(),
           },
         })
 
@@ -136,7 +135,7 @@ export async function POST(request: Request) {
       { timeout: 15000 }
     )
 
-    // 8. Automated SMS receipt (outside transaction — SMS failure must not roll back payment)
+    // 8. Automated SMS receipt
     const smsMessage = `Payment of KES ${TransAmount.toLocaleString()} for ${church.church_name} (${BillRefNumber}) received. Ref: ${TransID}. Thank you. - Maranatha`
     await sendSms(MSISDN, smsMessage, 'Receipt')
 

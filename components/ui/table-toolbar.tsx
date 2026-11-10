@@ -1,8 +1,9 @@
 'use client'
 
-import { Search, Loader2 } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface TableToolbarProps {
   title: string
@@ -13,12 +14,13 @@ interface TableToolbarProps {
   setStatusFilter?: (val: string) => void
   statusOptions?: string[]
   filterSlot?: React.ReactNode
+  
+  // Bulk Selection
   selectionCount?: number
   onClearSelection?: () => void
-  onBulkAction?: () => Promise<void>
-  isBulkLoading?: boolean
-  bulkActionLabel?: string
-  // NEW: Period Toggle
+  bulkActionSlot?: React.ReactNode // <-- REPLACED rigid action with a flexible slot
+  
+  // Period Toggle
   periodView?: 'month' | 'year'
   setPeriodView?: (val: 'month' | 'year') => void
 }
@@ -26,14 +28,14 @@ interface TableToolbarProps {
 export function TableToolbar({
   title, subtitle, search, setSearch,
   statusFilter, setStatusFilter, statusOptions, filterSlot,
-  selectionCount = 0, onClearSelection, onBulkAction, isBulkLoading = false, bulkActionLabel = 'Send Reminders',
+  selectionCount = 0, onClearSelection, bulkActionSlot,
   periodView, setPeriodView
 }: TableToolbarProps) {
   return (
     <div className="space-y-md">
       <div className="flex items-start justify-between gap-md">
         <div>
-          <h2 className="text-heading-4 font-semibold text-foreground">{title}</h2>
+          <h2 className="text-heading-4 font-bold text-foreground tracking-tight">{title}</h2>
           <p className="text-paragraph-small text-muted-foreground mt-xs">{subtitle}</p>
         </div>
       </div>
@@ -50,19 +52,25 @@ export function TableToolbar({
         </div>
 
         <div className="flex items-center gap-sm w-full lg:w-auto">
-          {/* NEW: Period Toggle */}
+          {/* Period Toggle */}
           {periodView && setPeriodView && (
             <div className="flex items-center gap-xs bg-muted rounded-md p-1">
               <Button
                 variant="ghost" size="sm"
-                className={`h-7 px-sm text-paragraph-mini ${periodView === 'month' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                className={cn(
+                  "h-7 px-sm text-paragraph-mini transition-all",
+                  periodView === 'month' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+                )}
                 onClick={() => setPeriodView('month')}
               >
                 Monthly
               </Button>
               <Button
                 variant="ghost" size="sm"
-                className={`h-7 px-sm text-paragraph-mini ${periodView === 'year' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                className={cn(
+                  "h-7 px-sm text-paragraph-mini transition-all",
+                  periodView === 'year' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+                )}
                 onClick={() => setPeriodView('year')}
               >
                 Yearly
@@ -92,7 +100,7 @@ export function TableToolbar({
       {selectionCount > 0 && onClearSelection && (
         <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg p-md">
           <div className="flex items-center gap-sm">
-            <span className="text-paragraph-small font-medium text-foreground">
+            <span className="text-paragraph-small font-bold text-foreground">
               {selectionCount} selected
             </span>
             <Button variant="ghost" size="sm" onClick={onClearSelection} className="h-7 text-paragraph-mini">
@@ -100,16 +108,8 @@ export function TableToolbar({
             </Button>
           </div>
           <div className="flex items-center gap-xs">
-            {onBulkAction && (
-              <Button 
-                onClick={onBulkAction} 
-                disabled={isBulkLoading}
-                className="h-8 text-paragraph-small bg-primary text-primary-foreground"
-              >
-                {isBulkLoading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                {isBulkLoading ? 'Sending...' : bulkActionLabel}
-              </Button>
-            )}
+            {/* RENDERS THE PASSED-IN DROPDOWN OR BUTTON */}
+            {bulkActionSlot}
           </div>
         </div>
       )}

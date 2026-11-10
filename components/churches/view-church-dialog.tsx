@@ -1,114 +1,81 @@
 'use client'
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Phone, MapPin, User, Wallet, History } from 'lucide-react'
-import type { ChurchRow } from './church-table'
-import Link from 'next/link'
+import { ChurchRow } from './church-table'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
+}
 
 export function ViewChurchDialog({ church, onClose }: { church: ChurchRow | null, onClose: () => void }) {
-  const formatCurrency = (amount: number) => 
-    new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
+  if (!church) return null
 
-  const progressPct = church && church.expected > 0 
-    ? Math.min((church.amountPaid / church.expected) * 100, 100) 
-    : 0
+  const totalPaid = church.annualPaid + church.monthlyPaid
+  const totalOutstanding = church.annualOutstanding + church.monthlyOutstanding
+  const totalExpected = totalPaid + totalOutstanding
+  
+  const progressPct = totalExpected > 0 ? Math.min((totalPaid / totalExpected) * 100, 100) : 0
 
   return (
-    <Dialog open={!!church} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="sm:max-w-[500px] p-xl"> 
-        {church && (
-          <>
-            <DialogHeader className="space-y-2xs">
-              <div className="flex items-start justify-between pr-6">
-                <div>
-                  <DialogTitle className="text-heading-3 font-medium">{church.church_name}</DialogTitle>
-                  <DialogDescription className="font-mono mt-xs text-paragraph-mini text-muted-foreground">
-                    {church.church_code}
-                  </DialogDescription>
-                </div>
-                <Badge variant="outline" className={`mt-1 rounded-full px-2.5 py-0.5 text-paragraph-mini font-medium ${
-                  church.status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                  church.status === 'Partial' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                  'bg-red-100 text-red-700 border-red-200'
-                }`}>
-                  {church.status}
-                </Badge>
-              </div>
-            </DialogHeader>
+    <Dialog open={!!church} onOpenChange={(open) => !open && onClose()}>
+      {/* FIXED: Matched the exact class structure of EditChurchDialog */}
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{church.church_name}</DialogTitle>
+          <DialogDescription className="text-paragraph-small text-muted-foreground flex items-center gap-2">
+            <span className="font-mono">{church.church_code}</span>
+            <span>•</span>
+            <span>{church.region?.name || 'Unassigned'} Region</span>
+          </DialogDescription>
+        </DialogHeader>
 
-            <div className="mt-md rounded-lg border border-border bg-muted/30 p-md">
-              <div className="flex items-center justify-between mb-md">
-                <div className="flex items-center gap-xs text-paragraph-small font-medium text-foreground">
-                  <Wallet className="h-4 w-4 text-muted-foreground" /> Financial Status
-                </div>
-                <span className="text-paragraph-mini text-muted-foreground">Target: {formatCurrency(church.expected)}</span>
-              </div>
-              
-              <div className="flex justify-between items-end mb-md">
-                <div>
-                  <p className="text-paragraph-mini text-muted-foreground mb-xs">Amount Paid</p>
-                  <p className="text-heading-4 font-semibold text-emerald-600 tabular-nums">{formatCurrency(church.amountPaid)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-paragraph-mini text-muted-foreground mb-xs">Outstanding</p>
-                  <p className="text-heading-4 font-semibold text-destructive tabular-nums">{formatCurrency(church.outstanding)}</p>
-                </div>
-              </div>
-
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div className={`h-full rounded-full ${progressPct === 100 ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${progressPct}%` }} />
-              </div>
+        <div className="space-y-6 pt-4">
+          {/* Progress Section */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-paragraph-small">
+              <span className="text-muted-foreground font-medium">Collection Progress</span>
+              <span className="font-bold text-foreground">{progressPct.toFixed(1)}%</span>
             </div>
-
-            <Separator className="my-md" />
-
-            <div className="space-y-md">
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-2xs">
-                  <div className="flex items-center gap-xs text-paragraph-mini font-medium text-muted-foreground">
-                    <User className="h-3 w-3" /> Local Pastor
-                  </div>
-                  <p className="font-medium text-foreground text-paragraph-small">{church.pastor_name || 'Not Assigned'}</p>
-                  <a href={`tel:${church.pastor_phone}`} className="text-paragraph-mini text-primary hover:underline flex items-center gap-xs">
-                    <Phone className="h-3 w-3" /> {church.pastor_phone || 'No phone'}
-                  </a>
-                </div>
-
-                <div className="space-y-2xs">
-                  <div className="flex items-center gap-xs text-paragraph-mini font-medium text-muted-foreground">
-                    <User className="h-3 w-3" /> Treasurer
-                  </div>
-                  <p className="font-medium text-foreground text-paragraph-small">{church.treasurer_name || 'Not Assigned'}</p>
-                  <a href={`tel:${church.contact_phone}`} className="text-paragraph-mini text-primary hover:underline flex items-center gap-xs">
-                    <Phone className="h-3 w-3" /> {church.contact_phone || 'No phone'}
-                  </a>
-                </div>
-              </div>
-
-              <div className="space-y-2xs">
-                <div className="flex items-center gap-xs text-paragraph-mini font-medium text-muted-foreground">
-                  <MapPin className="h-3 w-3" /> Region Assignment
-                </div>
-                <p className="text-paragraph-small font-medium text-foreground">{church.region?.name || 'Unassigned'}</p>
-              </div>
+            
+            {/* FIXED: Custom Tailwind progress bar to avoid missing module */}
+            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-emerald-500 rounded-full transition-all" 
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
+            
+            <div className="flex justify-between text-paragraph-mini text-muted-foreground">
+              <span>Paid: {formatCurrency(totalPaid)}</span>
+              <span>Target: {formatCurrency(totalExpected)}</span>
+            </div>
+          </div>
 
-            <DialogFooter className="mt-xl gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
-              {/* FIXED: Link to church_code instead of id */}
-              <Link href={`/dashboard/churches/${church.church_code}`} passHref>
-                <Button variant="outline" className="h-9 w-full sm:w-auto">
-                  <History className="mr-2 h-4 w-4" /> View Full Profile
-                </Button>
-              </Link>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} className="h-9">Close</Button>
-              </div>
-            </DialogFooter>
-          </>
-        )}
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-muted/30 p-4 rounded-xl border border-border">
+              <p className="text-paragraph-mini text-muted-foreground font-medium">Total Collected</p>
+              <p className="text-heading-3 font-bold text-emerald-600 tabular-nums mt-1">
+                {formatCurrency(totalPaid)}
+              </p>
+            </div>
+            <div className="bg-muted/30 p-4 rounded-xl border border-border">
+              <p className="text-paragraph-mini text-muted-foreground font-medium">Total Outstanding</p>
+              <p className="text-heading-3 font-bold text-destructive tabular-nums mt-1">
+                {formatCurrency(totalOutstanding)}
+              </p>
+            </div>
+          </div>
+
+          {/* Leader Info */}
+          <div className="space-y-1 pt-2">
+            <p className="text-paragraph-small font-medium text-foreground">Leadership</p>
+            <div className="flex flex-col gap-1 text-paragraph-small text-muted-foreground mt-1">
+              <span>Pastor: {church.pastor_name} ({church.pastor_phone})</span>
+              <span>Treasurer: {church.treasurer_name} ({church.contact_phone})</span>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

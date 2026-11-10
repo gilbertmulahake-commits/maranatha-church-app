@@ -135,12 +135,21 @@
   --text-xs--line-height: 16px;
 
   /* Add custom Figma classes for specific use (optional) */
-  --text-heading-1: 40px; --text-heading-1--line-height: 40px; --text-heading-1--letter-spacing: -1.5px;
-  --text-heading-2: 26px; --text-heading-2--line-height: 26px; --text-heading-2--letter-spacing: -1px;
-  --text-heading-3: 22px; --text-heading-3--line-height: 26.4px; --text-heading-3--letter-spacing: -0.5px;
-  --text-heading-4: 18px; --text-heading-4--line-height: 21.6px; --text-heading-4--letter-spacing: 0px;
+  --text-heading-1: 32px; 
+  --text-heading-1--line-height: 36px; --text-heading-1--letter-spacing: -1px;
+  
+  --text-heading-2: 24px; 
+  --text-heading-2--line-height: 28px; --text-heading-2--letter-spacing: -0.5px;
+  
+  --text-heading-3: 20px; 
+  --text-heading-3--line-height: 24px; --text-heading-3--letter-spacing: -0.25px;
+  
+  --text-heading-4: 18px; 
+  --text-heading-4--line-height: 22px; --text-heading-4--letter-spacing: 0px;
+
   --text-paragraph-large: 18px; --text-paragraph-large--line-height: 27px;
-  --text-paragraph: 16px; --text-paragraph--line-height: 24px;
+  --text-paragraph: 16px; 
+  --text-paragraph--line-height: 24px;
   --text-paragraph-small: 14px; --text-paragraph-small--line-height: 20px;
   --text-paragraph-mini: 12px; --text-paragraph-mini--line-height: 16px;
 

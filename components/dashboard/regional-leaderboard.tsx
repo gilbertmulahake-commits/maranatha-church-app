@@ -24,7 +24,7 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
     return (
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-heading-4">
+          <CardTitle className="flex items-center gap-2 text-heading-4 font-bold text-foreground">
             <Trophy className="h-5 w-5 text-amber-600" /> Regional Leaderboard
           </CardTitle>
           <CardDescription>Ranked by final incentive score (40/30/20/10).</CardDescription>
@@ -40,7 +40,7 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2 text-heading-4">
+          <CardTitle className="flex items-center gap-2 text-heading-4 font-bold text-foreground">
             <Trophy className="h-5 w-5 text-amber-600" /> Regional Leaderboard
           </CardTitle>
           <CardDescription>Ranked by final incentive score (40/30/20/10).</CardDescription>

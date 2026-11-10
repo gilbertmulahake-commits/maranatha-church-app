@@ -1,44 +1,23 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  MapPin, 
-  ArrowUpDown, 
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Eye
-} from 'lucide-react'
-import { toast } from 'sonner'
+import { ArrowUpDown, MoreHorizontal, MapPin, Eye, Edit, Printer } from 'lucide-react'
+import Link from 'next/link'
+import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
+import { ExportDropdown } from '@/components/ui/export-dropdown'
+import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
+import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { sendBulkReminders } from '@/lib/actions/sms-actions'
-import { SendChairmanButton } from './send-chairman-button'
-import { EditRegionDialog } from './edit-region-dialog'
-import { useRouter } from 'next/navigation'
-
-const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-')
+import { toast } from 'sonner'
 
 export type RegionRow = {
   id: string
@@ -50,36 +29,50 @@ export type RegionRow = {
   totalCollected: number
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
+interface Props {
+  data: RegionRow[]
+  search: string
+  setSearch: (val: string) => void
+  statusFilter: string
+  setStatusFilter: (val: string) => void
+  currentPage: number
+  setCurrentPage: (val: number) => void
 }
 
-export function RegionTable({ data }: { data: RegionRow[] }) {
-  const router = useRouter()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [sortConfig, setSortConfig] = useState<{ key: keyof RegionRow, direction: 'asc' | 'desc' } | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const rowsPerPage = 10
-  
-  const [editingRegion, setEditingRegion] = useState<RegionRow | null>(null)
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
-  const [isBulkSending, setIsBulkSending] = useState(false)
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
 
-  const getStatus = (pct: number) => {
-    if (pct >= 90) return { label: 'Excellent', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
-    if (pct >= 75) return { label: 'Good', color: 'bg-blue-100 text-blue-700 border-blue-200' }
-    return { label: 'Needs Attention', color: 'bg-red-100 text-red-700 border-red-200' }
-  }
+export function RegionTable({
+  data,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+  currentPage,
+  setCurrentPage,
+}: Props) {
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof RegionRow
+    direction: 'asc' | 'desc'
+  } | null>({ key: 'name', direction: 'asc' })
+  
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
+  const rowsPerPage = 15
 
   const filteredData = useMemo(() => {
     return data.filter((region) => {
-      const s = search.toLowerCase()
-      const matchesSearch = 
-        region.name.toLowerCase().includes(s) ||
-        region.chairman_name.toLowerCase().includes(s)
+      const matchesSearch = region.name.toLowerCase().includes(search.toLowerCase()) || 
+                            region.chairman_name.toLowerCase().includes(search.toLowerCase())
       
-      const matchesStatus = statusFilter === 'All' || getStatus(region.compliancePct).label === statusFilter
+      const matchesStatus = statusFilter === 'All' || 
+                            (statusFilter === 'Needs Attention' && region.compliancePct < 50) ||
+                            (statusFilter === 'On Track' && region.compliancePct >= 50)
       
       return matchesSearch && matchesStatus
     })
@@ -112,42 +105,67 @@ export function RegionTable({ data }: { data: RegionRow[] }) {
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage)
 
   const toggleAll = () => {
-    if (selectedRegions.length === paginatedData.length && paginatedData.length > 0) {
-      setSelectedRegions([])
-    } else {
-      setSelectedRegions(paginatedData.map(r => r.id))
-    }
+    if (selectedIds.length === paginatedData.length) setSelectedIds([])
+    else setSelectedIds(paginatedData.map((r) => r.id))
   }
 
   const toggleOne = (id: string) => {
-    setSelectedRegions(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id])
   }
 
-  const handleBulkReminder = async () => {
-    if (selectedRegions.length === 0) return
-    setIsBulkSending(true)
+  const generateExportData = (scope: 'all' | 'selected' = 'all') => {
+    const rowsToExport = scope === 'selected'
+      ? sortedData.filter(r => selectedIds.includes(r.id))
+      : sortedData
 
-    const selectedData = data.filter(r => selectedRegions.includes(r.id))
-    const recipients = selectedData
-      .filter(r => r.contact_phone)
-      .map(r => ({ phone: r.contact_phone, name: r.chairman_name, type: 'Chairman' as const }))
+    return rowsToExport.map((region) => ({
+      'Region Name': region.name,
+      'Chairman': region.chairman_name,
+      'Contact Phone': region.contact_phone,
+      'Total Churches': region.churchCount,
+      'Total Collected (KES)': region.totalCollected,
+      'Compliance %': `${region.compliancePct.toFixed(1)}%`,
+      'Status': region.compliancePct < 50 ? 'Needs Attention' : 'On Track'
+    }))
+  }
 
-    if (recipients.length === 0) {
-      toast.error('No chairman phone numbers available for selected regions')
-      setIsBulkSending(false)
-      return
+  const dateStr = new Date().toISOString().split('T')[0]
+
+  const executeAction = (scope: 'all' | 'selected') => {
+    if (!pendingAction) return
+
+    const exportData = generateExportData(scope)
+    const suffix = scope === 'selected' ? '-selected' : ''
+    const titleSuffix = scope === 'selected' ? ' (Selected)' : ''
+    const sub = `Scope: ${statusFilter} | Total Regions: ${data.length}`
+
+    if (pendingAction.type === 'print') {
+      exportToPdf(`regions-print-${dateStr}${suffix}`, `Regions Portfolio${titleSuffix}`, sub, exportData, 'landscape', true)
+    } else if (pendingAction.type === 'export') {
+      if (pendingAction.format === 'csv') exportToCsv(`regions-${dateStr}${suffix}`, exportData)
+      else if (pendingAction.format === 'excel') exportToExcel(`regions-${dateStr}${suffix}`, exportData, 'Regions Portfolio')
+      else if (pendingAction.format === 'pdf') exportToPdf(`regions-${dateStr}${suffix}`, `Regions Portfolio${titleSuffix}`, sub, exportData)
     }
 
-    const res = await sendBulkReminders(recipients)
-    
-    setIsBulkSending(false)
-    if (res.error) {
-      toast.error(res.error)
-    } else {
-      toast.success(`Sent ${res.successCount} reminders successfully`)
-      setSelectedRegions([])
+    if (scope === 'selected') toast.success(`Exported ${selectedIds.length} regions`)
+    setPendingAction(null)
+  }
+
+  const handleGlobalPrint = () => {
+    if (selectedIds.length > 0) setPendingAction({ type: 'print' })
+    else {
+      const sub = `Scope: ${statusFilter} | Total Regions: ${data.length}`
+      exportToPdf(`regions-print-${dateStr}`, 'Regions Portfolio', sub, generateExportData('all'), 'landscape', true)
+    }
+  }
+
+  const handleGlobalExport = (format: 'csv' | 'excel' | 'pdf') => {
+    if (selectedIds.length > 0) setPendingAction({ type: 'export', format })
+    else {
+      const sub = `Scope: ${statusFilter} | Total Regions: ${data.length}`
+      if (format === 'csv') exportToCsv(`regions-${dateStr}`, generateExportData('all'))
+      if (format === 'excel') exportToExcel(`regions-${dateStr}`, generateExportData('all'), 'Regions Portfolio')
+      if (format === 'pdf') exportToPdf(`regions-${dateStr}`, 'Regions Portfolio', sub, generateExportData('all'))
     }
   }
 
@@ -160,130 +178,134 @@ export function RegionTable({ data }: { data: RegionRow[] }) {
         setSearch={setSearch}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
-        statusOptions={['All', 'Excellent', 'Good', 'Needs Attention']}
-        selectionCount={selectedRegions.length}
-        onClearSelection={() => setSelectedRegions([])}
-        onBulkAction={handleBulkReminder}
-        isBulkLoading={isBulkSending}
-        bulkActionLabel="Remind Chairmen"
+        statusOptions={['All', 'Needs Attention', 'On Track']}
+        selectionCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        bulkActionSlot={
+          <ExportDropdown
+            onExportCsv={() => { exportToCsv(`regions-selected-${dateStr}`, generateExportData('selected')); setSelectedIds([]); }}
+            onExportExcel={() => { exportToExcel(`regions-selected-${dateStr}`, generateExportData('selected'), 'Selected Regions'); setSelectedIds([]); }}
+            onExportPdf={() => { exportToPdf(`regions-selected-${dateStr}`, 'Regions Portfolio (Selected)', `Total: ${selectedIds.length}`, generateExportData('selected')); setSelectedIds([]); }}
+          />
+        }
+        filterSlot={
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={data.length === 0}>
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+            <ExportDropdown 
+              onExportCsv={() => handleGlobalExport('csv')}
+              onExportExcel={() => handleGlobalExport('excel')}
+              onExportPdf={() => handleGlobalExport('pdf')}
+              disabled={data.length === 0}
+            />
+          </div>
+        }
       />
 
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead className="w-[50px]">
+              <TableHead className="w-[40px] text-center">
                 <Checkbox 
-                  checked={selectedRegions.length === paginatedData.length && paginatedData.length > 0}
+                  checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('name')}>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('name')}>
                 <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
               </TableHead>
-              <TableHead className="text-paragraph-small">Chairman</TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('churchCount')}>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Chairman</TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('churchCount')}>
                 <div className="flex items-center gap-xs">Churches <ArrowUpDown className="h-3 w-3" /></div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('totalCollected')}>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('totalCollected')}>
                 <div className="flex items-center gap-xs">Collected <ArrowUpDown className="h-3 w-3" /></div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('compliancePct')}>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('compliancePct')}>
                 <div className="flex items-center gap-xs">Compliance <ArrowUpDown className="h-3 w-3" /></div>
               </TableHead>
-              <TableHead className="text-paragraph-small">Status</TableHead>
-              <TableHead className="text-right text-paragraph-small">Actions</TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
+              <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-paragraph-small text-muted-foreground">
-                  No regions found.
+                <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                  No regions found matching your filters.
                 </TableCell>
               </TableRow>
             ) : (
               paginatedData.map((region) => {
-                const status = getStatus(region.compliancePct)
+                const isAtRisk = region.compliancePct < 50
                 return (
                   <TableRow key={region.id} className="hover:bg-muted/50">
-                    <TableCell>
+                    <TableCell className="text-center">
                       <Checkbox 
-                        checked={selectedRegions.includes(region.id)}
+                        checked={selectedIds.includes(region.id)}
                         onCheckedChange={() => toggleOne(region.id)}
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground flex items-center gap-xs text-paragraph-small">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`} className="font-medium text-foreground text-paragraph-small hover:underline flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
                         {region.name}
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <div className="text-foreground text-paragraph-small">{region.chairman_name}</div>
-                      <div className="text-paragraph-mini tabular-nums text-muted-foreground">{region.contact_phone}</div>
+                      <div className="font-mono text-paragraph-mini text-muted-foreground">{region.contact_phone}</div>
                     </TableCell>
-                    <TableCell className="tabular-nums text-foreground text-paragraph-small">
+                    <TableCell className="text-paragraph-small text-muted-foreground">
                       {region.churchCount}
                     </TableCell>
-                    <TableCell className="tabular-nums font-medium text-emerald-600 text-paragraph-small">
-                      {formatCurrency(region.totalCollected || 0)}
+                    <TableCell className="font-medium tabular-nums text-emerald-600 text-paragraph-small">
+                      {formatCurrency(region.totalCollected)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-md">
-                        <span className="text-paragraph-small font-medium text-foreground w-12">{region.compliancePct.toFixed(1)}%</span>
-                        <div className="h-1.5 w-24 rounded-full bg-muted">
-                          <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.min(region.compliancePct, 100)}%` }} />
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium tabular-nums text-paragraph-small w-10">{region.compliancePct.toFixed(1)}%</span>
+                        <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${isAtRisk ? 'bg-destructive' : 'bg-emerald-500'}`} 
+                            style={{ width: `${region.compliancePct}%` }} 
+                          />
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={status.color}>
-                        {status.label}
+                      <Badge variant="outline" className={isAtRisk ? 'bg-red-100 text-red-700 border-red-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}>
+                        {isAtRisk ? 'Needs Attention' : 'On Track'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        }>
-                        </DropdownMenuTrigger>
-                        
-                        <DropdownMenuContent align="end">
-                          {/* WRAPPED IN GROUP FOR BASE UI */}
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-paragraph-small">Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Actions
+                            </DropdownMenuLabel>
                           </DropdownMenuGroup>
                           
-                          <DropdownMenuItem 
-                            className="cursor-pointer text-paragraph-small" 
-                            onClick={() => router.push(`/dashboard/regions/${slugify(region.name)}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" /> View Churches
-                          </DropdownMenuItem>
+                          <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                            <DropdownMenuItem className="cursor-pointer text-paragraph-small whitespace-nowrap">
+                              <Eye className="mr-2 h-4 w-4" /> View Details
+                            </DropdownMenuItem>
+                          </Link>
                           
-                          <SendChairmanButton 
-                            regionName={region.name}
-                            chairmanName={region.chairman_name}
-                            phone={region.contact_phone}
-                            compliancePct={region.compliancePct}
-                            arrears={0}
-                          />
-
-                          <DropdownMenuItem 
-                            className="cursor-pointer text-paragraph-small" 
-                            onClick={() => setEditingRegion(region)}
-                          >
-                            <Edit className="mr-2 h-4 w-4" /> Edit Region
-                          </DropdownMenuItem>
-
                           <DropdownMenuSeparator />
                           
-                          <DropdownMenuItem className="text-destructive cursor-pointer text-paragraph-small">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          <DropdownMenuItem className="cursor-pointer text-paragraph-small whitespace-nowrap">
+                            <Edit className="mr-2 h-4 w-4" /> Edit Region
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -296,24 +318,22 @@ export function RegionTable({ data }: { data: RegionRow[] }) {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-paragraph-small text-muted-foreground">
-          Showing {paginatedData.length} of {sortedData.length} regions
-        </p>
-        <div className="flex items-center gap-xs">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 text-paragraph-small">
-            <ChevronLeft className="h-4 w-4" /> Previous
-          </Button>
-          <span className="text-paragraph-small text-muted-foreground">Page {currentPage} of {totalPages || 1}</span>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 text-paragraph-small">
-            Next <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={sortedData.length}
+        showingItems={paginatedData.length}
+        setCurrentPage={setCurrentPage}
+        itemName="regions"
+      />
 
-      <EditRegionDialog 
-        region={editingRegion} 
-        onClose={() => setEditingRegion(null)} 
+      <ExportConfirmDialog 
+        open={!!pendingAction}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+        actionType={pendingAction?.type || 'export'}
+        selectedCount={selectedIds.length}
+        totalCount={data.length}
+        onConfirm={executeAction}
       />
     </div>
   )

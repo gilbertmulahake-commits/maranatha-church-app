@@ -1,19 +1,24 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, Download, Split } from 'lucide-react'
+import { ArrowUpDown, Split, Printer } from 'lucide-react'
 import { PaymentRow } from '@/lib/actions/payment-actions'
-import { exportToCsv } from '@/lib/utils/export'
-import { Button } from '@/components/ui/button'
+import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
+import { ExportDropdown } from '@/components/ui/export-dropdown'
+import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { AllocationBreakdownDialog } from './allocation-breakdown-dialog'
+import { toast } from 'sonner'
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
@@ -35,6 +40,11 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
   
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 15
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  
+  // NEW: Confirmation Dialog State
+  const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const filteredData = useMemo(() => {
     return data.filter((payment) => {
@@ -82,20 +92,86 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
   const startIndex = (currentPage - 1) * rowsPerPage
   const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage)
 
-  const handleExport = () => {
-    const exportData = sortedData.map((p) => ({
-      'Transaction ID': p.transaction_id,
-      'Church Code': p.church_code,
-      'Church Name': p.church_name,
-      'Amount (KES)': p.amount_paid,
-      'Type': p.is_mixed ? 'Mixed' : p.payment_type,
-      'Method': p.payment_method === 'M_Pesa' ? 'M-Pesa' : p.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
-      'Date': formatDate(p.payment_date),
-      'Status': p.status
-    }))
-    const date = new Date().toISOString().split('T')[0]
-    exportToCsv(`payments-ledger-${date}`, exportData)
+  const toggleAll = () => {
+    if (selectedIds.length === paginatedData.length) setSelectedIds([])
+    else setSelectedIds(paginatedData.map(p => p.id))
   }
+
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  }
+
+  // NEW: Generate Data based on scope
+  const generateExportData = (scope: 'all' | 'selected' = 'all') => {
+    const rowsToExport = scope === 'selected' 
+      ? sortedData.filter(p => selectedIds.includes(p.id))
+      : sortedData
+
+    return rowsToExport.map((p) => {
+      const allocationSummary = p.allocations.length > 0 
+        ? p.allocations.map(a => `${a.allocation_type} ${a.billing_month ? a.billing_month + '/' : ''}${a.billing_year}`).join(', ')
+        : 'None'
+
+      return {
+        'Transaction ID': p.transaction_id,
+        'Church Code': p.church_code,
+        'Church Name': p.church_name,
+        'Amount (KES)': p.amount_paid,
+        'Type': p.is_mixed ? 'Mixed' : p.payment_type,
+        'Method': p.payment_method === 'M_Pesa' ? 'M-Pesa' : p.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
+        'Date & Time': formatDate(p.payment_date),
+        'Status': p.status,
+        'Allocations Breakdown': allocationSummary
+      }
+    })
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0]
+
+  // NEW: Execution Logic
+  const executeAction = (scope: 'all' | 'selected') => {
+    if (!pendingAction) return
+
+    const exportData = generateExportData(scope)
+    const suffix = scope === 'selected' ? '-selected' : ''
+    const titleSuffix = scope === 'selected' ? ' (Selected)' : ''
+    const sub = `Scope: ${methodFilter} | ${typeFilter}${scope === 'selected' ? ' | Selected Only' : ''}`
+
+    if (pendingAction.type === 'print') {
+      exportToPdf(`payments-print-${dateStr}${suffix}`, `Transaction Ledger${titleSuffix}`, sub, exportData, 'landscape', true)
+    } else if (pendingAction.type === 'export') {
+      if (pendingAction.format === 'csv') exportToCsv(`payments-${dateStr}${suffix}`, exportData)
+      else if (pendingAction.format === 'excel') exportToExcel(`payments-${dateStr}${suffix}`, exportData, 'Payments Ledger')
+      else if (pendingAction.format === 'pdf') exportToPdf(`payments-${dateStr}${suffix}`, `Transaction Ledger${titleSuffix}`, sub, exportData)
+    }
+
+    if (scope === 'selected') toast.success(`Exported ${selectedIds.length} transactions`)
+    setPendingAction(null)
+  }
+
+  // NEW: Interceptors
+  const handleGlobalPrint = () => {
+    if (selectedIds.length > 0) setPendingAction({ type: 'print' })
+    else {
+      const sub = `Scope: ${methodFilter} | ${typeFilter}`
+      exportToPdf(`payments-print-${dateStr}`, 'Transaction Ledger', sub, generateExportData('all'), 'landscape', true)
+    }
+  }
+
+  const handleGlobalExport = (format: 'csv' | 'excel' | 'pdf') => {
+    if (selectedIds.length > 0) setPendingAction({ type: 'export', format })
+    else {
+      const sub = `Scope: ${methodFilter} | ${typeFilter}`
+      if (format === 'csv') exportToCsv(`payments-${dateStr}`, generateExportData('all'))
+      if (format === 'excel') exportToExcel(`payments-${dateStr}`, generateExportData('all'), 'Payments Ledger')
+      if (format === 'pdf') exportToPdf(`payments-${dateStr}`, 'Transaction Ledger', sub, generateExportData('all'))
+    }
+  }
+
+  // Direct Bulk Actions
+  const handleBulkExportCsv = () => { exportToCsv(`payments-selected-${dateStr}`, generateExportData('selected')); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
+  const handleBulkExportExcel = () => { exportToExcel(`payments-selected-${dateStr}`, generateExportData('selected'), 'Selected Payments'); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
+  const handleBulkExportPdf = () => { exportToPdf(`payments-selected-${dateStr}`, 'Transaction Ledger (Selected)', `Selected: ${selectedIds.length}`, generateExportData('selected')); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
 
   return (
     <TooltipProvider>
@@ -107,26 +183,40 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
           setSearch={setSearch}
           statusFilter={typeFilter}
           setStatusFilter={setTypeFilter}
-          statusOptions={['All', 'Annual', 'Monthly']}
+          statusOptions={['All', 'Annual', 'Monthly', 'Mixed']}
+          selectionCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          bulkActionSlot={
+            <ExportDropdown 
+              onExportCsv={handleBulkExportCsv}
+              onExportExcel={handleBulkExportExcel}
+              onExportPdf={handleBulkExportPdf}
+            />
+          }
           filterSlot={
             <div className="flex items-center gap-xs w-full lg:w-auto">
-              <span className="text-paragraph-small text-muted-foreground whitespace-nowrap">
-                Method:
-              </span>
               <select
                 value={methodFilter}
                 onChange={(e) => { setMethodFilter(e.target.value); setCurrentPage(1); }}
                 className="h-9 w-full lg:w-[130px] rounded-md border border-border bg-card px-3 py-1 text-paragraph-small text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="All">All</option>
+                <option value="All">All Methods</option>
                 <option value="M-Pesa">M-Pesa</option>
                 <option value="Bank">Bank</option>
                 <option value="Cash">Cash</option>
               </select>
               
-              <Button variant="outline" onClick={handleExport} disabled={filteredData.length === 0} className="h-9 ml-2">
-                <Download className="mr-2 h-4 w-4" /> Export
-              </Button>
+              <div className="flex items-center gap-2 ml-2">
+                <Button variant="outline" onClick={handleGlobalPrint} className="h-9">
+                  <Printer className="mr-2 h-4 w-4" /> Print
+                </Button>
+                <ExportDropdown 
+                  onExportCsv={() => handleGlobalExport('csv')}
+                  onExportExcel={() => handleGlobalExport('excel')}
+                  onExportPdf={() => handleGlobalExport('pdf')}
+                  disabled={filteredData.length === 0}
+                />
+              </div>
             </div>
           }
         />
@@ -135,33 +225,46 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('transaction_id')}>
+                <TableHead className="w-[40px] text-center">
+                  <Checkbox 
+                    checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
+                    onCheckedChange={toggleAll}
+                  />
+                </TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('transaction_id')}>
                   <div className="flex items-center gap-xs">Transaction ID <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('church_name')}>
+                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('church_name')}>
                   <div className="flex items-center gap-xs">Church <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small text-right" onClick={() => requestSort('amount_paid')}>
+                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('amount_paid')}>
                   <div className="flex items-center justify-end gap-xs">Amount <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="text-paragraph-small text-center">Type</TableHead>
-                <TableHead className="text-paragraph-small text-center">Method</TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small" onClick={() => requestSort('payment_date')}>
+                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Type</TableHead>
+                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Method</TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('payment_date')}>
                   <div className="flex items-center gap-xs">Date & Time <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="text-paragraph-small text-center">Status</TableHead>
+                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Status</TableHead>
+                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-paragraph-small text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-12 text-paragraph-small text-muted-foreground">
                     No transactions found matching your filters.
                   </TableCell>
                 </TableRow>
               ) : (
                 paginatedData.map((payment) => (
                   <TableRow key={payment.id} className="hover:bg-muted/50">
+                    <TableCell className="text-center">
+                      <Checkbox 
+                        checked={selectedIds.includes(payment.id)}
+                        onCheckedChange={() => toggleOne(payment.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-paragraph-small text-muted-foreground">
                       {payment.transaction_id}
                     </TableCell>
@@ -203,6 +306,13 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
                         {payment.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-center">
+                      <AllocationBreakdownDialog 
+                        transactionId={payment.transaction_id}
+                        totalAmount={payment.amount_paid}
+                        allocations={payment.allocations || []}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -217,6 +327,15 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
           showingItems={paginatedData.length}
           setCurrentPage={setCurrentPage}
           itemName="transactions"
+        />
+
+        <ExportConfirmDialog 
+          open={!!pendingAction}
+          onOpenChange={(open) => !open && setPendingAction(null)}
+          actionType={pendingAction?.type || 'export'}
+          selectedCount={selectedIds.length}
+          totalCount={filteredData.length}
+          onConfirm={executeAction}
         />
       </div>
     </TooltipProvider>

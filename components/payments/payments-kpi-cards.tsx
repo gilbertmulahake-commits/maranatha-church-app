@@ -1,4 +1,6 @@
-import { CreditCard, Banknote, TrendingUp, CalendarDays } from 'lucide-react'
+"use client"
+
+import { Banknote, TrendingUp, CalendarDays, CheckCircle2 } from 'lucide-react'
 import {
   Card,
   CardAction,
@@ -10,17 +12,19 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { StackedBar } from '@/components/dashboard/stacked-bar'
 
-interface PaymentsKpiProps {
-  stats: {
-    totalTransactions: number
-    totalVolume: number
-    annualVolume: number
-    monthlyVolume: number
-    thisMonthVolume: number
-    mpesaCount: number
-    bankCount: number
-    cashCount: number
-  }
+interface PaymentsStats {
+  totalTransactions: number
+  totalVolume: number
+  annualVolume: number
+  monthlyVolume: number
+  thisMonthVolume: number
+  mpesaCount: number
+  bankCount: number
+  cashCount: number
+}
+
+interface Props {
+  stats: PaymentsStats
 }
 
 function formatCurrency(amount: number) {
@@ -31,27 +35,25 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-export function PaymentsKpiCards({ stats }: PaymentsKpiProps) {
-  const cardClasses =
-    'h-full bg-gradient-to-t from-primary/5 to-card'
+export function PaymentsKpiCards({ stats }: Props) {
+  const cardClasses = "h-full transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
 
   return (
     <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
-      {/* CARD 1: Total Transactions */}
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Total Transactions</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
-            {stats.totalTransactions.toLocaleString()}
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+            {stats.totalTransactions}
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline">
-              <CreditCard className="h-3 w-3" /> Lifetime
+              <Banknote className="h-3 w-3" /> Lifetime
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
-          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+          <p className="text-paragraph-small font-medium text-foreground">
             {stats.mpesaCount} M-Pesa · {stats.bankCount} Bank · {stats.cashCount} Cash
           </p>
           <p className="text-paragraph-mini text-muted-foreground">
@@ -60,21 +62,20 @@ export function PaymentsKpiCards({ stats }: PaymentsKpiProps) {
         </CardFooter>
       </Card>
 
-      {/* CARD 2: Total Volume */}
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Total Volume</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums text-emerald-600">
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate">
             {formatCurrency(stats.totalVolume)}
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-              <Banknote className="h-3 w-3" /> All Time
+              <CheckCircle2 className="h-3 w-3" /> All Time
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
-          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+          <p className="text-paragraph-small font-medium text-foreground">
             Total value of all transactions
           </p>
           <p className="text-paragraph-mini text-muted-foreground">
@@ -83,16 +84,13 @@ export function PaymentsKpiCards({ stats }: PaymentsKpiProps) {
         </CardFooter>
       </Card>
 
-      {/* CARD 3: Annual vs Monthly Split */}
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Volume Breakdown</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
-            {stats.totalVolume > 0 
-              ? ((stats.annualVolume / stats.totalVolume) * 100).toFixed(0) 
-              : '0'}% Annual
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+            {stats.totalVolume > 0 ? ((stats.annualVolume / stats.totalVolume) * 100).toFixed(0) : 0}% Annual
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline">
               <TrendingUp className="h-3 w-3" /> Split
             </Badge>
@@ -101,10 +99,9 @@ export function PaymentsKpiCards({ stats }: PaymentsKpiProps) {
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <StackedBar
             segments={[
-              { label: `Annual ${formatCurrency(stats.annualVolume)}`, value: stats.annualVolume, color: 'bg-blue-500' },
-              { label: `Monthly ${formatCurrency(stats.monthlyVolume)}`, value: stats.monthlyVolume, color: 'bg-emerald-500' },
+              { label: 'Annual', value: stats.annualVolume, color: 'bg-blue-500' },
+              { label: 'Monthly', value: stats.monthlyVolume, color: 'bg-emerald-500' },
             ]}
-            total={stats.totalVolume}
           />
           <p className="text-paragraph-mini text-muted-foreground">
             Annual vs Monthly contributions
@@ -112,21 +109,20 @@ export function PaymentsKpiCards({ stats }: PaymentsKpiProps) {
         </CardFooter>
       </Card>
 
-      {/* CARD 4: This Month */}
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>This Month</CardDescription>
-          <CardTitle className="text-heading-1 font-bold tabular-nums">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
             {formatCurrency(stats.thisMonthVolume)}
           </CardTitle>
-          <CardAction>
+          <CardAction className="shrink-0">
             <Badge variant="outline">
               <CalendarDays className="h-3 w-3" /> Current
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
-          <p className="line-clamp-1 flex gap-2 font-medium text-paragraph-small">
+          <p className="text-paragraph-small font-medium text-foreground">
             Recent inflow
           </p>
           <p className="text-paragraph-mini text-muted-foreground">

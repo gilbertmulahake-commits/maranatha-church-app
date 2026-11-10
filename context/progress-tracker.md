@@ -3,7 +3,7 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 14.5 - Complete
+Unit 14.6 - Complete
 
 ## Current Goal
 Begin Unit 15: Deployment Preparation
@@ -24,7 +24,6 @@ Begin Unit 15: Deployment Preparation
   - Created placeholder pages for all navigation links.
 - **Unit 04: Church Management (CRUD)**
   - Built Server Actions for Region and Church creation.
-  - Implemented the initial custom Data Table (later abandoned TanStack v9 due to instability).
   - Built Create Region and Create Church dialogs.
 - **Unit 05: Mock KCB Webhook & Payment Reconciliation**
   - Built the `/api/webhooks/kcb` route handler with Zod validation.
@@ -47,68 +46,64 @@ Begin Unit 15: Deployment Preparation
 - **Unit 09: Financial Logic, Incentive Scoring & Design System Foundation**
   - Implemented Fair Compliance logic (Annual/Monthly "Expected to Date" calculation).
   - Built the Incentive Scoring Engine (40/30/20/10 weighted formula) and Leaderboard.
-  - Overhauled Regions Tab: New KPI cards, shadcn Data Table, Cross-filtering drill-downs.
-  - Overhauled Churches Tab: KPI cards, shadcn Data Table, Cross-filtering.
+  - Overhauled Regions Tab and Churches Tab with cross-filtering drill-downs.
   - Mapped `globals.css` to semantic theme variables.
 - **Unit 09.1: Enterprise Consistency & Polish**
-  - **Global Fixes:** Fixed `cn` utility, restored Tailwind container sizes, standardized KPI cards (gradients, hover lift), and implemented `TableToolbar`.
-  - **Role Identity:** Adopted "Universal Capability, Contextual Identity" model. SMS messages stamped with sender ("National Office" vs "Regional Office").
+  - **Global Fixes:** Fixed `cn` utility, standardized KPI cards, implemented `TableToolbar`.
+  - **Role Identity:** Adopted "Universal Capability, Contextual Identity" model.
   - **Drill-Downs:** Built `/dashboard/regions/[id]` for National Treasurer drill-downs.
 - **Unit 10.0: Financial Ledger Upgrade**
   - Added `billing_year Int` to the `Payment` model.
-  - Upgraded financial logic from a "reset on Jan 1" model to a cumulative lifetime calculation via `getExpectedUpToDate(startDate, upToDate)`.
-  - Implemented the Month/Year toggle in the `TableToolbar` and updated all table views to swap columns based on the active period.
+  - Upgraded financial logic to a cumulative lifetime calculation via `getExpectedUpToDate()`.
+  - Implemented the Month/Year toggle in the `TableToolbar`.
 - **Unit 10.1: Strict Bucket Isolation & Dynamic Statuses**
-  - Enforced **Strict Bucket Isolation**: Annual and Monthly contributions are treated as completely separate ledgers.
-  - Implemented **Dynamic Statuses**: Tables and KPI cards now swap between `annualStatus` and `monthlyStatus` based on the active `periodView`.
-  - Added `'N/A'` status for churches that owe 0 in a specific bucket (e.g., joined after the Annual deadline).
-  - Built dynamic KPI footers (Annual vs Monthly breakdowns, This Month expected vs collected).
+  - Enforced **Strict Bucket Isolation**: Annual and Monthly contributions are completely separate ledgers.
+  - Implemented **Dynamic Statuses**: Tables and KPI cards swap between `annualStatus` and `monthlyStatus`.
+  - Added `'N/A'` status for churches that owe 0 in a specific bucket.
   - Updated `sendReminder` and `sendBulkReminders` to generate intelligent, bucket-specific SMS messages.
 - **Unit 10.2: Payments Tab (Audit Ledger)**
   - Built the transaction-level ledger with role-based isolation.
-  - Implemented a full data table with sorting, pagination, global search, and specific filters for Payment Type and Method.
-  - Added 4 KPI cards for Total Transactions, Total Volume, Annual/Monthly Split, and This Month volume.
-  - *Architecture Note:* Kept KPI cards static (global lifetime totals) rather than dynamic, to ensure the ledger remains a stable source of truth for auditors.
+  - Implemented a full data table with sorting, pagination, global search, and filters.
+  - Added 4 KPI cards for Total Transactions, Total Volume, Split, and This Month.
 - **Unit 11.1: Reporting UI (Arrears & Cashbook)**
   - Built the `/dashboard/reports` page with a custom segmented toggle.
-  - Arrears table displays strict bucket isolation with a sticky summary footer for grand totals.
-  - Cashbook table features a dynamic date picker to view daily transactions.
+  - Arrears table displays strict bucket isolation with a sticky summary footer.
+  - Cashbook table features a dynamic date picker.
 - **Unit 11.2: CSV Export Engine**
-  - Created a generic `exportToCsv` utility (`lib/utils/export.ts`).
-  - Added "Export" buttons to the Payments Ledger, Arrears Report, and Daily Cashbook.
+  - Created a generic `exportToCsv` utility.
 - **Unit 12.1: User Profile & Settings**
-  - Built the `/dashboard/settings` page.
-  - Added read-only Profile Card showing Email, Role, Region, and Church assignments.
-  - Built a secure password update form using Supabase Auth client and Sonner toasts.
+  - Built the `/dashboard/settings` page with Profile Card and Password Update form.
 - **Unit 12.2: User Management (Admin)**
-  - Added the `/dashboard/users` route (strictly restricted to National HQ).
-  - Built the `UsersTable` to display all system users.
-  - Built the `InviteUserDialog` with dynamic form fields and rollback safety catch.
+  - Added the `/dashboard/users` route (restricted to National HQ).
+  - Built `UsersTable` and `InviteUserDialog`.
 - **Unit 13.1: Local Church Dashboard & RBAC**
   - Built dedicated Local Pastor dashboard with Strict Bucket Isolation.
-  - Added interactive filtering (Clicking Annual/Monthly cards filters the payment history).
-  - Enforced RBAC in sidebar (removed Reports for Local roles).
+  - Added interactive filtering.
 - **Unit 13.2: National Dashboard Upgrade & UI Stabilization**
-  - Transformed National Dashboard into a 12-column Command Center (Hero, Live Feed, Charts, Leaderboard).
-  - Implemented year-specific Hero target logic (This Year vs 17.6M).
-  - Upgraded all charts to shadcn ChartContainer and semantic CSS variables.
-  - Standardized all tables with `<DataTablePagination>` and fixed Base UI dropdown context bugs.
-  - Stabilized layout collapses using inline `maxWidth` for Settings and Mock KCB.
+  - Transformed National Dashboard into a 12-column Command Center.
+  - Upgraded all charts to shadcn ChartContainer.
 - **Unit 14.0: Prepaid Status UI**
   - Translated backend credit values into human-readable "Paid (X Years/Months Prepaid)" text.
-  - Updated `church-table.tsx` and `regional-table.tsx` to use the new `formatPrepaidStatus` helper.
-  - Deferred full webhook splitting and `PaymentAllocation` table to V2.
-- **Unit 14.0: Prepaid Status UI**
-  - Translated backend credit values into human-readable "Paid (X Years/Months Prepaid)" text.
-  - Updated `church-table.tsx` and `regional-table.tsx` to use the new `formatPrepaidStatus` helper.
-- **Unit 14.5: Payment Allocation Engine**
+  - Updated `church-table.tsx` and `regional-table.tsx` to use `formatPrepaidStatus`.
+- **Unit 14.5: Payment Allocation Engine (Enterprise Phase)**
   - Added `PaymentAllocation` model to track exact period-by-period attribution.
   - Built pure allocation engine (`lib/utils/allocation.ts`) using a Year-by-Year priority model (Annual arrears → Current Annual → Monthly arrears → Current Month → Future Years).
   - Updated KCB Webhook to accept `Auto` mode, split payments using `createMany`, and handle mixed deposits.
-  - Created and ran `scripts/backfill-allocations.ts` to retroactively allocate 6 historical payments into 8 records.
+  - Created and ran `scripts/backfill-allocations.ts` to retroactively allocate historical payments.
   - Refactored all 8 Server Action files to read Annual/Monthly sums from `allocations` rather than `payment_type`.
-  - Added "Mixed" badge to Payments Ledger.
-  - **Global Fix:** Replaced broken `import { cn } from "cn"` with `import { cn } from "@/lib/utils"` across 9 shadcn primitives.
+  - Added "Mixed" badge and Allocation Breakdown modal to the Payments Ledger.
+- **Unit 14.6: Enterprise UI Polish & Consistency**
+  - **Financial Logic:** Updated Dashboard, Regional, and Region actions to calculate Gross Arrears (`Math.max(0, expected - paid)`) per bucket.
+  - **KPI Cards UI:** Swapped `text-heading-1` for `text-heading-2`. Added `truncate` to values and `shrink-0` to badges to prevent layout breakage on large figures.
+  - **Mock KCB Layout:** Converted simulator page to a 2-column grid with an interactive "Testing Guide" panel.
+  - **Harmonized Drill-Downs:** Replaced custom Church Profile and Region Detail UIs with unified `LocalKpiCards` and `RegionalDashboardClient` components.
+  - **Sidebar:** Enforced strict RBAC (hiding Mock KCB from Regional/Local) and implemented the responsive Base UI `render` prop pattern.
+  - **Tables:** Standardized ALL tables (`Payments`, `Churches`, `Regions`, `Regional`, `Arrears`, `Cashbook`, `Local History`) with `<TableToolbar>`, checkboxes, and bulk actions.
+  - **Dialogs:** Standardized globally with `pr-12` close-button safety, `p-6` padding, and `text-heading-2` titles for forms vs `text-heading-3` for alerts.
+  - **Exports:** Built the Enterprise Export Engine (`lib/utils/export-advanced.ts`) supporting CSV, Excel, and branded PDFs with Print support.
+  - **Export Interceptor:** Built the `ExportConfirmDialog` which intercepts global exports/prints if rows are selected, allowing the user to choose between "Selected Only" or "All".
+  - **Charts:** Replaced the Payment Methods doughnut chart with a real-time Church Compliance Breakdown doughnut chart.
+  - **twMerge Fix:** Extended `tailwind-merge` in `lib/utils.ts` to recognize custom Figma typography and spacing tokens (e.g., `text-heading-1`, `p-xl`).
 
 ## In Progress
 - None.
@@ -116,24 +111,28 @@ Begin Unit 15: Deployment Preparation
 ## Next Up
 - **Unit 15: Deployment Preparation**
   - Vercel integration, production Supabase keys, `prisma migrate deploy`.
+  - Live KCB API integration and Africa's Talking SMS API hookup.
 
 ## Open Questions
-- None.
+- **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the KCB M-Pesa automated webhook. This will require a manual entry UI for National HQ to log the payment and trigger the allocation engine, along with receipt generation.
+- **Internal Communication Channel:** Deferred to post-Unit 15. An enterprise-grade inbox for threaded messaging, presence (online/busy), and archival.
 
 ## Architecture Decisions
 - **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes.
-- **KPI Cards:** All cards use `cardClasses` (gradient, hover lift, `h-full`), `text-heading-1` numbers, and `StackedBar` composition charts.
-- **Tables:** All tables use `TableToolbar`, checkboxes, and shadcn `<Table>` primitives.
+- **KPI Cards:** All cards use `text-heading-2 font-bold tabular-nums truncate` for the main figure, and `CardAction` uses `shrink-0` to prevent overlap on large numbers.
+- **Tables:** All tables use `TableToolbar`, checkboxes for bulk selection, and shadcn `<Table>` primitives.
+- **Exports:** All tables use `<ExportDropdown>` for global actions. When rows are selected, global Print/Export actions are intercepted by `<ExportConfirmDialog>` to clarify the scope (All vs Selected). The selection bar contains direct Export buttons that bypass the prompt.
+- **Dialogs:** The base `<DialogHeader>` has `pr-12` to prevent title overlap with the close button. `<DialogTitle>` defaults to `text-heading-2` for forms/views, and explicitly overridden to `text-heading-3` for alerts.
 - **Role Identity:** Universal Capability, Contextual Identity. All authorized roles can act, but SMS reflects sender ("National Office" vs "Regional Office").
 - **Next.js 16:** Abandoned `export const instant = false`. All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component to resolve `cacheComponents` prerender errors.
 - **Financial Ledger:** Cumulative lifetime calculation via `getExpectedUpToDate()`. Strict Bucket Isolation applies across all tables, KPIs, and SMS messages.
 - **Audit Ledger:** Uses Static Global KPIs. The table below filters and searches, but the KPIs represent the total lifetime inflow for the user's role scope.
 - **Sonner:** All user feedback (success, error, info) uses Sonner toasts. No `alert()`.
-- **Prepaid Status (Phase 1):** UI-only translation of credits. No webhook splitting (protects 1:1 bank reconciliation). Deferring `PaymentAllocation` table to V2.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.
 
 ## Session Notes
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
-- **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development.
+- **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes (e.g., `data-qb-installed`). Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
 - **Stable Stack (Do Not Blindly Upgrade):** Next.js 16, Prisma 7, Tailwind v4, Base UI (shadcn). Dependency tree is clean (no Radix leakage). Do not run `npm update` without testing.
-- **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper. For specific pages (Settings, Mock KCB), inline `style={{ width: '100%', maxWidth: 'X' }}` is used as a bulletproof workaround.
+- **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper. 
+- **Tailwind Merge Quirk:** `tailwind-merge` will silently drop custom classes (like `text-heading-1`) if they conflict with standard classes (like `text-foreground`). We extended `twMerge` in `lib/utils.ts` to register all our custom Figma typography and spacing tokens. Do not remove this configuration.

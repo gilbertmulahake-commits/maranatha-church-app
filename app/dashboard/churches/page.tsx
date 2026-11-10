@@ -37,7 +37,7 @@ export default function ChurchesPage({
     <div className="space-y-xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-heading-2 font-medium text-foreground">Churches</h1>
+          <h1 className="text-heading-2 font-bold text-foreground">Churches</h1>
           <p className="mt-xs text-paragraph-small text-muted-foreground">
             Manage all 1,600 local churches across the regions.
           </p>

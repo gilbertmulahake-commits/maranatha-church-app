@@ -18,14 +18,17 @@
 ## Styling
 - Use CSS custom property tokens — no hardcoded hex values.
 - Use `tabular-nums` for all financial figures.
-- Use `components/ui/*` for standard elements (buttons, inputs). Do not modify them directly.
+- Use `components/ui/*` for standard elements (buttons, inputs). Do not modify them directly. *(Exception: `ui/dialog.tsx`, `ui/alert-dialog.tsx`, and `ui/table-toolbar.tsx` have been globally customized for enterprise standards).*
+- **Tailwind Merge:** `lib/utils.ts` is configured to protect custom Figma tokens (e.g., `text-heading-1`). Do not reset `twMerge` to default.
 
-## API Routes & Webhooks
+## API Routes, Webhooks & Exports
 - Validate and parse all incoming request bodies using **Zod** schemas before any business logic runs.
 - Verify webhook signatures immediately upon receiving a request.
 - Enforce auth and ownership before any mutation.
 - Return consistent, predictable response shapes.
 - **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully.
+- **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
+- **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
 
 ## Data and Storage
 - Use Prisma ORM for all database queries.
@@ -36,9 +39,11 @@
 - `app/` — routes, layouts, page-level composition.
 - `components/` — reusable UI components.
 - `lib/` — server helpers, data access, Prisma client, API integrations.
+  - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF).
 - `prisma/` — schema and migrations.
 - `context/` — the six context files and specs.
 
 ## Protected Files
-- `components/ui/*` — generated component library; never edit manually.
+- `components/ui/*` — generated component library; never edit manually. *(Exception: Global dialog standards are applied in `dialog.tsx` and `alert-dialog.tsx`)*.
 - `lib/prisma.ts` — managed Prisma client.
+- `lib/utils.ts` — contains the extended `twMerge` configuration for custom Figma tokens. Do not reset to default.
