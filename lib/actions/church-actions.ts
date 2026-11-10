@@ -37,7 +37,7 @@ export async function getChurches() {
 
       church.payments.forEach((p) => {
         if (p.allocations.length === 0) {
-          // Defensive fallback for pre-backfill data — shouldn't happen post-migration
+          // Defensive fallback for pre-backfill data
           const amount = Number(p.amount_paid)
           if (p.payment_type === 'Annual') annualPaid += amount
           else monthlyPaid += amount
@@ -127,7 +127,6 @@ export async function getChurchStats() {
     const now = new Date()
 
     churches.forEach((church) => {
-      // Sum from allocations (authoritative)
       let annualPaid = 0
       let monthlyPaid = 0
 

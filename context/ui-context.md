@@ -27,6 +27,8 @@ All styling must use the semantic variables defined in `app/globals.css` via Tai
 - **Paid:** `bg-emerald-100 text-emerald-700 border-emerald-200`
 - **Partial/Pending:** `bg-amber-100 text-amber-700 border-amber-200`
 - **Overdue:** `bg-red-100 text-red-700 border-red-200`
+- **Mixed (Allocations):** `bg-purple-50 text-purple-700 border-purple-200`
+- **N/A:** `bg-gray-100 text-gray-700 border-gray-200`
 
 ## 3. Typography & Data Formatting
 | Role | Font | Notes |
@@ -42,8 +44,9 @@ Every number representing currency, percentages, or counts must use the `tabular
 - **Date:** `new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(date)`
 
 ### Typographic Scale (Figma Mapped)
-- **Page Titles:** `text-heading-2 font-medium`
-- **KPI Main Numbers:** `text-heading-1 font-bold tabular-nums`
+- **Page Titles (`<h1>`):** `text-heading-2 font-bold text-foreground`
+- **Section Titles (`<h2>` in Toolbars):** `text-heading-4 font-bold tracking-tight`
+- **KPI Main Numbers:** `text-heading-2 font-bold tabular-nums truncate` (Note: We use `heading-2` instead of `heading-1` to prevent layout breakage when figures reach millions).
 - **Card Labels:** `text-paragraph-small text-muted-foreground`
 - **Table Headers:** `text-paragraph-small font-medium text-muted-foreground`
 - **Table Cells:** `text-paragraph-small text-foreground`
@@ -58,7 +61,7 @@ We do not use arbitrary values. We use a strict Tailwind scale.
 
 ### Spacing
 - **Page Layout:** `space-y-xl` (24px) between major sections.
-- **Card/Dialog Padding:** `p-xl` (24px) standard. `p-md` (16px) for compact inner sections.
+- **Card/Dialog Padding:** `p-6` (24px) standard. `p-md` (16px) for compact inner sections.
 - **Grid Gaps:** `gap-md` (16px) for KPI cards/forms. `gap-xl` (24px) for major layout grids.
 
 ### Component Heights
@@ -79,44 +82,49 @@ We do not use arbitrary values. We use a strict Tailwind scale.
 ## 5. KPI Card Standard
 Every KPI card across the system (National, Regional, Tabs) must follow this exact structure:
 1.  **Wrapper:** `cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"`
-2.  **Header:** `<CardDescription>` (label), `<CardTitle>` (Main figure using `text-heading-1 font-bold tabular-nums`), and a `<CardAction>` (Badge).
-3.  **Footer:** Must contain **either**:
-    - A `StackedBar` component (for composition data like Annual vs Monthly) + explanatory text.
-    - OR two lines of text (Primary text + Secondary text).
+2.  **Header:** `<CardDescription>` (label), `<CardTitle>` (Main figure using `text-heading-2 font-bold tabular-nums truncate`), and a `<CardAction className="shrink-0">` (Badge).
+3.  **Footer:** 
+    - If using a `StackedBar`, **do not** repeat the "Annual X · Monthly Y" text below it. The StackedBar already has a legend.
+    - The footer should only contain the actionable context (e.g., "Target Exceeded", "Network Net Credit", or the percentage).
     - *Never leave empty space or inconsistent margins.*
-4.  **Interactivity:** Clicking a card must filter the table below it (if on a tab) or navigate to a filtered view (if on the main dashboard).
 
 ## 6. Data Table & Toolbar Standard
 No table should ever be rendered without the `<TableToolbar>` component.
 - **Toolbar:** Includes Title, Subtitle (scope), Search (`maxWidth: '24rem'`), Filters (Status/Region), and a Bulk Action Bar.
-- **Bulk Action Bar:** Appears when checkboxes are selected. Shows count and action buttons (e.g., "Send Reminders").
-- **Checkboxes:** Every table must have a checkbox column as the first column for bulk selection.
+- **Checkboxes:** **EVERY** table must have a `<Checkbox>` column as the first column. 
+- **Bulk Action Bar:** Appears when checkboxes are selected. Shows count and action buttons (e.g., "Send Reminders", "Print", or "Export Selected").
+- **Exports:** Every table must use the custom `<ExportDropdown>` component (providing CSV, Excel, and PDF options).
+- **Export Interceptor:** When a user clicks a global Print/Export button in the toolbar while rows are selected, a `<ExportConfirmDialog>` must intercept and ask for confirmation (Export All vs Export Selected). Direct bulk exports bypass the prompt.
 - **Structure:** Always wrap the `<Table>` in `<div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">`. Table rows must use `hover:bg-muted/50`.
-- **Role Capability & Identity:** All authorized roles (National, Regional) have full capability to View, Edit, and Send Reminders. The distinction is the **identity of the action**. SMS messages must carry the sender's authority stamp ("from the Maranatha National Office" vs "from the Maranatha Regional Office") to respect the hierarchy while preventing bottlenecks.
+- **Financial Cells:** Must use `text-right font-medium tabular-nums`.
 
 ## 7. Component Standards (shadcn/ui & Tailwind)
 We strictly use shadcn/ui (Base UI variant). 
-- **Dialogs:** Must be controlled at the parent level (`open` / `onOpenChange`). Never nest a Dialog inside a Dropdown Menu.
+
+### Dialogs & Modals
+- **Global Close Safety:** The base `<DialogHeader>` and `<AlertDialogHeader>` have `pr-12` applied globally to ensure long titles never overlap the absolute close (`X`) button.
+- **Padding:** `<DialogContent>` and `<AlertDialogContent>` handle the standard `p-6`. 
+- **Large Dialogs (Forms/Views):** Default `<DialogTitle>` is `text-heading-2 font-bold tracking-tight`.
+- **Small Dialogs (Alerts/Confirmations):** Override `<DialogTitle>` with `className="text-heading-3 font-bold"`.
+- **Footers:** Use `<DialogFooter className="pt-4 gap-2">` to separate buttons from form fields. Cancel buttons are `variant="outline"`. Primary buttons use `bg-primary` and include a `<Loader2 className="mr-2 h-4 w-4 animate-spin" />` when loading.
+
+### Dropdown Menus (Export & Actions)
+- **Group Headers:** The `<DropdownMenuLabel>` must use `text-xs font-semibold text-muted-foreground uppercase tracking-wider` to create a premium muted header (like in the Export Dropdown).
+- **Grouping:** Must always wrap labels and items inside `<DropdownMenuGroup>` to satisfy Base UI context requirements.
+- **Width:** All action dropdown menus must use `className="w-56"` and `whitespace-nowrap` to prevent text wrapping.
 - **Icons:** Lucide React. Stroke width `2` (default). Sizes: `h-4 w-4` inline, `h-5 w-5` for buttons, `h-3 w-3` inside badges.
-- **Skeleton Loading:** For Suspense fallbacks, use shadcn `<Skeleton className="h-[X] w-full rounded-md" />`. Never use text like "Loading...".
 
 ## 8. Data Visualization (Recharts)
-- **Color Palette:** Use the CSS variables defined in `globals.css` (`--chart-1` through `--chart-5`). Never hardcode chart colors.
+- **Compliance Doughnut:** The main dashboard doughnut chart displays Church Compliance (Paid, Partial, Overdue, N/A), NOT Payment Methods.
+- **Color Palette:** Use the CSS variables defined in `globals.css` (`--color-emerald-500`, `--color-amber-500`, `--color-rose-500`, `--color-slate-300`). Never hardcode chart colors.
 - **Tooltips:** Use the custom shadcn `<ChartTooltip>` with a border radius of `rounded-lg` and a subtle shadow.
 - **Axes:** Hide the vertical grid lines (`vertical={false}` on `<CartesianGrid>`). Keep axis text muted (`text-muted-foreground`) and font size `12px`.
 - **Bars/Lines:** Use `radius={[4, 4, 0, 0]}` for bar charts to give a soft, modern top edge.
 
 ## 9. Responsive Design & Layout
 - **KPI Cards:** `grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4`.
-- **Charts:** `grid grid-cols-1 gap-xl md:grid-cols-2`.
+- **Charts:** `grid grid-cols-1 gap-md lg:grid-cols-3` (Area Chart takes 2 cols, Doughnut takes 1).
 - **Data Tables:** Always wrap tables in `overflow-x-auto`. Hide non-essential columns on smaller screens.
-### The 12-Column Command Center Grid
-For the main National Dashboard, we strictly use a 12-column CSS grid.
-- **Top Row:** Hero Target (col-span-8), Live Feed (col-span-4).
-- **Second Row:** 4 KPI Cards (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`).
-- **Third Row:** Area Chart (col-span-8), Donut Chart (col-span-4).
-- **Fourth Row:** Regional Leaderboard (col-span-12).
-- **Interactivity:** Every chart, KPI card, and leaderboard row must be a clickable link or filter trigger. Static elements are forbidden.
 
 ## 10. Interaction, Animations & UX Rules
 - **Transitions:** All interactive elements must have `transition-colors` or `transition-all duration-200`.
@@ -128,17 +136,18 @@ For the main National Dashboard, we strictly use a 12-column CSS grid.
 
 ## 11. Forms, Feedback & Destructive Actions
 ### Forms
-- **Layout:** Vertically stacked with `space-y-md`.
-- **Labels:** `text-paragraph-small font-medium text-foreground mb-xs`.
-- **Inputs:** shadcn `<Input>`, `<Select>`, `<Textarea>` with `bg-card border-border`.
-- **Validation:** Errors directly below the input using `text-paragraph-small text-destructive mt-xs`.
+- **Layout:** Vertically stacked with `space-y-4`.
+- **Labels:** `text-paragraph-small font-medium text-foreground`.
+- **Inputs:** shadcn `<Input>`, `<Select>`, `<Textarea>` with `bg-card border-border h-9`.
+- **Validation:** Errors directly below the input using `text-paragraph-small text-destructive`.
 
 ### Feedback (Toasts)
-We use `Sonner` for all user feedback. Never use `alert()` for success messages.
+We use `Sonner` for all user feedback. Never use `alert()`. 
 - **Position:** Bottom-right corner.
 
 ### Destructive Actions (Deleting Data)
-- **Pattern:** Always use a shadcn `<AlertDialog>` for confirmation. Confirm button must be `bg-destructive`.
+- **Pattern:** Always use a shadcn `<AlertDialog>` for confirmation. 
+- **Confirm Button:** Must be `bg-destructive hover:bg-destructive/90`. 
 
 ## 12. Accessibility (a11y)
 - **Contrast:** Text must meet WCAG AA ratios.

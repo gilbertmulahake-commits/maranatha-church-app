@@ -23,6 +23,15 @@ export type LocalChurchStats = {
     payment_type: string
     payment_date: string
     payment_method: string
+    has_annual: boolean
+    has_monthly: boolean
+    is_mixed: boolean
+    allocations: {
+      allocation_type: string
+      billing_year: number
+      billing_month: number | null
+      amount: number
+    }[]
   }[]
 }
 
@@ -100,14 +109,36 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
       annualStatus,
       monthlyStatus,
       overallStatus,
-      payments: church.payments.map((p) => ({
-        id: p.id,
-        transaction_id: p.transaction_id,
-        amount_paid: Number(p.amount_paid),
-        payment_type: p.payment_type,
-        payment_date: p.payment_date.toISOString(),
-        payment_method: p.payment_method,
-      }))
+      payments: church.payments.map((p) => {
+        let hasAnnual = false
+        let hasMonthly = false
+
+        if (p.allocations.length === 0) {
+          if (p.payment_type === 'Annual') hasAnnual = true
+          else hasMonthly = true
+        } else {
+          hasAnnual = p.allocations.some(a => a.allocation_type === 'Annual')
+          hasMonthly = p.allocations.some(a => a.allocation_type === 'Monthly')
+        }
+
+        return {
+          id: p.id,
+          transaction_id: p.transaction_id,
+          amount_paid: Number(p.amount_paid),
+          payment_type: p.payment_type,
+          payment_date: p.payment_date.toISOString(),
+          payment_method: p.payment_method,
+          has_annual: hasAnnual,
+          has_monthly: hasMonthly,
+          is_mixed: hasAnnual && hasMonthly,
+          allocations: p.allocations.map(a => ({
+            allocation_type: a.allocation_type,
+            billing_year: a.billing_year,
+            billing_month: a.billing_month,
+            amount: Number(a.amount)
+          }))
+        }
+      })
     }
 
   } catch (error) {

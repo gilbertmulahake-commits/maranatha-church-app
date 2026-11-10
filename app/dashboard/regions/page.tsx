@@ -21,7 +21,7 @@ export default function RegionsPage() {
     <div className="space-y-xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-heading-2 font-medium text-foreground">Regions</h1>
+          <h1 className="text-heading-2 font-bold text-foreground">Regions</h1>
           <p className="mt-xs text-paragraph-small text-muted-foreground">
             Manage the 60 regional units and monitor their performance.
           </p>

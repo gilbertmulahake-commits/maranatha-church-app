@@ -21,7 +21,7 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-xl">
       <div>
-        <h1 className="text-heading-2 font-medium text-foreground">Payments Ledger</h1>
+        <h1 className="text-heading-2 font-bold text-foreground">Payments Ledger</h1>
         <p className="mt-xs text-paragraph-small text-muted-foreground">
           Audit and reconcile all incoming transactions.
         </p>

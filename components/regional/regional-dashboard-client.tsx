@@ -9,16 +9,8 @@ export function RegionalDashboardClient({ stats }: { stats: RegionalStatsSuccess
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-
-  // Period view — controls which of annualStatus / monthlyStatus drives
-  // the KPI counts, the table badge, AND the status filter.
   const [periodView, setPeriodView] = useState<'month' | 'year'>('year')
 
-  /**
-   * Filter the table. The status filter MUST match the active period status
-   * (annual vs monthly) — otherwise clicking "Overdue" on the Month view
-   * would silently filter by annual status.
-   */
   const filteredChurches = useMemo(() => {
     return stats.churches.filter((church) => {
       const matchesSearch =
@@ -50,6 +42,7 @@ export function RegionalDashboardClient({ stats }: { stats: RegionalStatsSuccess
 
       <RegionalTable
         churches={filteredChurches}
+        regionName={stats.regionName} // <-- FIXED: Passed down to table
         search={search}
         setSearch={setSearch}
         statusFilter={statusFilter}

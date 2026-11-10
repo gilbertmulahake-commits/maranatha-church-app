@@ -50,11 +50,13 @@ export function ChurchDashboard({
 
   const [periodView, setPeriodView] = useState<'month' | 'year'>('year')
 
+  // Calculate stats based on the active period view
   const periodStats = useMemo<PeriodStats>(() => {
     if (initialData.length === 0) return nationalStats
     return computePeriodStats(initialData, periodView)
   }, [initialData, nationalStats, periodView])
 
+  // Filter the table data based on search, status, and region
   const tableData = useMemo(() => {
     return initialData.filter((church) => {
       const s = search.toLowerCase()
@@ -71,6 +73,7 @@ export function ChurchDashboard({
 
       const matchesStatus = statusFilter === 'All' || activeStatus === statusFilter
       const matchesRegion = regionFilter === 'All' || church.region?.name === regionFilter
+
       return matchesSearch && matchesStatus && matchesRegion
     })
   }, [initialData, search, statusFilter, regionFilter, periodView])

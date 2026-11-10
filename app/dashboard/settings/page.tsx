@@ -25,7 +25,7 @@ export default function SettingsPage() {
     // INLINE STYLE SOLUTION RESTORED
     <div className="space-y-xl" style={{ width: '100%', maxWidth: '64rem' }}>
       <div>
-        <h1 className="text-heading-2 font-medium text-foreground">Settings</h1>
+        <h1 className="text-heading-2 font-bold text-foreground">Settings</h1>
         <p className="mt-xs text-paragraph-small text-muted-foreground">
           Manage your personal profile and system security.
         </p>

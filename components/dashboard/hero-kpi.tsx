@@ -23,6 +23,7 @@ export function HeroKpi({
   totalExpectedThisYear
 }: HeroKpiProps) {
   const visualPct = Math.min(collectionPct, 100)
+  const isExceeded = collectionPct > 100
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-sidebar p-8 shadow-lg h-full flex flex-col justify-between border border-sidebar-border">
@@ -48,7 +49,8 @@ export function HeroKpi({
             {collectionPct.toFixed(1)}%
           </div>
           <p className="text-paragraph-small text-sidebar-foreground/70 flex items-center md:justify-end gap-1">
-            <TrendingUp className="h-4 w-4 text-emerald-400" /> of total target
+            <TrendingUp className="h-4 w-4 text-emerald-400" /> 
+            {isExceeded ? 'Target Exceeded' : 'of total target'}
           </p>
         </div>
       </div>
@@ -57,14 +59,14 @@ export function HeroKpi({
       <div className="relative z-10 mt-8">
         <div className="h-3 w-full rounded-full bg-sidebar-foreground/20 overflow-hidden shadow-inner">
           <div 
-            className="h-full rounded-full bg-emerald-500 transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+            className={`h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(16,185,129,0.3)] ${isExceeded ? 'bg-emerald-400' : 'bg-emerald-500'}`}
             style={{ width: `${visualPct}%` }}
           />
         </div>
         <div className="flex flex-col md:flex-row justify-between mt-4 gap-2 text-paragraph-small text-sidebar-foreground/60">
           <span className="flex items-center gap-1">
             <Activity className="h-3 w-3" /> 
-            Realistic Pace YTD: <strong className="text-sidebar-foreground">{formatCurrency(totalExpectedThisYear)}</strong>
+            Expected Dues YTD: <strong className="text-sidebar-foreground">{formatCurrency(totalExpectedThisYear)}</strong>
           </span>
           <span>Target: {formatCurrency(targetAmount)}</span>
         </div>

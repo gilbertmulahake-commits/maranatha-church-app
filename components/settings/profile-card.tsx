@@ -20,7 +20,7 @@ export function ProfileCard({ profile }: { profile: UserProfile }) {
   return (
     <Card className="h-full w-full min-w-0">
       <CardHeader>
-        <CardTitle>Profile Information</CardTitle>
+        <CardTitle className="text-heading-4 font-bold text-foreground">Profile Information</CardTitle>
         <CardDescription>
           Your identity and system access level.
         </CardDescription>

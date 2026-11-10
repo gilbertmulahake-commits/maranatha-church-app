@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
 
 // ============================================================================
 // CORE SMS FUNCTION
@@ -52,7 +53,6 @@ export async function sendReminder(
   monthlyOutstanding: number = 0
 ) {
   try {
-    // Build the intelligent message based on what they owe
     let owedText = ''
     
     if (annualOutstanding > 0 && monthlyOutstanding > 0) {
@@ -117,7 +117,8 @@ export async function sendBulkReminders(
     annualOutstanding?: number,
     monthlyOutstanding?: number 
   }[],
-  senderRole: SenderRole = 'REGIONAL'
+  senderRole: SenderRole = 'REGIONAL',
+  periodView: 'month' | 'year' = 'year'
 ) {
   try {
     let successCount = 0
@@ -127,10 +128,8 @@ export async function sendBulkReminders(
       let message = ''
 
       if (recipient.type === 'Chairman') {
-        // Generic message for Chairmen in bulk (no specific church ID)
         message = `Dear Chairman ${recipient.name}, this is a reminder from ${getSenderLabel('NATIONAL')}. Your region has pending compliance requirements. Please follow up with your local pastors. - Maranatha`
       } else {
-        // Intelligent message for Pastors
         let owedText = ''
         const annual = recipient.annualOutstanding || 0
         const monthly = recipient.monthlyOutstanding || 0
@@ -153,6 +152,10 @@ export async function sendBulkReminders(
       if (result.success) successCount++
       else failCount++
     }
+
+    // Revalidate paths so the UI updates the KPI cards instantly
+    revalidatePath('/dashboard/churches')
+    revalidatePath('/dashboard/regional')
 
     return { success: true, successCount, failCount }
   } catch (error) {

@@ -17,22 +17,32 @@ export async function getDashboardStats() {
     const totalChurches = churches.length
     const totalRegions = await prisma.region.count()
     
+    // Include allocations to detect 'Mixed' payments
     const recentTransactionsRaw = await prisma.payment.findMany({
       take: 5,
       orderBy: { payment_date: 'desc' },
-      include: { church: true },
+      include: { church: true, allocations: true },
       where: { status: 'Paid' }
     })
 
-    const recentTransactions = recentTransactionsRaw.map(p => ({
-      id: p.id,
-      transaction_id: p.transaction_id,
-      church_name: p.church.church_name,
-      church_code: p.church.church_code,
-      amount_paid: Number(p.amount_paid),
-      payment_type: p.payment_type,
-      payment_date: p.payment_date.toISOString(),
-    }))
+    const recentTransactions = recentTransactionsRaw.map(p => {
+      // Check if mixed
+      const hasAnnual = p.allocations.some(a => a.allocation_type === 'Annual')
+      const hasMonthly = p.allocations.some(a => a.allocation_type === 'Monthly')
+      const isMixed = hasAnnual && hasMonthly
+
+      return {
+        id: p.id,
+        transaction_id: p.transaction_id,
+        church_name: p.church.church_name,
+        church_code: p.church.church_code,
+        amount_paid: Number(p.amount_paid),
+        payment_type: isMixed ? 'Mixed' : p.payment_type,
+        payment_method: p.payment_method,
+        payment_date: p.payment_date.toISOString(),
+        is_mixed: isMixed,
+      }
+    })
 
     const today = new Date()
     const currentYear = today.getFullYear()
@@ -47,6 +57,9 @@ export async function getDashboardStats() {
     let totalExpectedAnnual = 0
     let totalExpectedMonthly = 0
 
+    let grossOutstandingAnnual = 0
+    let grossOutstandingMonthly = 0
+
     let totalCollectedThisYear = 0
     let totalExpectedThisYear = 0
 
@@ -58,6 +71,7 @@ export async function getDashboardStats() {
     let compliantChurches = 0
     let partialChurches = 0
     let overdueChurches = 0
+    let naChurches = 0 // NEW: Track N/A churches
 
     let mpesaCount = 0
     let bankCount = 0
@@ -86,6 +100,8 @@ export async function getDashboardStats() {
       const churchExpectedThisMonth = Math.max(0, churchExpectedToday - churchExpectedLastMonth)
 
       let churchTotalPaid = 0
+      let churchAnnualPaid = 0
+      let churchMonthlyPaid = 0
       let churchPaidLastMonth = 0
 
       church.payments.forEach((p) => {
@@ -93,22 +109,26 @@ export async function getDashboardStats() {
         const pDate = new Date(p.payment_date)
         churchTotalPaid += amount
 
-        // READ FROM ALLOCATIONS
         if (p.allocations.length === 0) {
-          if (p.payment_type === 'Annual') totalCollectedAnnual += amount
-          else totalCollectedMonthly += amount
-          if (pDate >= startOfMonth) {
-            if (p.payment_type === 'Annual') thisMonthCollectedAnnual += amount
-            else thisMonthCollectedMonthly += amount
+          if (p.payment_type === 'Annual') {
+            totalCollectedAnnual += amount
+            churchAnnualPaid += amount
+            if (pDate >= startOfMonth) thisMonthCollectedAnnual += amount
+          } else {
+            totalCollectedMonthly += amount
+            churchMonthlyPaid += amount
+            if (pDate >= startOfMonth) thisMonthCollectedMonthly += amount
           }
         } else {
           p.allocations.forEach((a) => {
             const allocAmount = Number(a.amount)
             if (a.allocation_type === 'Annual') {
               totalCollectedAnnual += allocAmount
+              churchAnnualPaid += allocAmount
               if (pDate >= startOfMonth) thisMonthCollectedAnnual += allocAmount
             } else {
               totalCollectedMonthly += allocAmount
+              churchMonthlyPaid += allocAmount
               if (pDate >= startOfMonth) thisMonthCollectedMonthly += allocAmount
             }
           })
@@ -130,18 +150,28 @@ export async function getDashboardStats() {
 
       totalCollected += churchTotalPaid
 
+      grossOutstandingAnnual += Math.max(0, expectedAnnual - churchAnnualPaid)
+      grossOutstandingMonthly += Math.max(0, expectedMonthly - churchMonthlyPaid)
+
       const arrearsBroughtForward = Math.max(0, churchExpectedLastMonth - churchPaidLastMonth)
       thisMonthExpected += churchExpectedThisMonth + arrearsBroughtForward
 
-      const churchStatus = getPeriodStatus(churchTotalPaid, churchExpectedToday)
-      if (churchStatus === 'Paid') compliantChurches++
-      else if (churchStatus === 'Partial') partialChurches++
-      else overdueChurches++
+      const annualStatus = getPeriodStatus(churchAnnualPaid, expectedAnnual)
+      const monthlyStatus = getPeriodStatus(churchMonthlyPaid, expectedMonthly)
+      
+      let overallStatus = 'Partial'
+      if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+      else if (expectedAnnual === 0 && churchAnnualPaid === 0 && expectedMonthly === 0 && churchMonthlyPaid === 0) overallStatus = 'N/A'
+
+      if (overallStatus === 'Paid') compliantChurches++
+      else if (overallStatus === 'Partial') partialChurches++
+      else if (overallStatus === 'Overdue') overdueChurches++
+      else naChurches++
     })
 
-    const outstanding = Math.max(0, totalExpected - totalCollected)
-    const outstandingAnnual = Math.max(0, totalExpectedAnnual - totalCollectedAnnual)
-    const outstandingMonthly = Math.max(0, totalExpectedMonthly - totalCollectedMonthly)
+    const grossOutstanding = grossOutstandingAnnual + grossOutstandingMonthly
+
     const collectionPct = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0
     const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
 
@@ -153,8 +183,10 @@ export async function getDashboardStats() {
       amount: monthlyMap[month],
     }))
 
+    const targetAmount = totalChurches * 11000
+
     return {
-      targetAmount: 17600000,
+      targetAmount,
       totalCollectedThisYear,
       totalExpectedThisYear,
       recentTransactions,
@@ -164,14 +196,15 @@ export async function getDashboardStats() {
       totalExpected,
       totalExpectedAnnual,
       totalExpectedMonthly,
-      outstanding,
-      outstandingAnnual,
-      outstandingMonthly,
+      outstanding: grossOutstanding,
+      outstandingAnnual: grossOutstandingAnnual,
+      outstandingMonthly: grossOutstandingMonthly,
       collectionPct,
       compliancePct,
       compliantChurches,
       partialChurches,
       overdueChurches,
+      naChurches, // NEW
       totalChurches,
       totalRegions,
       thisMonthCollectedAnnual,
@@ -186,12 +219,12 @@ export async function getDashboardStats() {
   } catch (error) {
     console.error('Failed to fetch dashboard stats:', error)
     return {
-      targetAmount: 17600000, totalCollectedThisYear: 0, totalExpectedThisYear: 0, recentTransactions: [],
+      targetAmount: 0, totalCollectedThisYear: 0, totalExpectedThisYear: 0, recentTransactions: [],
       totalCollected: 0, totalCollectedAnnual: 0, totalCollectedMonthly: 0,
       totalExpected: 0, totalExpectedAnnual: 0, totalExpectedMonthly: 0,
       outstanding: 0, outstandingAnnual: 0, outstandingMonthly: 0,
       collectionPct: 0, compliancePct: 0, compliantChurches: 0,
-      partialChurches: 0, overdueChurches: 0, totalChurches: 0, totalRegions: 0,
+      partialChurches: 0, overdueChurches: 0, naChurches: 0, totalChurches: 0, totalRegions: 0,
       thisMonthCollectedAnnual: 0, thisMonthCollectedMonthly: 0,
       thisMonthCollections: 0, thisMonthExpected: 0, thisMonthCollectionPct: 0,
       thisMonthTransactionCount: 0, paymentMethods: { mpesa: 0, bank: 0, cash: 0 },

@@ -1,57 +1,40 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { MockKCBForm } from '@/components/mock-kcb-form'
-import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { MockKcbForm } from '@/components/mock-kcb-form'
 import { Skeleton } from '@/components/ui/skeleton'
 
-async function MockKCBContent() {
+async function MockKcbContent() {
   await connection()
-
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let lockedChurchCode: string | null = null
-  let userRole = 'UNKNOWN'
-
-  if (user) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { church: true },
-    })
-
-    if (dbUser) {
-      userRole = dbUser.role
-      if (['LOCAL_PASTOR', 'CHURCH_TREASURER'].includes(dbUser.role)) {
-        if (dbUser.church) {
-          lockedChurchCode = dbUser.church.church_code
-        } else {
-          console.warn('User is a local role but has no church assigned!')
-        }
-      }
-    }
-  }
-
+  
   return (
-    <MockKCBForm userRole={userRole} lockedChurchCode={lockedChurchCode} />
+    <div className="space-y-xl">
+      <div className="flex flex-col gap-sm">
+        <h1 className="text-heading-2 font-bold text-foreground">Mock KCB Simulator</h1>
+        <p className="text-paragraph-small text-muted-foreground">
+          Simulate an incoming payment webhook to test the reconciliation and allocation engine.
+        </p>
+      </div>
+      
+      <MockKcbForm />
+    </div>
   )
 }
 
-export default function MockKCBPage() {
+export default function MockKcbPage() {
   return (
-    <div className="space-y-xl" style={{ width: '100%', maxWidth: '42rem' }}>
-      <div>
-        <h1 className="text-heading-2 font-medium text-foreground">Mock KCB Simulator</h1>
-        <p className="mt-xs text-paragraph-small text-muted-foreground">
-          Simulate an incoming M-Pesa payment from KCB to test the reconciliation engine.
-        </p>
+    <Suspense fallback={
+      <div className="space-y-xl">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-xl">
+          <Skeleton className="h-[450px] rounded-xl" />
+          <Skeleton className="h-[450px] rounded-xl" />
+        </div>
       </div>
-
-      <Suspense
-        fallback={<Skeleton className="h-[560px] rounded-xl" />}
-      >
-        <MockKCBContent />
-      </Suspense>
-    </div>
+    }>
+      <MockKcbContent />
+    </Suspense>
   )
 }

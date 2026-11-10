@@ -35,7 +35,7 @@ export default function UsersPage() {
   return (
     <div className="space-y-xl">
       <div>
-        <h1 className="text-heading-2 font-medium text-foreground">User Management</h1>
+        <h1 className="text-heading-2 font-bold text-foreground">User Management</h1>
         <p className="mt-xs text-paragraph-small text-muted-foreground">
           Manage system access, assign roles, and invite new staff.
         </p>

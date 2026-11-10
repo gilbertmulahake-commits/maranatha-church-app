@@ -43,7 +43,7 @@ export function PasswordForm() {
   return (
     <Card className="h-full w-full min-w-0">
       <CardHeader>
-        <CardTitle>Security</CardTitle>
+        <CardTitle className="text-heading-4 font-bold text-foreground">Security</CardTitle>
         <CardDescription>
           Update the password associated with your account.
         </CardDescription>

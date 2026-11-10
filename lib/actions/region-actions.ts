@@ -23,7 +23,7 @@ export async function getRegions() {
 export async function getRegionsWithStats() {
   try {
     const regions = await prisma.region.findMany({
-      include: { churches: { include: { payments: true } } }, // Simplified: Just need total collected
+      include: { churches: { include: { payments: true } } },
       orderBy: { name: 'asc' },
     })
 
@@ -172,6 +172,11 @@ export async function getSingleRegionStats(regionId: string) {
     let totalCollectedAnnual = 0
     let totalCollectedMonthly = 0
 
+    // GROSS ARREARS ACCUMULATORS
+    let outstanding = 0
+    let outstandingAnnual = 0
+    let outstandingMonthly = 0
+
     let thisMonthCollectedAnnual = 0
     let thisMonthCollectedMonthly = 0
     let thisMonthExpected = 0
@@ -191,20 +196,14 @@ export async function getSingleRegionStats(regionId: string) {
         const amount = Number(p.amount_paid)
         churchTotalPaid += amount
 
-        // READ FROM ALLOCATIONS
         if (p.allocations.length === 0) {
           if (p.payment_type === 'Annual') annualPaid += amount
           else monthlyPaid += amount
         } else {
           p.allocations.forEach((a) => {
             const allocAmount = Number(a.amount)
-            if (a.allocation_type === 'Annual') {
-              annualPaid += allocAmount
-              if (pDate >= startOfMonth) thisMonthCollectedAnnual += allocAmount
-            } else {
-              monthlyPaid += allocAmount
-              if (pDate >= startOfMonth) thisMonthCollectedMonthly += allocAmount
-            }
+            if (a.allocation_type === 'Annual') annualPaid += allocAmount
+            else monthlyPaid += allocAmount
           })
         }
 
@@ -233,6 +232,16 @@ export async function getSingleRegionStats(regionId: string) {
       else if (overallStatus === 'Partial') partialChurches++
       else overdueChurches++
 
+      // GROSS ARREARS CALCULATION (Per Church)
+      outstanding += Math.max(0, churchExpectedToday - churchTotalPaid)
+      outstandingAnnual += Math.max(0, expectedAnnual - annualPaid)
+      outstandingMonthly += Math.max(0, expectedMonthly - monthlyPaid)
+
+      if (churchTotalPaid > 0) {
+        totalCollectedAnnual += annualPaid
+        totalCollectedMonthly += monthlyPaid
+      }
+
       return {
         id: church.id,
         church_code: church.church_code,
@@ -256,15 +265,6 @@ export async function getSingleRegionStats(regionId: string) {
       }
     })
 
-    // Sum totals from the mapped data
-    churchesData.forEach(d => {
-      totalCollectedAnnual += d.annualPaid
-      totalCollectedMonthly += d.monthlyPaid
-    })
-
-    const outstanding = Math.max(0, totalExpected - totalCollected)
-    const outstandingAnnual = Math.max(0, totalExpectedAnnual - totalCollectedAnnual)
-    const outstandingMonthly = Math.max(0, totalExpectedMonthly - totalCollectedMonthly)
     const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
     const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
     const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0
@@ -274,7 +274,10 @@ export async function getSingleRegionStats(regionId: string) {
       chairmanName: region.chairman_name,
       totalCollected, totalCollectedAnnual, totalCollectedMonthly,
       totalExpectedAnnual, totalExpectedMonthly, totalExpected,
+      
+      // Gross Arrears
       outstanding, outstandingAnnual, outstandingMonthly,
+      
       thisMonthCollectedAnnual, thisMonthCollectedMonthly, thisMonthExpected, thisMonthCollectionPct,
       compliancePct, compliantChurches, partialChurches, overdueChurches,
       churches: churchesData,

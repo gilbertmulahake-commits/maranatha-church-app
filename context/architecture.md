@@ -13,18 +13,21 @@
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic |
 | Integrations | KCB Bank API (Mocked for v1) | Listens for incoming payment webhooks (IPN) |
 | Integrations | Africa's Talking SMS API (Mocked) | Automated SMS reminders and receipts |
+| Exports | `xlsx`, `jspdf`, `jspdf-autotable` | Generates Excel and branded PDF reports |
 | Background Jobs | Supabase Edge Functions / Inngest | Process webhooks, send SMS, calculate scores async |
 
 ### Important Architectural Notes
 - **Prisma Workflow:** Due to Prisma v8 breaking changes, all Prisma commands must be run via `npx prisma7 <command>`. The database URL is stored in `prisma.config.ts`, not `schema.prisma`.
 - **Next.js 16 Middleware:** The `middleware.ts` convention is deprecated. Route protection is handled by `proxy.ts`.
 - **Case Sensitivity:** All imports and paths are case-sensitive. Avoid renaming folders after they have been pushed to GitHub to prevent sync issues.
+- **Tailwind Merge Configuration:** Because we use custom Figma typography tokens (e.g., `text-heading-1`, `p-xl`), we extended `tailwind-merge` in `lib/utils.ts`. This prevents `twMerge` from silently dropping our custom classes when they conflict with standard Tailwind colors or sizes. Do not remove this configuration.
 
 ## 2. System Boundaries
 - `app/` — Next.js routes, layouts, and page composition. Contains dashboards for Church, Region, and National HQ.
 - `app/api/webhooks/kcb/` — Endpoint to receive POST requests from the Mock KCB API.
 - `components/` — Reusable UI components (tables, charts, KPI cards).
 - `lib/` — Server helpers, Prisma client, and API clients (KCB/SMS).
+- `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF, Print).
 - `prisma/` — Database schema and migrations.
 - `jobs/` — Background worker functions (SMS reminders, score calculations).
 
@@ -40,8 +43,8 @@
 | Role(s) | Sidebar Tabs | Core Focus |
 | :--- | :--- | :--- |
 | **National Treasurer / Overseer** | Dashboard, Regions, Churches, Payments, Users, Mock KCB, Reports, Settings | Full financial oversight, user management, and system settings. |
-| **Regional Chairman / Treasurer** | Regional Dashboard, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. |
-| **Local Pastor / Church Treasurer** | Local Dashboard, Settings | Personal church compliance, exact bucket status, and payment history. *(Note: 'Reports' tab is hidden for this tier).* |
+| **Regional Chairman / Treasurer** | Regional Dashboard, Regional Payments, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. |
+| **Local Pastor / Church Treasurer** | Local Dashboard, Reports, Settings | Personal church compliance, exact bucket status, and payment history. |
 
 ### Detailed Role Definitions
 - **National HQ Admin:** Has absolute visibility. Can view the single central KCB account totals, all 60 regions, all 1,600 church streams, and the Unmatched Payments queue.
@@ -70,3 +73,4 @@
 - **Strict Bucket Isolation:** Annual contributions (KES 5,000) and Monthly contributions (KES 500) are treated as completely separate ledgers. An overpayment in one bucket does not cover a shortfall in the other.
 - **Dynamic Statuses:** A church's status is evaluated per bucket (`annualStatus` vs `monthlyStatus`). The UI dynamically swaps the badge and KPI counts based on the active `periodView` (Month/Year). If a church owes 0 in a bucket (e.g., joined after the annual deadline), it shows an `N/A` status.
 - **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit` rather than a generic total credit.
+- **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.

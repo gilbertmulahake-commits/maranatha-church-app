@@ -47,7 +47,7 @@ async function DashboardContent() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-heading-2 font-medium text-foreground">National Dashboard</h1>
+          <h1 className="text-heading-2 font-bold text-foreground">National Dashboard</h1>
           <p className="mt-xs text-paragraph-small text-muted-foreground">
             Real-time overview of Maranatha Faith Assemblies Kenya collections.
           </p>
@@ -80,8 +80,13 @@ async function DashboardContent() {
 
       {/* ROW 3: ANALYTICS */}
       <DashboardCharts
-        paymentMethods={stats.paymentMethods}
         monthlyCollections={stats.monthlyCollections}
+        complianceData={{
+          compliant: stats.compliantChurches,
+          partial: stats.partialChurches,
+          overdue: stats.overdueChurches,
+          na: stats.naChurches || 0,
+        }}
       />
 
       {/* ROW 4: ACTION CENTER */}

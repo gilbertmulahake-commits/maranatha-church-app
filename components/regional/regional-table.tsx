@@ -6,6 +6,9 @@ import {
   MoreHorizontal,
   Eye,
   Edit,
+  Printer,
+  Send,
+  Loader2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -13,6 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
+import { ExportDropdown } from '@/components/ui/export-dropdown'
+import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
 import {
   Table,
   TableBody,
@@ -33,14 +38,15 @@ import {
 import { RegionalChurchData } from '@/lib/actions/regional-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
 import { SendReminderButton } from '@/components/dashboard/send-reminder-button'
-
 import { ViewChurchDialog } from '@/components/churches/view-church-dialog'
 import { EditChurchDialog } from '@/components/churches/edit-church-dialog'
 import type { ChurchRow } from '@/components/churches/church-table'
 import { formatPrepaidStatus } from '@/lib/utils/format'
+import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 
 interface Props {
   churches: RegionalChurchData[]
+  regionName: string
   search: string
   setSearch: (val: string) => void
   statusFilter: string
@@ -62,6 +68,7 @@ function formatCurrency(amount: number) {
 
 export function RegionalTable({
   churches,
+  regionName,
   search,
   setSearch,
   statusFilter,
@@ -83,24 +90,23 @@ export function RegionalTable({
   const [selectedChurches, setSelectedChurches] = useState<string[]>([])
   const [isBulkSending, setIsBulkSending] = useState(false)
 
+  const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
+
   const mapToChurchRow = (church: RegionalChurchData): ChurchRow => ({
     id: church.id,
     church_code: church.church_code,
     church_name: church.church_name,
-    region: null,
+    region: { name: regionName },
     pastor_name: church.pastor_name,
     pastor_phone: church.pastor_phone,
     treasurer_name: church.treasurer_name,
     contact_phone: church.contact_phone,
-    amountPaid: church.amountPaid,
-    expected: church.amountPaid + church.outstanding,
-    outstanding: church.outstanding,
-    annualCredit: church.annualCredit,
-    monthlyCredit: church.monthlyCredit,
     annualPaid: church.annualPaid,
     monthlyPaid: church.monthlyPaid,
     annualOutstanding: church.annualOutstanding,
     monthlyOutstanding: church.monthlyOutstanding,
+    annualCredit: church.annualCredit,
+    monthlyCredit: church.monthlyCredit,
     status: church.status,
     annualStatus: church.annualStatus,
     monthlyStatus: church.monthlyStatus,
@@ -146,6 +152,59 @@ export function RegionalTable({
     )
   }
 
+  const generateExportData = (scope: 'all' | 'selected' = 'all') => {
+    const rowsToExport = scope === 'selected'
+      ? sortedChurches.filter(c => selectedChurches.includes(c.id))
+      : sortedChurches
+
+    return rowsToExport.map(c => ({
+      'Church Code': c.church_code,
+      'Church Name': c.church_name,
+      'Pastor': c.pastor_name,
+      'Treasurer': c.treasurer_name,
+      'Annual Paid': c.annualPaid,
+      'Annual Out': c.annualOutstanding,
+      'Monthly Paid': c.monthlyPaid,
+      'Monthly Out': c.monthlyOutstanding,
+      'Status': c.status
+    }))
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0]
+
+  const executeAction = (scope: 'all' | 'selected') => {
+    if (!pendingAction) return
+
+    const exportData = generateExportData(scope)
+    const suffix = scope === 'selected' ? '-selected' : ''
+    const titleSuffix = scope === 'selected' ? ' (Selected)' : ''
+
+    if (pendingAction.type === 'print') {
+      exportToPdf(`region-${regionName}-print-${dateStr}${suffix}`, `${regionName} Region Churches${titleSuffix}`, `Total: ${scope === 'selected' ? selectedChurches.length : churches.length}`, exportData, 'landscape', true)
+    } else if (pendingAction.type === 'export') {
+      if (pendingAction.format === 'csv') exportToCsv(`region-${regionName}-${dateStr}${suffix}`, exportData)
+      else if (pendingAction.format === 'excel') exportToExcel(`region-${regionName}-${dateStr}${suffix}`, exportData, 'Regional Churches')
+      else if (pendingAction.format === 'pdf') exportToPdf(`region-${regionName}-${dateStr}${suffix}`, `${regionName} Region Churches${titleSuffix}`, `Total: ${scope === 'selected' ? selectedChurches.length : churches.length}`, exportData)
+    }
+
+    if (scope === 'selected') toast.success(`Exported ${selectedChurches.length} records`)
+    setPendingAction(null)
+  }
+
+  const handleGlobalPrint = () => {
+    if (selectedChurches.length > 0) setPendingAction({ type: 'print' })
+    else exportToPdf(`region-${regionName}-print-${dateStr}`, `${regionName} Region Churches`, `Total: ${churches.length}`, generateExportData('all'), 'landscape', true)
+  }
+
+  const handleGlobalExport = (format: 'csv' | 'excel' | 'pdf') => {
+    if (selectedChurches.length > 0) setPendingAction({ type: 'export', format })
+    else {
+      if (format === 'csv') exportToCsv(`region-${regionName}-${dateStr}`, generateExportData('all'))
+      if (format === 'excel') exportToExcel(`region-${regionName}-${dateStr}`, generateExportData('all'), 'Regional Churches')
+      if (format === 'pdf') exportToPdf(`region-${regionName}-${dateStr}`, `${regionName} Region Churches`, `Total: ${churches.length}`, generateExportData('all'))
+    }
+  }
+
   const handleBulkReminder = async () => {
     if (selectedChurches.length === 0) return
     setIsBulkSending(true)
@@ -167,7 +226,7 @@ export function RegionalTable({
       return
     }
 
-    const res = await sendBulkReminders(recipients, userRole)
+    const res = await sendBulkReminders(recipients, userRole, periodView)
 
     setIsBulkSending(false)
     if (res.error) {
@@ -186,9 +245,7 @@ export function RegionalTable({
     <div className="space-y-md">
       <TableToolbar
         title="Churches in Region"
-        subtitle={`${churches.length} churches · ${
-          userRole === 'REGIONAL' ? 'Chairman View' : 'National View'
-        }`}
+        subtitle={`${churches.length} churches · ${userRole === 'REGIONAL' ? 'Chairman View' : 'National View'}`}
         search={search}
         setSearch={setSearch}
         statusFilter={statusFilter}
@@ -196,10 +253,38 @@ export function RegionalTable({
         statusOptions={['All', 'Paid', 'Partial', 'Overdue']}
         selectionCount={selectedChurches.length}
         onClearSelection={() => setSelectedChurches([])}
-        onBulkAction={handleBulkReminder}
-        isBulkLoading={isBulkSending}
         periodView={periodView}
         setPeriodView={setPeriodView}
+        bulkActionSlot={
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleBulkReminder}
+              disabled={isBulkSending}
+              className="h-8 bg-primary text-primary-foreground font-bold"
+            >
+              {isBulkSending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
+              Send Reminders
+            </Button>
+            <ExportDropdown
+              onExportCsv={() => { exportToCsv(`region-selected-${dateStr}`, generateExportData('selected')); setSelectedChurches([]); }}
+              onExportExcel={() => { exportToExcel(`region-selected-${dateStr}`, generateExportData('selected'), 'Selected Churches'); setSelectedChurches([]); }}
+              onExportPdf={() => { exportToPdf(`region-selected-${dateStr}`, 'Selected Churches', `Total: ${selectedChurches.length}`, generateExportData('selected')); setSelectedChurches([]); }}
+            />
+          </div>
+        }
+        filterSlot={
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={churches.length === 0}>
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+            <ExportDropdown 
+              onExportCsv={() => handleGlobalExport('csv')}
+              onExportExcel={() => handleGlobalExport('excel')}
+              onExportPdf={() => handleGlobalExport('pdf')}
+              disabled={churches.length === 0}
+            />
+          </div>
+        }
       />
 
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -208,26 +293,23 @@ export function RegionalTable({
             <TableRow>
               <TableHead className="w-[50px]">
                 <Checkbox
-                  checked={
-                    selectedChurches.length === paginatedData.length &&
-                    paginatedData.length > 0
-                  }
+                  checked={selectedChurches.length === paginatedData.length && paginatedData.length > 0}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
               <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small"
+                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
                 onClick={() => requestSort('church_name')}
               >
                 <div className="flex items-center gap-xs">
                   Church <ArrowUpDown className="h-3 w-3" />
                 </div>
               </TableHead>
-              <TableHead className="text-paragraph-small">Pastor</TableHead>
-              <TableHead className="text-paragraph-small">Treasurer</TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Pastor</TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Treasurer</TableHead>
 
               <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small"
+                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
                 onClick={() => requestSort(isMonthly ? 'monthlyPaid' : 'annualPaid')}
               >
                 <div className="flex items-center gap-xs">
@@ -235,35 +317,28 @@ export function RegionalTable({
                 </div>
               </TableHead>
               <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small"
-                onClick={() =>
-                  requestSort(isMonthly ? 'monthlyOutstanding' : 'annualOutstanding')
-                }
+                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
+                onClick={() => requestSort(isMonthly ? 'monthlyOutstanding' : 'annualOutstanding')}
               >
                 <div className="flex items-center gap-xs">
                   {outLabel} <ArrowUpDown className="h-3 w-3" />
                 </div>
               </TableHead>
 
-              <TableHead className="text-paragraph-small">Status</TableHead>
-              <TableHead className="text-right text-paragraph-small">Actions</TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
+              <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-paragraph-small text-muted-foreground"
-                >
+                <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
                   No churches found matching your filters.
                 </TableCell>
               </TableRow>
             ) : (
               paginatedData.map((church) => {
-                const activeStatus = isMonthly
-                  ? church.monthlyStatus
-                  : church.annualStatus
+                const activeStatus = isMonthly ? church.monthlyStatus : church.annualStatus
                 const prepaidStatus = isMonthly
                   ? formatPrepaidStatus(church.monthlyCredit, 'Monthly')
                   : formatPrepaidStatus(church.annualCredit, 'Annual')
@@ -302,12 +377,9 @@ export function RegionalTable({
                     </TableCell>
 
                     <TableCell className="tabular-nums font-medium text-emerald-600 text-paragraph-small">
-                      {formatCurrency(
-                        isMonthly ? church.monthlyPaid : church.annualPaid
-                      )}
+                      {formatCurrency(isMonthly ? church.monthlyPaid : church.annualPaid)}
                     </TableCell>
 
-                    {/* FIXED: This now correctly uses the prepaidStatus variable */}
                     <TableCell className="tabular-nums font-medium text-paragraph-small">
                       {prepaidStatus ? (
                         <span className="text-emerald-600">{prepaidStatus}</span>
@@ -343,23 +415,24 @@ export function RegionalTable({
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           }
-                        ></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        />
+                        {/* FIXED: Added w-56 to force width */}
+                        <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-paragraph-small">
+                            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                               Actions
                             </DropdownMenuLabel>
                           </DropdownMenuGroup>
 
                           <DropdownMenuItem
-                            className="cursor-pointer text-paragraph-small"
+                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
                             onClick={() => setViewingChurch(mapToChurchRow(church))}
                           >
                             <Eye className="mr-2 h-4 w-4" /> View Details
                           </DropdownMenuItem>
 
                           <DropdownMenuItem
-                            className="cursor-pointer text-paragraph-small"
+                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
                             onClick={() => setEditingChurch(mapToChurchRow(church))}
                           >
                             <Edit className="mr-2 h-4 w-4" /> Edit Church
@@ -400,6 +473,15 @@ export function RegionalTable({
 
       <ViewChurchDialog church={viewingChurch} onClose={() => setViewingChurch(null)} />
       <EditChurchDialog church={editingChurch} onClose={() => setEditingChurch(null)} />
+      
+      <ExportConfirmDialog 
+        open={!!pendingAction}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+        actionType={pendingAction?.type || 'export'}
+        selectedCount={selectedChurches.length}
+        totalCount={churches.length}
+        onConfirm={executeAction}
+      />
     </div>
   )
 }

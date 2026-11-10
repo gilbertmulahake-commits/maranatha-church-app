@@ -90,10 +90,10 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>Region Collected</CardDescription>
-            <CardTitle className="text-heading-1 font-bold tabular-nums">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
               {formatCurrency(stats.totalCollected)}
             </CardTitle>
-            <CardAction>
+            <CardAction className="shrink-0">
               <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
                 <Banknote className="h-3 w-3" /> YTD
               </Badge>
@@ -107,26 +107,19 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
               ]}
               total={Math.max(stats.totalCollected, stats.totalExpected)}
             />
-            <div className="flex flex-col gap-0.5">
-              <p className="text-paragraph-mini text-foreground">
-                <span className="font-medium">Annual</span> {formatCurrency(stats.totalCollectedAnnual)}
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="font-medium">Monthly</span> {formatCurrency(stats.totalCollectedMonthly)}
-              </p>
-              <p className="text-paragraph-mini text-muted-foreground">
-                {displayCollectionPct.toFixed(1)}% of {formatCurrency(stats.totalExpected)} expected
-              </p>
-            </div>
+            <p className="text-paragraph-mini text-muted-foreground">
+              {displayCollectionPct.toFixed(1)}% of {formatCurrency(stats.totalExpected)} expected
+            </p>
           </CardFooter>
         </Card>
 
         <Card className={cardClasses} onClick={() => setStatusFilter('Overdue')}>
           <CardHeader>
             <CardDescription>{inCredit ? 'Net Credit' : 'Region Arrears'}</CardDescription>
-            <CardTitle className={`text-heading-1 font-bold tabular-nums ${inCredit ? 'text-emerald-600' : 'text-destructive'}`}>
+            <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${inCredit ? 'text-emerald-600' : 'text-destructive'}`}>
               {formatCurrency(inCredit ? netCredit : stats.outstanding)}
             </CardTitle>
-            <CardAction>
+            <CardAction className="shrink-0">
               {inCredit ? (
                 <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
                   <CheckCircle className="h-3 w-3" /> In Credit
@@ -148,16 +141,9 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
               />
             )}
             {!inCredit ? (
-              <div className="flex flex-col gap-0.5">
-                <p className="text-paragraph-mini text-foreground">
-                  <span className="font-medium">Annual</span> {formatCurrency(stats.outstandingAnnual)}
-                  <span className="mx-1.5 text-muted-foreground">·</span>
-                  <span className="font-medium">Monthly</span> {formatCurrency(stats.outstandingMonthly)}
-                </p>
-                <p className="text-paragraph-mini text-muted-foreground">
-                  View churches with arrears
-                </p>
-              </div>
+              <p className="text-paragraph-mini text-muted-foreground">
+                View churches with arrears
+              </p>
             ) : (
               <p className="text-paragraph-mini text-muted-foreground">
                 All contributions are up to date in this region.
@@ -169,10 +155,10 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('Paid')}>
           <CardHeader>
             <CardDescription>Compliance Rate</CardDescription>
-            <CardTitle className="text-heading-1 font-bold tabular-nums">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
               {periodCompliancePct.toFixed(1)}%
             </CardTitle>
-            <CardAction>
+            <CardAction className="shrink-0">
               <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
                 <CheckCircle2 className="h-3 w-3" /> {periodView === 'year' ? 'Annual' : 'Monthly'}
               </Badge>
@@ -196,10 +182,10 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>This Month</CardDescription>
-            <CardTitle className="text-heading-1 font-bold tabular-nums">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
               {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
             </CardTitle>
-            <CardAction>
+            <CardAction className="shrink-0">
               <Badge variant="outline">
                 <CalendarDays className="h-3 w-3" /> Current
               </Badge>
@@ -213,22 +199,16 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
               ]}
               total={Math.max(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly, stats.thisMonthExpected)}
             />
-            <div className="flex flex-col gap-0.5">
-              <p className="text-paragraph-mini text-foreground">
-                <span className="font-medium">Annual</span> {formatCurrency(stats.thisMonthCollectedAnnual)}
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="font-medium">Monthly</span> {formatCurrency(stats.thisMonthCollectedMonthly)}
-              </p>
-              <p className="text-paragraph-mini text-muted-foreground">
-                {stats.thisMonthCollectionPct.toFixed(1)}% of {formatCurrency(stats.thisMonthExpected)} due this month
-              </p>
-            </div>
+            <p className="text-paragraph-mini text-muted-foreground">
+              {stats.thisMonthCollectionPct.toFixed(1)}% of {formatCurrency(stats.thisMonthExpected)} due this month
+            </p>
           </CardFooter>
         </Card>
       </div>
 
       <RegionalTable
         churches={filteredChurches}
+        regionName={stats.regionName} // <-- FIXED: Added missing prop
         search={search}
         setSearch={setSearch}
         statusFilter={statusFilter}

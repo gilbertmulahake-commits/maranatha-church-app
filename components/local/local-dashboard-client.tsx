@@ -6,26 +6,31 @@ import { LocalKpiCards } from './local-kpi-cards'
 import { LocalPaymentHistory } from './local-payment-history'
 
 export function LocalDashboardClient({ stats }: { stats: LocalChurchStats }) {
-  const [filter, setFilter] = useState<'All' | 'Annual' | 'Monthly'>('All')
-
-  // Filter the payments based on the card clicked
-  const filteredPayments = stats.payments.filter((payment) => {
-    if (filter === 'All') return true
-    return payment.payment_type === filter
-  })
+  // 1. Update state to include 'Mixed'
+  const [filter, setFilter] = useState<'All' | 'Annual' | 'Monthly' | 'Mixed'>('All')
 
   return (
     <div className="space-y-xl">
-      <LocalKpiCards stats={stats} onFilterChange={setFilter} />
+      {/* 2. Pass activeFilter so the clicked card gets highlighted */}
+      <LocalKpiCards 
+        stats={stats} 
+        activeFilter={filter} 
+        onFilterChange={setFilter} 
+      />
       
-      {/* Show the filter context in the table title (optional UX improvement) */}
       <div className="space-y-2">
         {filter !== 'All' && (
           <p className="text-paragraph-small text-primary font-medium">
             Showing {filter} payments only. Click "Total Contributions" to reset.
           </p>
         )}
-        <LocalPaymentHistory payments={filteredPayments} />
+        
+        {/* 3. Pass RAW payments and let the table handle the accurate filtering */}
+        <LocalPaymentHistory 
+          payments={stats.payments} 
+          activeFilter={filter} 
+          onFilterChange={setFilter} 
+        />
       </div>
     </div>
   )
