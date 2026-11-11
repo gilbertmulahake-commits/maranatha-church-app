@@ -52,7 +52,7 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
   const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
 
-  let annualStatus: any = getPeriodStatus(annualPaid, expectedAnnual)
+  let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
   const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
   if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'
 

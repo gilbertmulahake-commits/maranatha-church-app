@@ -34,7 +34,6 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isBulkLoading, setIsBulkLoading] = useState(false)
   
-  // NEW: Confirmation Dialog State
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const filteredData = useMemo(() => {
@@ -50,7 +49,7 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
   }, [data, search])
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...filteredData]
+    const sortableItems = [...filteredData]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key]
@@ -167,13 +166,15 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         monthlyOutstanding: c.monthlyOutstanding
       }))
 
-      const res = await sendBulkReminders(recipients, 'NATIONAL', 'year')
+      const res = await sendBulkReminders(recipients, 'NATIONAL')
       if (res?.error) throw new Error(res.error)
       
       toast.success(`Reminders sent to ${recipients.length} churches`)
       setSelectedIds([])
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send reminders')
+    } catch (error) {
+      // FIX: Removed `: any`, added instanceof Error guard
+      const message = error instanceof Error ? error.message : 'Failed to send reminders'
+      toast.error(message)
     } finally {
       setIsBulkLoading(false)
     }

@@ -113,7 +113,7 @@ export function RegionalTable({
   })
 
   const sortedChurches = useMemo(() => {
-    let sortableItems = [...churches]
+    const sortableItems = [...churches]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key]
@@ -226,7 +226,7 @@ export function RegionalTable({
       return
     }
 
-    const res = await sendBulkReminders(recipients, userRole, periodView)
+    const res = await sendBulkReminders(recipients, userRole)
 
     setIsBulkSending(false)
     if (res.error) {

@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getExpectedUpToDate, getCreditBalance, getPeriodStatus } from '@/lib/utils/financial'
+import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
 
 const churchSchema = z.object({
   church_code: z.string().min(1, 'Church Code is required'),
@@ -63,10 +63,13 @@ export async function getChurches() {
       const annualCredit = Math.max(0, annualPaid - expectedAnnual)
       const monthlyCredit = Math.max(0, monthlyPaid - expectedMonthly)
 
+      // FIX: Removed the unnecessary `as any` cast.
+      // getPeriodStatus returns 'Paid' | 'Partial' | 'Overdue', which is
+      // already assignable to 'Paid' | 'Partial' | 'Overdue' | 'N/A'.
       let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(
         annualPaid,
         expectedAnnual
-      ) as any
+      )
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) {

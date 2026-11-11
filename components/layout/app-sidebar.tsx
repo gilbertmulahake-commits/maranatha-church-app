@@ -1,7 +1,7 @@
 'use client'
 
-import * as React from 'react'
 import {
+  Icon,
   IconLayoutDashboard,
   IconMapPin,
   IconBuilding,
@@ -34,9 +34,16 @@ type Role =
   | 'CHURCH_TREASURER'
   | null
 
+// FIXED: Use Tabler's `Icon` type (matches NavMain's expected prop)
+type NavItem = {
+  title: string
+  url: string
+  icon: Icon
+}
+
 export function AppSidebar({ role, userEmail }: { role: Role; userEmail?: string }) {
-  let navMain = []
-  let navSecondary: any[] = []
+  let navMain: NavItem[] = []
+  let navSecondary: NavItem[] = []
 
   if (role === 'NATIONAL_TREASURER' || role === 'NATIONAL_OVERSEER') {
     navMain = [

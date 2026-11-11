@@ -117,8 +117,7 @@ export async function sendBulkReminders(
     annualOutstanding?: number,
     monthlyOutstanding?: number 
   }[],
-  senderRole: SenderRole = 'REGIONAL',
-  periodView: 'month' | 'year' = 'year'
+  senderRole: SenderRole = 'REGIONAL'
 ) {
   try {
     let successCount = 0

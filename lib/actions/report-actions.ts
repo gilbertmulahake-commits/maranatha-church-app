@@ -34,7 +34,7 @@ export async function getArrearsReport(): Promise<ArrearsRow[]> {
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
 
-    let whereClause: any = {}
+    let whereClause: Record<string, unknown> = {}
     if (dbUser?.role === 'REGIONAL_CHAIRMAN' || dbUser?.role === 'REGIONAL_TREASURER') {
       whereClause = { region_id: dbUser.region_id }
     } else if (dbUser?.role === 'LOCAL_PASTOR' || dbUser?.role === 'CHURCH_TREASURER') {
@@ -116,7 +116,7 @@ export async function getDailyCashbook(targetDate: Date): Promise<CashbookRow[]>
     const endOfDay = new Date(targetDate)
     endOfDay.setHours(23, 59, 59, 999)
 
-    let whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       payment_date: {
         gte: startOfDay,
         lte: endOfDay,

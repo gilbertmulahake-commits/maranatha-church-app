@@ -7,7 +7,7 @@
 
 ## TypeScript
 - Strict mode is required throughout the project.
-- Avoid `any` — use explicit interfaces or narrowly scoped types.
+- Avoid `any` — use explicit interfaces, narrowly scoped types, or `unknown` + narrowing.
 - Validate unknown external input (especially webhooks) at system boundaries before trusting it.
 
 ## Framework (Next.js)
@@ -42,6 +42,26 @@
   - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF).
 - `prisma/` — schema and migrations.
 - `context/` — the six context files and specs.
+
+## Database Migrations
+- **NEVER** run `prisma db push`. It skips the migration history and creates drift.
+- **ALWAYS** use `prisma7 migrate dev --name <descriptive-name>` for local schema changes.
+- **ALWAYS** commit the generated migration folder to Git.
+- **For production:** use `prisma7 migrate deploy` (applies pending migrations without prompting).
+- **NEVER** run `prisma7 migrate reset` against any database containing real data — it drops the entire schema.
+- **Backup before migrating** any database that holds live data. Use `pg_dump` locally (Supabase Free Plan has no scheduled backups).
+- **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
+
+## Known ESLint Configuration Gaps
+- **`argsIgnorePattern` is NOT set.** Underscore-prefixed parameters (e.g., `_options`) are still flagged as unused. Use `void` to mark intentionally unused parameters, or remove them entirely.
+- **`@typescript-eslint/no-explicit-any` is enforced.** Never use `any`. Use `unknown` + narrowing, or define an explicit type.
+- **`react/no-unescaped-entities` is enforced.** Quote, apostrophe, and angle-bracket characters in JSX text must be escaped (`&quot;`, `&apos;`, `&lt;`, `&gt;`) or wrapped in `{}` expressions.
+
+## SMS Actions API
+- **`sendBulkReminders(recipients, senderRole)`** takes exactly **2 arguments**.
+  - `recipients` — an array of recipient records (each with `phone` and context data).
+  - `senderRole` — `'NATIONAL' | 'REGIONAL'`.
+- **Do NOT reintroduce a third `periodView` argument.** The previous signature was simplified during Phase 1 lint cleanup because `periodView` was unused. If a future feature genuinely needs period context, add it explicitly in a new spec and update this rule.
 
 ## Protected Files
 - `components/ui/*` — generated component library; never edit manually. *(Exception: Global dialog standards are applied in `dialog.tsx` and `alert-dialog.tsx`)*.

@@ -149,7 +149,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
 
       const overallStatus = getPeriodStatus(churchTotalPaid, churchExpectedToday)
-      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual) as any
+      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'

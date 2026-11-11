@@ -1,6 +1,6 @@
 "use client"
 
-import { Banknote, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Banknote, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StackedBar } from '@/components/dashboard/stacked-bar'

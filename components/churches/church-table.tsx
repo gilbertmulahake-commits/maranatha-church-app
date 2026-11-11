@@ -84,7 +84,7 @@ export function ChurchTable({
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...data]
+    const sortableItems = [...data]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key] || ''
@@ -195,14 +195,15 @@ export function ChurchTable({
         monthlyOutstanding: c.monthlyOutstanding
       }))
 
-      const res = await sendBulkReminders(recipients, 'NATIONAL', periodView)
+      const res = await sendBulkReminders(recipients, 'NATIONAL')
       
       if (res?.error) throw new Error(res.error)
       
       toast.success(`Reminders sent to ${recipients.length} churches`)
       setSelectedIds([])
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send reminders')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send reminders'
+      toast.error(message)
     } finally {
       setIsBulkLoading(false)
     }
@@ -215,8 +216,9 @@ export function ChurchTable({
       if (res.error) throw new Error(res.error)
       toast.success('Church deleted successfully')
       setChurchToDelete(null)
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      toast.error(message)
     }
   }
 
@@ -373,7 +375,6 @@ export function ChurchTable({
                             </Button>
                           }
                         />
-                        {/* FIXED: Added w-56 to force width */}
                         <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuGroup>
                             <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

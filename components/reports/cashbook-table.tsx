@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, Eye, Printer, CheckSquare } from 'lucide-react'
+import { Eye, Printer, CheckSquare } from 'lucide-react'
 import { CashbookRow } from '@/lib/actions/report-actions'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 import { ExportDropdown } from '@/components/ui/export-dropdown'

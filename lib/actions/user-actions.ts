@@ -2,8 +2,18 @@
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-// Import the standard Supabase client for admin actions
-import { createClient as createAdminClient } from '@supabase/supabase-js' 
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+
+// Validate incoming role against the Prisma Role enum
+const roleSchema = z.enum([
+  'NATIONAL_TREASURER',
+  'NATIONAL_OVERSEER',
+  'REGIONAL_CHAIRMAN',
+  'REGIONAL_TREASURER',
+  'LOCAL_PASTOR',
+  'CHURCH_TREASURER',
+])
 
 export type UserProfile = {
   email: string
@@ -111,12 +121,22 @@ export async function inviteUser(formData: FormData) {
     // 2. Extract Data
     const email = formData.get('email') as string
     const password = formData.get('password') as string
-    const role = formData.get('role') as any
     const region_id = (formData.get('region_id') as string) || null
     const church_id = (formData.get('church_id') as string) || null
 
-    if (!email || !password || !role) {
-      return { error: 'Email, password, and role are required.' }
+    // FIX: Validate role with Zod instead of `as any`
+    const roleValue = formData.get('role')
+    if (typeof roleValue !== 'string') {
+      return { error: 'Role is required.' }
+    }
+    const roleParsed = roleSchema.safeParse(roleValue)
+    if (!roleParsed.success) {
+      return { error: 'Invalid role selected.' }
+    }
+    const role = roleParsed.data
+
+    if (!email || !password) {
+      return { error: 'Email and password are required.' }
     }
 
     // 3. Create Supabase Auth User (Requires Service Role Key)
@@ -144,7 +164,7 @@ export async function inviteUser(formData: FormData) {
           church_id
         }
       })
-    } catch (dbError: any) {
+    } catch (dbError) {
       // ROLLBACK: If the Prisma insert fails (e.g., region_id is invalid), 
       // delete the newly created Supabase Auth user so we don't leave an orphaned account.
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
@@ -153,12 +173,17 @@ export async function inviteUser(formData: FormData) {
 
     return { success: true }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Invite error:', error)
-    // Handle Prisma unique constraint error gracefully
-    if (error.code === 'P2002') {
+    
+    // Handle Prisma unique constraint error gracefully (P2002)
+    if (
+      typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
+    ) {
       return { error: 'A user with this email or ID already exists in the database.' }
     }
-    return { error: error.message || 'Failed to invite user' }
+    
+    const message = error instanceof Error ? error.message : 'Failed to invite user'
+    return { error: message }
   }
 }

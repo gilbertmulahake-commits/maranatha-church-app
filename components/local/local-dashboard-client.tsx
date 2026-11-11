@@ -21,7 +21,7 @@ export function LocalDashboardClient({ stats }: { stats: LocalChurchStats }) {
       <div className="space-y-2">
         {filter !== 'All' && (
           <p className="text-paragraph-small text-primary font-medium">
-            Showing {filter} payments only. Click "Total Contributions" to reset.
+            Showing {filter} payments only. Click {"\"Total Contributions\""} to reset.
           </p>
         )}
         
