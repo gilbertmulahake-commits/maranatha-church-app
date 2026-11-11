@@ -80,6 +80,7 @@ export async function sendSms(
         username,
         to: normalizedPhone,
         message,
+        from: 'sandbox', // Use 'sandbox' for testing; replace with your sender ID in production
       })
 
       const response = await fetch(atEndpoint, {
