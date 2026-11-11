@@ -48,15 +48,22 @@ Begin Unit 15 Phase 2: Environment & Deployment Readiness
   - `normalizeKcbPayload(payload: unknown)` and `normalizeEquityPayload(payload: unknown)` — both validate structure, extract `bank_reference`, `church_code`, `amount`, `currency`, `payment_method`, and `transaction_date`, and return a standardized shape.
   - Church codes are normalized (uppercase + trimmed). Amounts are parsed from strings/numbers and rejected if `NaN`. Invalid payloads throw descriptive errors.
   - No `any` types — strict validation via `unknown` narrowing.
+- **Unit 15 Phase 4: Africa's Talking Live Integration**
+  - Replaced mock-only `sendSms()` with a dual-path implementation: production calls the real Africa's Talking REST API, development retains the console-log mock.
+  - Added `normalizeKenyanPhone()` helper: converts `0723...`, `254723...`, `+254723...`, and bare `723...` to E.164 (`+254723...`). Required by AT; without it, every production SMS is silently rejected.
+  - Added `AFRICASTALKING_API_URL` env var (defaults to production endpoint) so sandbox testing works via config override — no code changes needed for UAT.
+  - Extracted `safeLogSms()` helper: writes to `SmsLog` but **never throws**. If the log write fails after a successful SMS send, `sendSms()` still returns `{ success: true }` to prevent the UI from triggering a retry (which would send a duplicate SMS).
+  - Production failures (HTTP errors, AT rejections, fetch exceptions) log `SmsLog.status = 'Failed'` for a full audit trail.
+  - `sendReminder`, `sendChairmanReminder`, `sendBulkReminders` function signatures unchanged — no caller updates required.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15 Phase 4: Africa's Talking Live Integration**
-  - Replace the mock SMS `console.log` in `lib/actions/sms-actions.ts` with a real `fetch` call to `https://api.africastalking.com/version1/messaging`.
-  - Guard with `if (process.env.NODE_ENV === 'production')` to prevent accidental SMS during local testing.
-  - Read credentials from `AFRICASTALKING_API_KEY` and `AFRICASTALKING_USERNAME`.
+- **Unit 15 Phase 5: Profile UI Upgrade**
+  - Update `components/layout/nav-user.tsx` to show Avatar (initials-based), full name, and role badge.
+  - Add "My Profile" link to `/dashboard/settings`.
+  - (Optional) Build `/dashboard/profile` page for editing bio-data (`first_name`, `last_name`, `phone`, `profile_photo_url`, `bio`).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -97,3 +104,6 @@ Begin Unit 15 Phase 2: Environment & Deployment Readiness
 - **Prisma 7 CLI Syntax:** `migrate diff` uses `--to-schema` (not `--to-schema-datamodel`). Older Prisma tutorials may reference the old flag.
 - **`lib/utils.ts` twMerge Expansion:** During Phase 1 lint cleanup, the `twMerge` config in `lib/utils.ts` was expanded to register the full spacing scale across all directions (`pt`, `pb`, `pl`, `pr`, `mx`, `my`, `ml`, `mr`, `gap-x`, `gap-y`) using a shared `SPACING_SCALE` constant. This was **not** a reset — the protected `extendTailwindMerge` block is intact. Do not revert. Prevents silent class-drop bugs in components using directional spacing tokens.
 - **Next.js Env Precedence:** Next.js loads `.env.production` automatically during `npm run build` with priority over `.env`. Having `.env.production` locally with empty values breaks builds (missing Supabase keys cause `/login` prerender errors). Convention: keep only `.env.production.example` locally; create the real `.env.production` exclusively on Vercel's server environment.
+- **Africa's Talking Endpoint Config:** `AFRICASTALKING_API_URL` defaults to production (`https://api.africastalking.com/version1/messaging`). For sandbox testing, override with `https://api.sandbox.africastalking.com/version1/messaging`. `.env.production.example` pre-sets the sandbox URL as a safe default — never accidentally bill live SMS credits during UAT.
+- **SMS Duplicate-Prevention:** `safeLogSms()` swallows `SmsLog` write failures so a successful AT send always returns `{ success: true }`. If you ever refactor `sendSms()`, preserve this invariant: **DB log failure must not surface as SMS-send failure** — otherwise UI retries cause duplicate messages.
+- **Africa's Talking Phone Format:** AT requires E.164 (`+254XXXXXXXXX`). The DB stores local format (`0XXXXXXXXX`). `normalizeKenyanPhone()` handles the conversion — never call the AT API with a raw DB phone value.
