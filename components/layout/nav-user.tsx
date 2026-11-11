@@ -1,11 +1,12 @@
 'use client'
 
-import { IconDotsVertical, IconLogout } from '@tabler/icons-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { IconDotsVertical, IconLogout, IconUser } from '@tabler/icons-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup, // <-- ADDED THIS IMPORT
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -20,13 +21,19 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+// Helper to convert e.g. NATIONAL_TREASURER -> National Treasurer
+function formatRole(role: string) {
+  return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export function NavUser({
   user,
 }: {
   user: {
     name: string
     email: string
-    avatar: string
+    avatar?: string
+    role: string
   }
 }) {
   const { isMobile } = useSidebar()
@@ -49,6 +56,7 @@ export function NavUser({
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
                 <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                     {user.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
@@ -69,11 +77,11 @@ export function NavUser({
             align="end"
             sideOffset={4}
           >
-            {/* WRAP LABEL IN A GROUP */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarImage src={user.avatar} alt={user.name} />
                     <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                       {user.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
@@ -84,14 +92,30 @@ export function NavUser({
                       {user.email}
                     </span>
                   </div>
+                  <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
+                    {formatRole(user.role)}
+                  </Badge>
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             
             <DropdownMenuSeparator />
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => router.push('/dashboard/settings')}
+                className="cursor-pointer"
+              >
+                <IconUser className="mr-2 h-4 w-4" />
+                My Profile
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+            
             <DropdownMenuItem
               onClick={handleLogout}
-              className="text-destructive cursor-pointer"
+              className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive"
             >
               <IconLogout className="mr-2 h-4 w-4" />
               Log out

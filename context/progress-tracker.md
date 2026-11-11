@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 15 Phase 1 - Complete
+Unit 15 - Complete
 
 ## Current Goal
-Begin Unit 15 Phase 2: Environment & Deployment Readiness
+Prepare for Phase 2 (Deployment Execution) and V2 features
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -55,15 +55,23 @@ Begin Unit 15 Phase 2: Environment & Deployment Readiness
   - Extracted `safeLogSms()` helper: writes to `SmsLog` but **never throws**. If the log write fails after a successful SMS send, `sendSms()` still returns `{ success: true }` to prevent the UI from triggering a retry (which would send a duplicate SMS).
   - Production failures (HTTP errors, AT rejections, fetch exceptions) log `SmsLog.status = 'Failed'` for a full audit trail.
   - `sendReminder`, `sendChairmanReminder`, `sendBulkReminders` function signatures unchanged — no caller updates required.
+- **Unit 15 Phase 5: Profile UI Upgrade**
+  - Upgraded `components/layout/nav-user.tsx` to display the user's avatar (with initials fallback), full name, email, and a **Role Badge** (e.g., "National Treasurer").
+  - Added a **"My Profile"** action link that routes directly to `/dashboard/settings`.
+  - Passed the authenticated user's `role` from `components/layout/app-sidebar.tsx` down to `NavUser`, defaulting to `CHURCH_TREASURER` if null to satisfy TypeScript.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15 Phase 5: Profile UI Upgrade**
-  - Update `components/layout/nav-user.tsx` to show Avatar (initials-based), full name, and role badge.
-  - Add "My Profile" link to `/dashboard/settings`.
-  - (Optional) Build `/dashboard/profile` page for editing bio-data (`first_name`, `last_name`, `phone`, `profile_photo_url`, `bio`).
+- **Deployment Execution (Vercel + Supabase Production)**
+  - Wire up Vercel project.
+  - Set production environment variables.
+  - Run `npx prisma7 migrate deploy` against the production database.
+  - Live KCB API and Africa's Talking production keys hookup.
+- **V2 Roadmap (Unit 16+)**
+  - Internal Communication Channel (Enterprise inbox).
+  - Dynamic Fund architecture (`Fund` table migration).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.

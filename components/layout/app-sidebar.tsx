@@ -71,10 +71,12 @@ export function AppSidebar({ role, userEmail }: { role: Role; userEmail?: string
 
   navSecondary = [{ title: 'Settings', url: '/dashboard/settings', icon: IconSettings }]
 
+  // The NavUser component now requires a role. Default to CHURCH_TREASURER if null.
   const user = {
     name: userEmail?.split('@')[0] || 'User',
     email: userEmail || 'user@maranatha.org',
     avatar: '',
+    role: role || 'CHURCH_TREASURER',
   }
 
   return (
