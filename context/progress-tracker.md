@@ -40,15 +40,23 @@ Begin Unit 15 Phase 2: Environment & Deployment Readiness
   - **Lint cleanup:** 12 pre-existing ESLint errors resolved (`any` types, unused imports, unescaped entities). `use-mobile.ts` refactored to `useSyncExternalStore`. `sendBulkReminders` simplified to 2-arg signature.
   - **Backup:** `backup_before_baseline.sql` (309 KB) saved to `%USERPROFILE%\Desktop\mfa-backup\`.
   - **Verified:** 11 churches, 15 payments, 4 regions preserved. Zero data loss.
+- **Unit 15 Phase 2: Environment & Deployment Readiness**
+  - Added `.env.example` (committed canonical template) and `.env.production.example` (production template).
+  - Updated `.gitignore` to allow committing both templates while continuing to ignore `.env` and `.env.production`.
+- **Unit 15 Phase 3: Bank Adapter Engine**
+  - Created `lib/utils/bank-adapter.ts` with the `NormalizedTransaction` interface.
+  - `normalizeKcbPayload(payload: unknown)` and `normalizeEquityPayload(payload: unknown)` — both validate structure, extract `bank_reference`, `church_code`, `amount`, `currency`, `payment_method`, and `transaction_date`, and return a standardized shape.
+  - Church codes are normalized (uppercase + trimmed). Amounts are parsed from strings/numbers and rejected if `NaN`. Invalid payloads throw descriptive errors.
+  - No `any` types — strict validation via `unknown` narrowing.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15 Phase 2: Environment & Deployment Readiness**
-  - `.env.production` template with all required keys.
-  - Production Supabase credentials wiring.
-  - Vercel project setup.
+- **Unit 15 Phase 4: Africa's Talking Live Integration**
+  - Replace the mock SMS `console.log` in `lib/actions/sms-actions.ts` with a real `fetch` call to `https://api.africastalking.com/version1/messaging`.
+  - Guard with `if (process.env.NODE_ENV === 'production')` to prevent accidental SMS during local testing.
+  - Read credentials from `AFRICASTALKING_API_KEY` and `AFRICASTALKING_USERNAME`.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -88,4 +96,4 @@ Begin Unit 15 Phase 2: Environment & Deployment Readiness
 - **`sendBulkReminders` Signature:** Now takes exactly 2 arguments — `(recipients, senderRole)`. Do NOT reintroduce `periodView`.
 - **Prisma 7 CLI Syntax:** `migrate diff` uses `--to-schema` (not `--to-schema-datamodel`). Older Prisma tutorials may reference the old flag.
 - **`lib/utils.ts` twMerge Expansion:** During Phase 1 lint cleanup, the `twMerge` config in `lib/utils.ts` was expanded to register the full spacing scale across all directions (`pt`, `pb`, `pl`, `pr`, `mx`, `my`, `ml`, `mr`, `gap-x`, `gap-y`) using a shared `SPACING_SCALE` constant. This was **not** a reset — the protected `extendTailwindMerge` block is intact. Do not revert. Prevents silent class-drop bugs in components using directional spacing tokens.
-```
+- **Next.js Env Precedence:** Next.js loads `.env.production` automatically during `npm run build` with priority over `.env`. Having `.env.production` locally with empty values breaks builds (missing Supabase keys cause `/login` prerender errors). Convention: keep only `.env.production.example` locally; create the real `.env.production` exclusively on Vercel's server environment.
