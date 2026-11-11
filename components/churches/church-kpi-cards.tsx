@@ -1,18 +1,17 @@
 "use client"
 
-import { Building2, CheckCircle, AlertTriangle, MinusCircle } from 'lucide-react'
+import { Building2, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StackedBar } from '@/components/dashboard/stacked-bar'
 
 interface Props {
   localStats: { total: number; compliant: number; partial: number; overdue: number; na: number }
-  nationalStats: { total: number; compliant: number; partial: number; overdue: number; na: number }
   periodView: 'month' | 'year'
   onFilterChange: (status: string) => void
 }
 
-export function ChurchKpiCards({ localStats, nationalStats, periodView, onFilterChange }: Props) {
+export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props) {
   const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
   const viewLabel = periodView === 'year' ? 'annual view' : 'monthly view'
 

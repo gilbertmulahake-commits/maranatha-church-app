@@ -67,7 +67,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
   }, [data, search, typeFilter, methodFilter])
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...filteredData]
+    const sortableItems = [...filteredData]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key]

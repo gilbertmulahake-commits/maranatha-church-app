@@ -52,7 +52,6 @@ export function LocalPaymentHistory({
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   
-  // NEW: Confirmation Dialog State
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const filteredData = useMemo(() => {
@@ -79,7 +78,7 @@ export function LocalPaymentHistory({
   }, [payments, search, activeFilter, methodFilter])
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...filteredData]
+    const sortableItems = [...filteredData]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key]
@@ -136,7 +135,6 @@ export function LocalPaymentHistory({
 
   const dateStr = new Date().toISOString().split('T')[0]
 
-  // EXECUTION (Called by the confirmation dialog)
   const executeAction = (scope: 'all' | 'selected') => {
     if (!pendingAction) return
 
@@ -157,7 +155,6 @@ export function LocalPaymentHistory({
     setPendingAction(null)
   }
 
-  // INTERCEPTORS (Top Toolbar)
   const handleGlobalPrint = () => {
     if (selectedIds.length > 0) setPendingAction({ type: 'print' })
     else {
@@ -176,10 +173,16 @@ export function LocalPaymentHistory({
     }
   }
 
-  // DIRECT BULK ACTIONS (Selection Bar)
   const handleBulkExportCsv = () => { exportToCsv(`local-payments-selected-${dateStr}`, generateExportData('selected')); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
   const handleBulkExportExcel = () => { exportToExcel(`local-payments-selected-${dateStr}`, generateExportData('selected'), 'Selected Payments'); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
   const handleBulkExportPdf = () => { exportToPdf(`local-payments-selected-${dateStr}`, 'Payment History (Selected)', `Selected: ${selectedIds.length}`, generateExportData('selected')); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
+
+  // FIX: Type guard instead of `as any` — no `any`, no unsafe cast
+  const handleStatusFilterChange = (val: string) => {
+    if (val === 'All' || val === 'Annual' || val === 'Monthly' || val === 'Mixed') {
+      onFilterChange?.(val)
+    }
+  }
 
   return (
     <TooltipProvider>
@@ -190,7 +193,7 @@ export function LocalPaymentHistory({
           search={search}
           setSearch={setSearch}
           statusFilter={activeFilter}
-          setStatusFilter={(val) => onFilterChange?.(val as any)}
+          setStatusFilter={handleStatusFilterChange}
           statusOptions={['All', 'Annual', 'Monthly', 'Mixed']}
           selectionCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}

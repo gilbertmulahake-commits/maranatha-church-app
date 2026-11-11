@@ -177,8 +177,8 @@ export async function getSingleRegionStats(regionId: string) {
     let outstandingAnnual = 0
     let outstandingMonthly = 0
 
-    let thisMonthCollectedAnnual = 0
-    let thisMonthCollectedMonthly = 0
+    const thisMonthCollectedAnnual = 0
+    const thisMonthCollectedMonthly = 0
     let thisMonthExpected = 0
 
     let compliantChurches = 0
@@ -223,7 +223,7 @@ export async function getSingleRegionStats(regionId: string) {
       thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
 
       const overallStatus = getPeriodStatus(churchTotalPaid, churchExpectedToday)
-      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual) as any
+      let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'
@@ -301,7 +301,7 @@ export async function createRegion(formData: FormData) {
     await prisma.region.create({ data: validated.data })
     revalidatePath('/dashboard/regions')
     return { success: true }
-  } catch (error) {
+  } catch {
     return { error: 'Failed to create region. Name might already exist.' }
   }
 }
@@ -319,7 +319,7 @@ export async function updateRegion(id: string, formData: FormData) {
     await prisma.region.update({ where: { id }, data: validated.data })
     revalidatePath('/dashboard/regions')
     return { success: true }
-  } catch (error) {
+    } catch {
     return { error: 'Failed to update region.' }
   }
 }

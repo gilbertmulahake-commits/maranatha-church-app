@@ -82,7 +82,6 @@ export function ChurchDashboard({
     <div className="space-y-xl">
       <ChurchKpiCards
         localStats={periodStats}
-        nationalStats={periodStats}
         periodView={periodView}
         onFilterChange={(status) => {
           setStatusFilter(status)

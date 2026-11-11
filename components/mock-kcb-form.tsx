@@ -32,8 +32,8 @@ export function MockKcbForm() {
           TransAmount: Number(amount),
           MSISDN: phone,
           TransTime: new Date().toISOString(),
-          payment_type: paymentType, // Fixed casing
-          billing_year: Number(billingYear), // Fixed casing
+          payment_type: paymentType,
+          billing_year: Number(billingYear),
         }),
       })
 
@@ -44,8 +44,9 @@ export function MockKcbForm() {
       }
 
       toast.success('Payment simulated successfully')
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
@@ -53,7 +54,6 @@ export function MockKcbForm() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-xl items-start w-full">
-      {/* Left Column: The Form */}
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-heading-4 font-bold text-foreground">Simulate KCB Payment</CardTitle>
@@ -142,7 +142,6 @@ export function MockKcbForm() {
         </form>
       </Card>
 
-      {/* Right Column: Testing Guide */}
       <Card className="bg-muted/30 border-dashed w-full">
         <CardHeader>
           <div className="flex items-center gap-sm">
@@ -160,7 +159,7 @@ export function MockKcbForm() {
               Payment Priorities (Auto Mode)
             </h4>
             <p className="text-muted-foreground mb-sm">
-              When you select <strong>"Auto"</strong>, the allocation engine splits a single lump sum using this exact priority FIFO model:
+              When you select <strong>{"\"Auto\""}</strong>, the allocation engine splits a single lump sum using this exact priority FIFO model:
             </p>
             <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
               <li>Past-year Annual arrears</li>
@@ -175,7 +174,7 @@ export function MockKcbForm() {
           <div className="pt-md border-t border-border">
             <h4 className="font-medium text-foreground mb-xs">Try a mixed deposit</h4>
             <p className="text-muted-foreground mb-sm">
-              Send <strong>KES 20,000</strong> with <strong>"Auto"</strong> selected. 
+              Send <strong>KES 20,000</strong> with <strong>{"\"Auto\""}</strong> selected. 
               The system will automatically pay off all arrears, cover the current year, and allocate the remaining funds to future prepayments.
             </p>
             <div className="flex gap-2 mt-2">

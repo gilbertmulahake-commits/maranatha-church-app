@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { RegionTable, type RegionRow } from './region-table'
 import { RegionKpiCards } from './region-kpi-cards'
 

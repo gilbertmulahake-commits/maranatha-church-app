@@ -15,8 +15,21 @@ model Region {
   contact_phone  String
   created_at     DateTime       @default(now())
   churches       Church[]
+  pastorates     Pastorate[]          // NEW — back-relation required by Prisma
   regionalScores RegionalScore[]
   users          User[]
+}
+
+model Pastorate {
+  id             String   @id @default(uuid())
+  name           String
+  region_id      String
+  region         Region   @relation(fields: [region_id], references: [id])
+  overseer_name  String?
+  contact_phone  String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  churches       Church[]
 }
 
 model Church {
@@ -25,8 +38,16 @@ model Church {
   church_name    String
   region_id      String
   region         Region    @relation(fields: [region_id], references: [id])
-  
-  // NEW: Local Pastor Details
+
+  // NEW: Pastorate layer (nullable, dormant — see architecture.md)
+  pastorate_id     String?
+  pastorate        Pastorate? @relation(fields: [pastorate_id], references: [id])
+
+  // NEW: Church profile data
+  physical_address String?
+  membership_count Int?
+
+  // Local Pastor Details
   pastor_name    String    @default("") 
   pastor_phone   String    @default("")
   
@@ -54,7 +75,6 @@ model Payment {
   billing_year   Int      // Added in Unit 10.0
   created_at     DateTime @default(now())
   
-  // NEW RELATION
   allocations    PaymentAllocation[]
 }
 
@@ -63,11 +83,10 @@ model PaymentAllocation {
   payment_id      String
   payment         Payment     @relation(fields: [payment_id], references: [id], onDelete: Cascade)
   
-  // Reusing your existing enum (Annual | Monthly)
   allocation_type PaymentType 
   
   billing_year    Int
-  billing_month   Int?        // Null for Annual, 1-12 for Monthly
+  billing_month   Int?        
   amount          Decimal
   
   created_at      DateTime    @default(now())
@@ -97,7 +116,14 @@ model User {
   region_id      String?
   church_id      String?
   created_at     DateTime @default(now())
-  
+
+  // NEW: Bio-data
+  first_name        String?
+  last_name         String?
+  phone             String?
+  profile_photo_url String?
+  bio               String?
+
   region         Region?  @relation(fields: [region_id], references: [id])
   church         Church?  @relation(fields: [church_id], references: [id])
 }

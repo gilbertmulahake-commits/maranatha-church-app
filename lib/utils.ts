@@ -1,9 +1,13 @@
 import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
 
+// Full spacing scale used across the app (matches globals.css @theme tokens).
+const SPACING_SCALE = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] as const
+
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
+      // Custom typography (Heading 1-4, Paragraph variants)
       'font-size': [
         'text-heading-1',
         'text-heading-2',
@@ -14,17 +18,33 @@ const twMerge = extendTailwindMerge({
         'text-paragraph-small',
         'text-paragraph-mini',
       ],
-      // FIXED: 'space' is not valid, use 'space-x' and 'space-y'
-      'space-x': [{ space: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      'space-y': [{ space: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      
-      p: [{ padding: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      px: [{ padding: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      py: [{ padding: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      gap: [{ gap: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      m: [{ margin: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      mb: [{ margin: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
-      mt: [{ margin: ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl'] }],
+
+      // Padding (all directions)
+      p: [{ padding: [...SPACING_SCALE] }],
+      px: [{ padding: [...SPACING_SCALE] }],
+      py: [{ padding: [...SPACING_SCALE] }],
+      pt: [{ padding: [...SPACING_SCALE] }],
+      pb: [{ padding: [...SPACING_SCALE] }],
+      pl: [{ padding: [...SPACING_SCALE] }],
+      pr: [{ padding: [...SPACING_SCALE] }],
+
+      // Margin (all directions)
+      m: [{ margin: [...SPACING_SCALE] }],
+      mx: [{ margin: [...SPACING_SCALE] }],
+      my: [{ margin: [...SPACING_SCALE] }],
+      mt: [{ margin: [...SPACING_SCALE] }],
+      mb: [{ margin: [...SPACING_SCALE] }],
+      ml: [{ margin: [...SPACING_SCALE] }],
+      mr: [{ margin: [...SPACING_SCALE] }],
+
+      // Gap (all directions)
+      gap: [{ gap: [...SPACING_SCALE] }],
+      'gap-x': [{ gap: [...SPACING_SCALE] }],
+      'gap-y': [{ gap: [...SPACING_SCALE] }],
+
+      // Space between children (Stack / Flex / Grid patterns)
+      'space-x': [{ space: [...SPACING_SCALE] }],
+      'space-y': [{ space: [...SPACING_SCALE] }],
     },
   },
 })

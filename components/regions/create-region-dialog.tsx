@@ -45,7 +45,7 @@ export function CreateRegionDialog() {
         <DialogHeader>
           <DialogTitle>Add New Region</DialogTitle>
           <DialogDescription>
-            Create a new regional unit. Click save when you're done.
+            Create a new regional unit. Click save when you&apos;re done.
           </DialogDescription>
         </DialogHeader>
         

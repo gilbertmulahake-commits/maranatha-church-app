@@ -79,7 +79,7 @@ export function RegionTable({
   }, [data, search, statusFilter])
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...filteredData]
+    const sortableItems = [...filteredData]
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key]

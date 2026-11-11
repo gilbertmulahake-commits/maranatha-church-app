@@ -22,7 +22,16 @@
 - **Next.js 16 Middleware:** The `middleware.ts` convention is deprecated. Route protection is handled by `proxy.ts`.
 - **Case Sensitivity:** All imports and paths are case-sensitive. Avoid renaming folders after they have been pushed to GitHub to prevent sync issues.
 - **Tailwind Merge Configuration:** Because we use custom Figma typography tokens (e.g., `text-heading-1`, `p-xl`), we extended `tailwind-merge` in `lib/utils.ts`. This prevents `twMerge` from silently dropping our custom classes when they conflict with standard Tailwind colors or sizes. Do not remove this configuration.
-- **Pastorate Layer (Reserved):** The schema includes a `Pastorate` model that sits between `Region` and `Church`. It is currently dormant (`pastorate_id` is nullable on `Church`) and does NOT participate in the financial flow. It exists to support the optional communication and reporting hierarchy (`National → Region → Pastorate → Church`) if the Ministry adopts it.
+- **Migration Workflow (Unit 15 Phase 1):** Migration history was repaired with a baseline migration (`00000000000000_baseline`) after a history gap was discovered (two early migrations existed on the DB but not locally). Rules going forward:
+  - **NEVER** run `prisma db push` — it skips migration history and creates drift.
+  - **ALWAYS** use `prisma7 migrate dev --name <descriptive>` for local changes.
+  - **ALWAYS** commit the generated migration folder to Git.
+  - Production deploys use `prisma7 migrate deploy` (never `migrate dev` on prod).
+  - **NEVER** run `prisma7 migrate reset` against a database containing real data.
+- **Backup Policy:** Supabase Free Plan does **not** include scheduled backups. Use `pg_dump` locally before any destructive operation: `pg_dump "<connection-string>" --no-owner --no-acl --format=plain --file=backup_<date>.sql`. Store dumps outside the repo (`.gitignore` should exclude `*.sql`).
+- **Pastorate Layer (LIVE, DORMANT):** The `Pastorate` model was added in Unit 15 Phase 1. The `Church.pastorate_id` FK is nullable and the layer is **not used** in any financial calculation or UI. It exists to support an optional `National → Region → Pastorate → Church` hierarchy if the Ministry adopts it. Do not build UI or business logic against it without an explicit spec.
+- **User Bio-Data (LIVE):** The `User` model now has `first_name`, `last_name`, `phone`, `profile_photo_url`, and `bio` — all nullable. Profile UI (Phase 5) will consume these. Do not add non-null constraints or defaults without an explicit migration.
+- **Church Profile Fields (LIVE):** The `Church` model now has `physical_address` (String?) and `membership_count` (Int?), both nullable. Reserved for future reporting features.
 - **Bank Adapter Pattern (Future):** The system is architected to support dual-bank webhooks (KCB + Equity). Both will normalize their payloads into a standard `NormalizedTransaction` shape before hitting the Reconciliation Engine. This allows the Ministry to drop or add banks without affecting the allocation logic.
 - **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments for development, staging, and UAT. The system will only switch to live production endpoints once the client provides the live credentials. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
 - **Dynamic Fund & Channel Architecture (Future):** The current `PaymentType` and `PaymentMethod` enums will be migrated to `Fund` and `PaymentChannel` tables in V2. This enables admin-created payment categories (e.g., "Bishop's Retreat 2027") without code changes.
@@ -58,7 +67,7 @@
 
 ### Communication Identity (SMS)
 - **Universal Capability, Contextual Identity:** All authorized roles (National, Regional) can send SMS reminders. However, the SMS message body must reflect the sender's role.
-- **Implementation:** The `sendReminder` and `sendBulkReminders` functions accept a `senderRole: 'NATIONAL' | 'REGIONAL'` parameter to stamp messages with the correct authority ("from the Maranatha National Office" vs "from the Maranatha Regional Office").
+- **Implementation:** The `sendBulkReminders(recipients, senderRole)` function accepts exactly two arguments — `recipients` (array) and `senderRole: 'NATIONAL' | 'REGIONAL'` — to stamp messages with the correct authority ("from the Maranatha National Office" vs "from the Maranatha Regional Office").
 
 ## 5. Invariants (Rules the code must NEVER violate)
 1. **Webhook Security:** Every incoming payment webhook from KCB must be verified using a secure secret/signature before processing.
