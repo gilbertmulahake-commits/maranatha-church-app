@@ -6,14 +6,14 @@
 | Framework | Next.js 16 (App Router) + TypeScript | Full-stack web framework |
 | UI | Tailwind CSS + shadcn/ui (Base UI) | Styling and component library |
 | UI Components | Recharts | Financial charts and data visualizations |
-| Auth | Supabase Auth | Role-based authentication (Church, Region, National HQ) |
+| Auth | Supabase Auth | Role-based authentication (Church, Region, National HQ, System Admin) |
 | Database | Supabase (PostgreSQL) | Relational data for Churches, Payments, Scores |
 | ORM | Prisma v7 (via `@prisma/prisma7`) | Type-safe database queries and schema management |
 | Validation | Zod | Schema validation for forms, API inputs, and webhook payloads |
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic |
 | Integrations | KCB Bank API (Mocked for v1) | Listens for incoming payment webhooks (IPN) |
 | Integrations | Equity Bank API (Planned for v2) | Dual-bank support via Jenga API |
-| Integrations | Africa's Talking SMS API (Mocked) | Automated SMS reminders and receipts |
+| Integrations | Africa's Talking SMS API (Sandbox configured) | Automated SMS reminders and receipts |
 | Exports | `xlsx`, `jspdf`, `jspdf-autotable` | Generates Excel and branded PDF reports |
 | Background Jobs | Supabase Edge Functions / Inngest | Process webhooks, send SMS, calculate scores async |
 
@@ -56,11 +56,23 @@
 ### Role-Based Access Control (RBAC) Matrix
 | Role(s) | Sidebar Tabs | Core Focus |
 | :--- | :--- | :--- |
+| **SYSTEM_ADMIN** (Vendor/Owner) | All tabs | Full access + Protected User Management. Cannot be edited/deleted by anyone else via UI. Hidden from Users list unless viewer is also SYSTEM_ADMIN. |
 | **National Treasurer / Overseer** | Dashboard, Regions, Churches, Payments, Users, Mock KCB, Reports, Settings | Full financial oversight, user management, and system settings. |
 | **Regional Chairman / Treasurer** | Regional Dashboard, Regional Payments, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. |
 | **Local Pastor / Church Treasurer** | Local Dashboard, Reports, Settings | Personal church compliance, exact bucket status, and payment history. |
 
+### Protected Accounts (SYSTEM_ADMIN)
+- SYSTEM_ADMIN users are stored in the `User` table but flagged as protected via a hardcoded allowlist (see `lib/auth/protected-users.ts`).
+- **No user, regardless of role, can:**
+  - Delete a SYSTEM_ADMIN account via the UI
+  - Change a SYSTEM_ADMIN's role via the UI
+  - Deactivate a SYSTEM_ADMIN via the UI
+- Protected accounts are excluded from `/dashboard/users` list by default (visible only to other SYSTEM_ADMIN users).
+- Any attempt to manage a protected account returns a 403 in the server action.
+- Manual intervention is only possible via direct Supabase dashboard access (which only the vendor holds).
+
 ### Detailed Role Definitions
+- **SYSTEM_ADMIN:** Vendor/Owner account. Has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation. Managed only via Supabase dashboard.
 - **National HQ Admin:** Has absolute visibility. Can view the single central KCB account totals, all 60 regions, all 1,600 church streams, and the Unmatched Payments queue.
 - **Regional Chairman / Treasurer:** Can view aggregated totals and church payment histories strictly *within their assigned region only*. 
 - **Local Pastor / Church Treasurer:** Has the most restricted view. Can only see their own Church profile and payment history.
@@ -89,3 +101,21 @@
 - **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit` rather than a generic total credit.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.
 - **Fund Accounting (Future):** All payments are currently split into `Annual` and `Monthly` buckets. In V2, the system will support arbitrary **Funds**. Each fund is a separate ledger. The Reconciliation Engine will route incoming funds based on a fund code included in the payment reference (e.g., `CH001-BUILD`).
+
+## 8. Future Schema Additions (V2 Planned)
+
+### UnmatchedPayment (Unit 17)
+For webhook payments that fail BillRefNumber matching. Required by Invariant #5.
+Fields: id, bank_reference, bank_name, raw_bill_ref, amount, payer_phone, raw_payload (JSON), status, suggested_church_id, assigned_church_id, assigned_payment_id, reviewed_by, reviewed_at, notes, created_at.
+
+### PaymentIntent (Unit 18)
+For the guided payment wizard to track in-progress payments and match them to incoming webhooks within a time window.
+Fields: id, church_id, amount, payment_type, phone, status, matched_payment_id, created_by, expires_at, created_at.
+
+### AuditLog (Unit 16.3)
+System-wide mutation tracking for compliance. Every payment, church, user, and settings change is logged.
+Fields: id, user_id, action, entity, entity_id, metadata (JSON), ip_address, created_at.
+**Append-only**: no updates, no deletes, even by admin.
+
+### LoginHistory (Unit 16.4, optional)
+Track login attempts for security monitoring. Fields: id, user_id, ip_address, user_agent, success, created_at.

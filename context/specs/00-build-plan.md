@@ -34,26 +34,56 @@ This is the ordered list of units we will build. We will write a detailed spec f
 13. **Unit 14.6: Enterprise UI Polish & Consistency** ✅
     - Standardized tables, toolbars, exports (CSV/Excel/PDF/Print), KPI sizing, and dialogs.
 
-### Phase 3: Production Go-Live & Infrastructure
+### Phase 3: Production Go-Live & Infrastructure (Completed)
 
-14. **Unit 15: Deployment Preparation**
-    - Vercel hosting, production Supabase, live KCB webhooks, live Africa's Talking SMS.
-    - Add `Pastorate` model (nullable, dormant) and expand `User` bio-data.
-    - Upgrade the `NavUser` dropdown to industry standard.
+14. **Unit 15: Deployment Preparation & Infrastructure (Phases 1-5)** ✅
+    - Migration baseline repair, environment templates, Bank Adapter Engine, Africa's Talking Live SMS integration, and Profile UI upgrade.
+    - Successfully deployed to Vercel Production with Supabase and AT Sandbox wired up.
 
-### Phase 4: V2 Roadmap (Post-Launch Expansion)
+### Phase 4: Post-Deployment Enhancement (V2)
 
-15. **Unit 16: Internal Communication Channel**
-    - Enterprise-grade threaded inbox with presence (Online/Busy), archival, and read/unread states. Built on Supabase Realtime.
-16. **Unit 17: Dynamic Fund Architecture**
-    - Migrate `PaymentType` enum → `Fund` table. Admin can create custom funds (e.g., Building Fund, Youth Camp) via Settings.
-17. **Unit 18: Dynamic Payment Channels & Dual-Bank Support**
-    - Migrate `PaymentMethod` enum → `PaymentChannel` table. Add `BankAccount` table.
-    - Support KCB + Equity Bank simultaneously, with the ability to toggle each off.
-    - Implement the Bank Adapter Pattern for normalized webhook ingestion.
-18. **Unit 19: Report Explorer**
-    - Convert the static Reports tab into a dynamic Report Explorer (Compliance Summary, Fund Breakdown, Channel Analysis, SMS Log, Unmatched Payments, Auditor Report).
-19. **Unit 20: Settings Optimization**
-    - Break Settings into sub-tabs: My Profile, System Configuration (Funds, Channels, Banks, Pastorates), User Management, SMS Templates, Reports Configuration.
-20. **Unit 21: User Bio-Data & Profile Pages**
-    - Build `/dashboard/profile` for users to edit their bio-data (first name, last name, phone, avatar).
+**Pre-UAT (Blocking Handover)**
+15. **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts**
+    - Add `SYSTEM_ADMIN` to Role enum.
+    - Create `lib/auth/protected-users.ts`.
+    - Enforce protection in `user-actions.ts`.
+    - Update `proxy.ts` and sidebar.
+    - Vendor creates own SYSTEM_ADMIN account via Supabase Dashboard.
+
+**Immediate — Bugs & Mobile**
+16. **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness**
+    - Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle.
+
+**Safety — Password Reset & Audit**
+17. **Unit 16.1: Password Reset & Email Verification**
+    - Forgot Password flow, reset landing page, email verification enforcement.
+18. **Unit 16.2: User Lifecycle**
+    - Soft delete (`is_active` on User), force password reset, role change with audit trail.
+19. **Unit 16.3: Audit Log System**
+    - New `AuditLog` Prisma model, log all mutations, `/dashboard/audit-logs` page with filters + CSV export.
+
+**Enhancement — Dashboard Polish**
+20. **Unit 15.8: Dashboard Experience Polish**
+    - Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link.
+21. **Unit 15.9: Dashboard Mini Tables**
+    - Mini Regions table (top 5 compliance), Mini Churches table (recent/at-risk).
+
+**Major Features — Payment Flows**
+22. **Unit 17: Unmatched Payments Queue & Manual Entry**
+    - `UnmatchedPayment` model, Levenshtein fuzzy matching, `/dashboard/payments/unmatched` review UI, manual entry form for cash/cheques.
+23. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
+    - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
+
+**Onboarding & Support**
+24. **Unit 19: In-App Help & Onboarding**
+    - Tooltips, contextual help cards, `react-joyride` tour, `/help` page, help drawer.
+
+**Breakthrough — Real Bank Sandbox**
+25. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
+26. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
+
+**Polish — As Time Allows**
+27. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
+28. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
+29. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
+30. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)

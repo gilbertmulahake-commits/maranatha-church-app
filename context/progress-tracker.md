@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Unit 15 - Complete
+Pre-UAT — SYSTEM_ADMIN Role Addition
 
 ## Current Goal
-Prepare for Phase 2 (Deployment Execution) and V2 features
+Implement Unit 15.6 to secure vendor access before handing over client credentials.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -59,28 +59,32 @@ Prepare for Phase 2 (Deployment Execution) and V2 features
   - Upgraded `components/layout/nav-user.tsx` to display the user's avatar (with initials fallback), full name, email, and a **Role Badge** (e.g., "National Treasurer").
   - Added a **"My Profile"** action link that routes directly to `/dashboard/settings`.
   - Passed the authenticated user's `role` from `components/layout/app-sidebar.tsx` down to `NavUser`, defaulting to `CHURCH_TREASURER` if null to satisfy TypeScript.
+- **Unit 15: Deployment Execution (Vercel + Supabase Production)**
+  - Deployed app to Vercel production environment.
+  - Wired up all environment variables (Supabase Production DB, AT Sandbox, etc.).
+  - Ran `npx prisma7 migrate deploy` to push local migrations to the live Supabase database.
+  - Fixed AT Sandbox `404 InvalidSenderId` by removing the literal `from: 'sandbox'` parameter (AT default shortcode is used instead).
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Deployment Execution (Vercel + Supabase Production)**
-  - Wire up Vercel project.
-  - Set production environment variables.
-  - Run `npx prisma7 migrate deploy` against the production database.
-  - Live KCB API and Africa's Talking production keys hookup.
-- **V2 Roadmap (Unit 16+)**
-  - Internal Communication Channel (Enterprise inbox).
-  - Dynamic Fund architecture (`Fund` table migration).
+- **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts** (Blocking Pre-UAT)
+  - Add `SYSTEM_ADMIN` to Role enum.
+  - Create `lib/auth/protected-users.ts`.
+  - Enforce protection in `user-actions.ts`.
+  - Update `proxy.ts` and sidebar.
+  - Vendor creates own SYSTEM_ADMIN account via Supabase Dashboard.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
 - **Bank Preference:** The Ministry prefers Equity Bank over KCB. The V2 roadmap includes dual-bank support so either (or both) can be active.
 - **Equity Jenga API:** The exact API credentials and payload format for Equity's IPN webhook are TBD.
-- **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the webhook. Requires a manual entry UI for National HQ.
-- **Internal Communication Channel:** Deferred to V2 (Unit 16). An enterprise-grade inbox for threaded messaging, presence, and archival.
+- **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the webhook. Requires a manual entry UI for National HQ. (Addressed in Unit 17).
 
 ## Architecture Decisions
+- **SYSTEM_ADMIN Role:** Added to preserve vendor access post-handover. Protected at app layer via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN.
+- **Post-deployment backlog structured into** 15.6 → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. It is excluded from all financial calculations and can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. This enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -96,6 +100,9 @@ Prepare for Phase 2 (Deployment Execution) and V2 features
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
+- **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
+- **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
+- **Vendor (me) will have a SYSTEM_ADMIN account** that is invisible and immutable to the client's National Treasurer.
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
 - **Stable Stack (Do Not Blindly Upgrade):** Next.js 16, Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
@@ -115,3 +122,4 @@ Prepare for Phase 2 (Deployment Execution) and V2 features
 - **Africa's Talking Endpoint Config:** `AFRICASTALKING_API_URL` defaults to production (`https://api.africastalking.com/version1/messaging`). For sandbox testing, override with `https://api.sandbox.africastalking.com/version1/messaging`. `.env.production.example` pre-sets the sandbox URL as a safe default — never accidentally bill live SMS credits during UAT.
 - **SMS Duplicate-Prevention:** `safeLogSms()` swallows `SmsLog` write failures so a successful AT send always returns `{ success: true }`. If you ever refactor `sendSms()`, preserve this invariant: **DB log failure must not surface as SMS-send failure** — otherwise UI retries cause duplicate messages.
 - **Africa's Talking Phone Format:** AT requires E.164 (`+254XXXXXXXXX`). The DB stores local format (`0XXXXXXXXX`). `normalizeKenyanPhone()` handles the conversion — never call the AT API with a raw DB phone value.
+```

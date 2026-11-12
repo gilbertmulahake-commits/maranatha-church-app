@@ -70,7 +70,8 @@ export function KpiCards({ stats }: KpiCardsProps) {
             </CardTitle>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
-                <TrendingUp className="h-3 w-3" /> YTD
+                {/* FIXED: Changed YTD to All Time */}
+                <TrendingUp className="h-3 w-3" /> All Time
               </Badge>
             </CardAction>
           </CardHeader>

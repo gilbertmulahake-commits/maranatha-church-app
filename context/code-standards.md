@@ -52,6 +52,13 @@
 - **Backup before migrating** any database that holds live data. Use `pg_dump` locally (Supabase Free Plan has no scheduled backups).
 - **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
 
+## Authentication & Protected Accounts
+- **SYSTEM_ADMIN role is reserved for the vendor/platform owner.** It has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation by other users.
+- **Protected User IDs** are stored in `lib/auth/protected-users.ts` as a hardcoded array. Any server action that mutates users MUST check this list and reject operations on protected IDs.
+- **Protected users are hidden** from the `/dashboard/users` list unless the viewer is also SYSTEM_ADMIN.
+- **Never auto-create SYSTEM_ADMIN accounts** via inviteUser. They must be created manually via the Supabase dashboard or a one-off seed script.
+- **Client handover checklist:** Before handing credentials to the client, verify that (a) at least one SYSTEM_ADMIN account exists and is protected, (b) the client's National Treasurer account is separate, (c) the client CANNOT see the SYSTEM_ADMIN account in their Users list.
+
 ## Known ESLint Configuration Gaps
 - **`argsIgnorePattern` is NOT set.** Underscore-prefixed parameters (e.g., `_options`) are still flagged as unused. Use `void` to mark intentionally unused parameters, or remove them entirely.
 - **`@typescript-eslint/no-explicit-any` is enforced.** Never use `any`. Use `unknown` + narrowing, or define an explicit type.
@@ -62,6 +69,12 @@
   - `recipients` — an array of recipient records (each with `phone` and context data).
   - `senderRole` — `'NATIONAL' | 'REGIONAL'`.
 - **Do NOT reintroduce a third `periodView` argument.** The previous signature was simplified during Phase 1 lint cleanup because `periodView` was unused. If a future feature genuinely needs period context, add it explicitly in a new spec and update this rule.
+
+## Future Considerations (V2 Planned)
+- **Fuzzy Matching:** When implementing UnmatchedPayment suggestion logic, use `fastest-levenshtein` (not native string diff). Target: <5ms per comparison.
+- **PaymentIntent Polling:** When the user clicks "Verify Payment" in the wizard, poll every 3s for up to 2 minutes. Show progress. Auto-expire intent after 10 minutes.
+- **Audit Log Immutability:** `AuditLog` records are append-only. No updates, no deletes. Even SYSTEM_ADMIN cannot purge.
+- **React Hooks:** Use `useSyncExternalStore` for external subscriptions, never `useEffect` + `setState` for that purpose.
 
 ## Protected Files
 - `components/ui/*` — generated component library; never edit manually. *(Exception: Global dialog standards are applied in `dialog.tsx` and `alert-dialog.tsx`)*.
