@@ -31,9 +31,11 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
       include: {
         churches: {
           include: {
-            // Only count 'Paid' payments toward compliance — a 'Pending'
-            // payment has not actually settled and must not inflate the score.
-            payments: { where: { status: 'Paid' } },
+            // FIXED: Include allocations to properly calculate bucket isolation
+            payments: { 
+              where: { status: 'Paid' },
+              include: { allocations: true }
+            },
           },
         },
       },
@@ -49,19 +51,35 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
       const totalChurches = region.churches.length
 
       region.churches.forEach((church) => {
-        const totalPaid = church.payments.reduce(
-          (sum, p) => sum + Number(p.amount_paid),
-          0
-        )
+        let annualPaid = 0
+        let monthlyPaid = 0
+
+        // Read from allocations for strict bucket isolation
+        church.payments.forEach((p) => {
+          if (p.allocations.length === 0) {
+            const amount = Number(p.amount_paid)
+            if (p.payment_type === 'Annual') annualPaid += amount
+            else monthlyPaid += amount
+          } else {
+            p.allocations.forEach((a) => {
+              const amount = Number(a.amount)
+              if (a.allocation_type === 'Annual') annualPaid += amount
+              else monthlyPaid += amount
+            })
+          }
+        })
 
         // Cumulative expected: from the church's created_at up to now.
-        // This is what makes year-end arrears carry forward correctly.
-        const { totalExpected: churchExpected } = getExpectedUpToDate(
+        const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(
           church.created_at,
           now
         )
 
-        if (getPeriodStatus(totalPaid, churchExpected) === 'Paid') {
+        const annualStatus = getPeriodStatus(annualPaid, expectedAnnual)
+        const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
+
+        // FIXED: Strict Bucket Isolation. Church must be Paid in BOTH buckets.
+        if (annualStatus === 'Paid' && monthlyStatus === 'Paid') {
           compliantChurches++
         }
       })
