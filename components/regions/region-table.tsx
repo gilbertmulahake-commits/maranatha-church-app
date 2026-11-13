@@ -18,6 +18,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { EditRegionDialog } from './edit-region-dialog'
 
 export type RegionRow = {
   id: string
@@ -63,6 +64,10 @@ export function RegionTable({
   
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
+  
+  // NEW: State for the Edit Region Dialog
+  const [regionToEdit, setRegionToEdit] = useState<RegionRow | null>(null)
+  
   const rowsPerPage = 15
 
   const filteredData = useMemo(() => {
@@ -304,7 +309,10 @@ export function RegionTable({
                           
                           <DropdownMenuSeparator />
                           
-                          <DropdownMenuItem className="cursor-pointer text-paragraph-small whitespace-nowrap">
+                          <DropdownMenuItem 
+                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                            onClick={() => setRegionToEdit(region)}
+                          >
                             <Edit className="mr-2 h-4 w-4" /> Edit Region
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -335,6 +343,13 @@ export function RegionTable({
         totalCount={data.length}
         onConfirm={executeAction}
       />
+
+      {regionToEdit && (
+        <EditRegionDialog
+          region={regionToEdit}
+          onClose={() => setRegionToEdit(null)}
+        />
+      )}
     </div>
   )
 }
