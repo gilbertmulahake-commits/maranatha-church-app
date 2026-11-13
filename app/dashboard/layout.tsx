@@ -35,7 +35,7 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
 
         <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto">
-          <div className="@container/main flex w-full min-w-0 flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+          <div className="@container/main mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
             {children}
           </div>
         </main>

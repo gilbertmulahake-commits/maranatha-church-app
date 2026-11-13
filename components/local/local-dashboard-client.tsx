@@ -10,7 +10,7 @@ export function LocalDashboardClient({ stats }: { stats: LocalChurchStats }) {
   const [filter, setFilter] = useState<'All' | 'Annual' | 'Monthly' | 'Mixed'>('All')
 
   return (
-    <div className="space-y-xl">
+    <div className="@container space-y-xl">
       {/* 2. Pass activeFilter so the clicked card gets highlighted */}
       <LocalKpiCards 
         stats={stats} 

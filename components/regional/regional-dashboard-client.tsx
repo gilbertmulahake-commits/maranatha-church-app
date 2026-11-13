@@ -30,7 +30,7 @@ export function RegionalDashboardClient({ stats }: { stats: RegionalStatsSuccess
   }, [stats.churches, search, statusFilter, periodView])
 
   return (
-    <div className="space-y-xl">
+    <div className="@container space-y-xl">
       <RegionalKpiCards
         stats={stats}
         periodView={periodView}

@@ -65,7 +65,6 @@ export function RegionTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
   
-  // NEW: State for the Edit Region Dialog
   const [regionToEdit, setRegionToEdit] = useState<RegionRow | null>(null)
   
   const rowsPerPage = 15
@@ -180,10 +179,38 @@ export function RegionTable({
         title="Regions"
         subtitle={`Portfolio View · ${data.length} regional units`}
         search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        statusOptions={['All', 'Needs Attention', 'On Track']}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search regions..."
+        
+        sort={
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+          >
+            {['All', 'Needs Attention', 'On Track'].map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        }
+
+        actions={
+          <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={data.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> 
+              <span>Print</span>
+            </Button>
+            <div className="shrink-0">
+              <ExportDropdown 
+                onExportCsv={() => handleGlobalExport('csv')}
+                onExportExcel={() => handleGlobalExport('excel')}
+                onExportPdf={() => handleGlobalExport('pdf')}
+                disabled={data.length === 0}
+              />
+            </div>
+          </div>
+        }
+
         selectionCount={selectedIds.length}
         onClearSelection={() => setSelectedIds([])}
         bulkActionSlot={
@@ -192,19 +219,6 @@ export function RegionTable({
             onExportExcel={() => { exportToExcel(`regions-selected-${dateStr}`, generateExportData('selected'), 'Selected Regions'); setSelectedIds([]); }}
             onExportPdf={() => { exportToPdf(`regions-selected-${dateStr}`, 'Regions Portfolio (Selected)', `Total: ${selectedIds.length}`, generateExportData('selected')); setSelectedIds([]); }}
           />
-        }
-        filterSlot={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={data.length === 0}>
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <ExportDropdown 
-              onExportCsv={() => handleGlobalExport('csv')}
-              onExportExcel={() => handleGlobalExport('excel')}
-              onExportPdf={() => handleGlobalExport('pdf')}
-              disabled={data.length === 0}
-            />
-          </div>
         }
       />
 

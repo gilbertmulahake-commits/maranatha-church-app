@@ -21,14 +21,14 @@ function formatCurrency(amount: number) {
 }
 
 export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
-  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card"
   const activeClass = "border-primary/50 shadow-sm"
 
   const getBadge = (status: string) => {
-    if (status === 'Paid') return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200"><CheckCircle className="mr-1 h-3 w-3"/> Paid</Badge>
-    if (status === 'Partial') return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200"><AlertTriangle className="mr-1 h-3 w-3"/> Partial</Badge>
-    if (status === 'Overdue') return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200"><AlertTriangle className="mr-1 h-3 w-3"/> Overdue</Badge>
-    return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">N/A</Badge>
+    if (status === 'Paid') return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] px-2 py-0.5"><CheckCircle className="mr-1 h-3 w-3"/> Paid</Badge>
+    if (status === 'Partial') return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5"><AlertTriangle className="mr-1 h-3 w-3"/> Partial</Badge>
+    if (status === 'Overdue') return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[10px] px-2 py-0.5"><AlertTriangle className="mr-1 h-3 w-3"/> Overdue</Badge>
+    return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 text-[10px] px-2 py-0.5">N/A</Badge>
   }
 
   const getPrimaryFigure = (outstanding: number, paid: number) => {
@@ -42,22 +42,21 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
   const monthlyDisplay = getPrimaryFigure(stats.monthlyOutstanding, stats.monthlyPaid)
 
   return (
-    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
       
-      {/* CARD 1: Total Paid (Filters to All) */}
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
-        <CardHeader>
-          <CardDescription>Total Contributions</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate">
+        <CardHeader className="p-4 pb-2">
+          <CardDescription className="text-xs font-medium text-muted-foreground">Total Contributions</CardDescription>
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate mt-1 @[250px]/card:text-heading-1">
             {formatCurrency(stats.totalPaid)}
           </CardTitle>
           <CardAction className="shrink-0">
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
+            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
               <Banknote className="h-3 w-3 mr-1" /> Lifetime
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
+        <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
           <StackedBar
             segments={[
               { label: `Annual ${formatCurrency(stats.annualPaid)}`, value: stats.annualPaid, color: 'bg-blue-500' },
@@ -65,29 +64,28 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
             ]}
             total={stats.totalPaid || 1}
           />
-          <p className="text-paragraph-mini text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Click to view all transactions
           </p>
         </CardFooter>
       </Card>
 
-      {/* CARD 2: Annual Fee */}
       <Card className={`${cardClasses} ${activeFilter === 'Annual' ? activeClass : ''}`} onClick={() => onFilterChange?.('Annual')}>
-        <CardHeader>
-          <CardDescription>Annual Fee</CardDescription>
-          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${stats.annualStatus === 'N/A' ? 'text-muted-foreground' : annualDisplay.colorClass}`}>
+        <CardHeader className="p-4 pb-2">
+          <CardDescription className="text-xs font-medium text-muted-foreground">Annual Fee</CardDescription>
+          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1 ${stats.annualStatus === 'N/A' ? 'text-muted-foreground' : annualDisplay.colorClass}`}>
             {stats.annualStatus === 'N/A' ? 'N/A' : annualDisplay.amount}
           </CardTitle>
           <CardAction className="shrink-0">
             {getBadge(stats.annualStatus)}
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex w-full justify-between text-paragraph-small">
+        <CardFooter className="flex-col items-start gap-1.5 text-xs p-4 pt-2">
+          <div className="flex w-full justify-between">
             <span className="text-muted-foreground">Paid:</span>
             <span className="font-medium text-foreground">{formatCurrency(stats.annualPaid)}</span>
           </div>
-          <div className="flex w-full justify-between text-paragraph-small">
+          <div className="flex w-full justify-between">
             <span className="text-muted-foreground">Outstanding:</span>
             <span className={`font-medium ${stats.annualOutstanding > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
               {formatCurrency(stats.annualOutstanding)}
@@ -96,23 +94,22 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
         </CardFooter>
       </Card>
 
-      {/* CARD 3: Monthly Fees */}
       <Card className={`${cardClasses} ${activeFilter === 'Monthly' ? activeClass : ''}`} onClick={() => onFilterChange?.('Monthly')}>
-        <CardHeader>
-          <CardDescription>Monthly Fees</CardDescription>
-          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${monthlyDisplay.colorClass}`}>
+        <CardHeader className="p-4 pb-2">
+          <CardDescription className="text-xs font-medium text-muted-foreground">Monthly Fees</CardDescription>
+          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1 ${monthlyDisplay.colorClass}`}>
             {monthlyDisplay.amount}
           </CardTitle>
           <CardAction className="shrink-0">
             {getBadge(stats.monthlyStatus)}
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex w-full justify-between text-paragraph-small">
+        <CardFooter className="flex-col items-start gap-1.5 text-xs p-4 pt-2">
+          <div className="flex w-full justify-between">
             <span className="text-muted-foreground">Paid:</span>
             <span className="font-medium text-foreground">{formatCurrency(stats.monthlyPaid)}</span>
           </div>
-          <div className="flex w-full justify-between text-paragraph-small">
+          <div className="flex w-full justify-between">
             <span className="text-muted-foreground">Outstanding:</span>
             <span className={`font-medium ${stats.monthlyOutstanding > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
               {formatCurrency(stats.monthlyOutstanding)}
@@ -121,26 +118,25 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
         </CardFooter>
       </Card>
 
-      {/* CARD 4: Overall Health */}
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
-        <CardHeader>
-          <CardDescription>Overall Compliance</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+        <CardHeader className="p-4 pb-2">
+          <CardDescription className="text-xs font-medium text-muted-foreground">Overall Compliance</CardDescription>
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
             {stats.overallStatus}
           </CardTitle>
           <CardAction className="shrink-0">
-            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
+            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
               <ShieldCheck className="h-3 w-3 mr-1" /> Status
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <p className="text-paragraph-small font-medium text-foreground">
+        <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
+          <p className="text-xs font-medium text-foreground">
             {stats.overallStatus === 'Paid' ? 'Fully compliant. Thank you!' : 
              stats.overallStatus === 'Partial' ? 'Action required on one bucket.' : 
              'Please remit outstanding fees.'}
           </p>
-          <p className="text-paragraph-mini text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Based on strict annual and monthly isolation.
           </p>
         </CardFooter>

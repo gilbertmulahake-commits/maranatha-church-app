@@ -122,7 +122,7 @@ We strictly use shadcn/ui (Base UI variant).
 - **Bars/Lines:** Use `radius={[4, 4, 0, 0]}` for bar charts to give a soft, modern top edge.
 
 ## 9. Responsive Design & Layout
-- **KPI Cards:** `grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4`.
+- **KPI Cards:** `grid grid-cols-1 gap-md @[600px]:grid-cols-2`.
 - **Charts:** `grid grid-cols-1 gap-md lg:grid-cols-3` (Area Chart takes 2 cols, Doughnut takes 1).
 - **Data Tables:** Always wrap tables in `overflow-x-auto`. Hide non-essential columns on smaller screens.
 

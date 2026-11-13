@@ -50,14 +50,14 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
   const isThisMonthExceeded = stats.thisMonthCollectionPct > 100
 
   const cardClasses =
-    'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card'
+    'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card'
 
   return (
-    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Region Collected</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
             {formatCurrency(stats.totalCollected)}
           </CardTitle>
           <CardAction className="shrink-0">
@@ -91,7 +91,7 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Overdue')}>
         <CardHeader>
           <CardDescription>Region Arrears</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate @[250px]/card:text-heading-1">
             {formatCurrency(stats.outstanding)}
           </CardTitle>
           <CardAction className="shrink-0">
@@ -125,7 +125,7 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Paid')}>
         <CardHeader>
           <CardDescription>Compliance Rate</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
             {periodCompliancePct.toFixed(1)}%
           </CardTitle>
           <CardAction className="shrink-0">
@@ -152,7 +152,7 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>This Month</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
             {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
           </CardTitle>
           <CardAction className="shrink-0">

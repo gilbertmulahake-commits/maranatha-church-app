@@ -27,7 +27,7 @@ export function RegionDashboard({ initialData, stats }: RegionDashboardProps) {
   const [currentPage, setCurrentPage] = useState(1)
 
   return (
-    <div className="space-y-xl">
+    <div className="@container space-y-xl">
       <RegionKpiCards stats={stats} />
       
       <RegionTable

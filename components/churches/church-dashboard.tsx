@@ -79,7 +79,7 @@ export function ChurchDashboard({
   }, [initialData, search, statusFilter, regionFilter, periodView])
 
   return (
-    <div className="space-y-xl">
+    <div className="@container space-y-xl">
       <ChurchKpiCards
         localStats={periodStats}
         periodView={periodView}

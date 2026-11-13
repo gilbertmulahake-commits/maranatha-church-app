@@ -7,6 +7,7 @@ import { deleteChurch } from '@/lib/actions/church-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
 import { formatPrepaidStatus } from '@/lib/utils/format'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
+import { cn } from '@/lib/utils'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -226,16 +227,80 @@ export function ChurchTable({
 
   return (
     <div className="space-y-md">
+      
+      {/* 🟢 MASTER TOOLBAR IMPLEMENTATION */}
       <TableToolbar
         title="Churches"
         subtitle={`National Registry · ${data.length} total`}
         search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        statusOptions={['All', 'Paid', 'Partial', 'Overdue', 'N/A']}
-        periodView={periodView}
-        setPeriodView={setPeriodView}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search churches..."
+
+        toggle={
+          <div className="flex items-center gap-1 bg-muted rounded-md p-1 h-9 w-full @[450px]:w-auto">
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-7 flex-1 @[450px]:flex-none px-3 text-xs transition-all",
+                periodView === 'month' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+              )}
+              onClick={() => setPeriodView('month')}
+            >
+              Monthly
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-7 flex-1 @[450px]:flex-none px-3 text-xs transition-all",
+                periodView === 'year' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+              )}
+              onClick={() => setPeriodView('year')}
+            >
+              Yearly
+            </Button>
+          </div>
+        }
+
+        filter={
+          <select
+            value={regionFilter}
+            onChange={(e) => { setRegionFilter(e.target.value); setCurrentPage(1); }}
+            className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+          >
+            <option value="All">All Regions</option>
+            {uniqueRegions.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        }
+
+        sort={
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+          >
+            {['All', 'Paid', 'Partial', 'Overdue', 'N/A'].map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        }
+
+        actions={
+          <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0">
+              <Printer className="h-4 w-4 mr-2" /> 
+              <span>Print</span>
+            </Button>
+            <div className="shrink-0">
+              <ExportDropdown 
+                onExportCsv={() => handleGlobalExport('csv')}
+                onExportExcel={() => handleGlobalExport('excel')}
+                onExportPdf={() => handleGlobalExport('pdf')}
+                disabled={data.length === 0}
+              />
+            </div>
+          </div>
+        }
+
         selectionCount={selectedIds.length}
         onClearSelection={() => setSelectedIds([])}
         
@@ -253,33 +318,6 @@ export function ChurchTable({
               onExportExcel={() => { exportToExcel(`churches-selected-${dateStr}`, generateExportData('selected'), 'Selected Churches'); setSelectedIds([]); }}
               onExportPdf={() => { exportToPdf(`churches-selected-${dateStr}`, 'Churches Registry (Selected)', `Total: ${selectedIds.length}`, generateExportData('selected')); setSelectedIds([]); }}
             />
-          </div>
-        }
-
-        filterSlot={
-          <div className="flex items-center gap-xs w-full lg:w-auto">
-            <select
-              value={regionFilter}
-              onChange={(e) => { setRegionFilter(e.target.value); setCurrentPage(1); }}
-              className="h-9 w-full lg:w-[150px] rounded-md border border-border bg-card px-3 py-1 text-paragraph-small text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="All">All Regions</option>
-              {uniqueRegions.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-            
-            <div className="flex items-center gap-2 ml-2">
-              <Button variant="outline" onClick={handleGlobalPrint} className="h-9">
-                <Printer className="mr-2 h-4 w-4" /> Print
-              </Button>
-              <ExportDropdown 
-                onExportCsv={() => handleGlobalExport('csv')}
-                onExportExcel={() => handleGlobalExport('excel')}
-                onExportPdf={() => handleGlobalExport('pdf')}
-                disabled={data.length === 0}
-              />
-            </div>
           </div>
         }
       />

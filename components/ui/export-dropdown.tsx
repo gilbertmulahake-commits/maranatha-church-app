@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup, // <-- IMPORTED THIS
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -25,19 +25,19 @@ export function ExportDropdown({ onExportCsv, onExportExcel, onExportPdf, disabl
       <DropdownMenuTrigger
         render={
           <Button variant="outline" className="h-9" disabled={disabled}>
-            <Download className="mr-2 h-4 w-4" /> Export
+            {/* FIXED: Hide text on mobile, keep icon */}
+            <Download className="h-4 w-4 lg:mr-2" /> 
+            <span className="hidden lg:inline">Export</span>
           </Button>
         }
       />
       <DropdownMenuContent align="end" className="w-48">
-        {/* FIXED: Wrapped label in a Group */}
         <DropdownMenuGroup>
           <DropdownMenuLabel>Export Format</DropdownMenuLabel>
         </DropdownMenuGroup>
         
         <DropdownMenuSeparator />
         
-        {/* FIXED: Wrapped items in a Group */}
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={onExportExcel} className="cursor-pointer">
             <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />

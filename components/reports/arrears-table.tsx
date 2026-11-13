@@ -172,7 +172,6 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
       toast.success(`Reminders sent to ${recipients.length} churches`)
       setSelectedIds([])
     } catch (error) {
-      // FIX: Removed `: any`, added instanceof Error guard
       const message = error instanceof Error ? error.message : 'Failed to send reminders'
       toast.error(message)
     } finally {
@@ -186,7 +185,26 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         title="Outstanding Balances"
         subtitle={`${filteredData.length} churches with unpaid balances`}
         search={search}
-        setSearch={setSearch}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search churches..."
+        
+        actions={
+          <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={filteredData.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> 
+              <span>Print</span>
+            </Button>
+            <div className="shrink-0">
+              <ExportDropdown 
+                onExportCsv={() => handleGlobalExport('csv')}
+                onExportExcel={() => handleGlobalExport('excel')}
+                onExportPdf={() => handleGlobalExport('pdf')}
+                disabled={filteredData.length === 0}
+              />
+            </div>
+          </div>
+        }
+
         selectionCount={selectedIds.length}
         onClearSelection={() => setSelectedIds([])}
         bulkActionSlot={
@@ -199,19 +217,6 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
               onExportCsv={() => { exportToCsv(`arrears-selected-${dateStr}`, generateExportData('selected')); setSelectedIds([]); }}
               onExportExcel={() => { exportToExcel(`arrears-selected-${dateStr}`, generateExportData('selected'), 'Selected Arrears'); setSelectedIds([]); }}
               onExportPdf={() => { exportToPdf(`arrears-selected-${dateStr}`, 'Arrears (Selected)', `Total: ${formatCurrency(selectedTotals.total)}`, generateExportData('selected')); setSelectedIds([]); }}
-            />
-          </div>
-        }
-        filterSlot={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={filteredData.length === 0}>
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <ExportDropdown 
-              onExportCsv={() => handleGlobalExport('csv')}
-              onExportExcel={() => handleGlobalExport('excel')}
-              onExportPdf={() => handleGlobalExport('pdf')}
-              disabled={filteredData.length === 0}
             />
           </div>
         }
