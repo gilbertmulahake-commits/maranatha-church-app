@@ -11,6 +11,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -247,14 +248,65 @@ export function RegionalTable({
         title="Churches in Region"
         subtitle={`${churches.length} churches · ${userRole === 'REGIONAL' ? 'Chairman View' : 'National View'}`}
         search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        statusOptions={['All', 'Paid', 'Partial', 'Overdue']}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search churches..."
+        
+        toggle={
+          <div className="flex items-center gap-1 bg-muted rounded-md p-1 h-9 w-full @[450px]:w-auto">
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-7 flex-1 @[450px]:flex-none px-3 text-xs transition-all",
+                periodView === 'month' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+              )}
+              onClick={() => setPeriodView('month')}
+            >
+              Monthly
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-7 flex-1 @[450px]:flex-none px-3 text-xs transition-all",
+                periodView === 'year' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground font-medium'
+              )}
+              onClick={() => setPeriodView('year')}
+            >
+              Yearly
+            </Button>
+          </div>
+        }
+
+        sort={
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+          >
+            {['All', 'Paid', 'Partial', 'Overdue'].map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        }
+
+        actions={
+          <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={churches.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> 
+              <span>Print</span>
+            </Button>
+            <div className="shrink-0">
+              <ExportDropdown 
+                onExportCsv={() => handleGlobalExport('csv')}
+                onExportExcel={() => handleGlobalExport('excel')}
+                onExportPdf={() => handleGlobalExport('pdf')}
+                disabled={churches.length === 0}
+              />
+            </div>
+          </div>
+        }
+
         selectionCount={selectedChurches.length}
         onClearSelection={() => setSelectedChurches([])}
-        periodView={periodView}
-        setPeriodView={setPeriodView}
         bulkActionSlot={
           <div className="flex items-center gap-2">
             <Button
@@ -269,19 +321,6 @@ export function RegionalTable({
               onExportCsv={() => { exportToCsv(`region-selected-${dateStr}`, generateExportData('selected')); setSelectedChurches([]); }}
               onExportExcel={() => { exportToExcel(`region-selected-${dateStr}`, generateExportData('selected'), 'Selected Churches'); setSelectedChurches([]); }}
               onExportPdf={() => { exportToPdf(`region-selected-${dateStr}`, 'Selected Churches', `Total: ${selectedChurches.length}`, generateExportData('selected')); setSelectedChurches([]); }}
-            />
-          </div>
-        }
-        filterSlot={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={churches.length === 0}>
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <ExportDropdown 
-              onExportCsv={() => handleGlobalExport('csv')}
-              onExportExcel={() => handleGlobalExport('excel')}
-              onExportPdf={() => handleGlobalExport('pdf')}
-              disabled={churches.length === 0}
             />
           </div>
         }
@@ -416,7 +455,6 @@ export function RegionalTable({
                             </Button>
                           }
                         />
-                        {/* FIXED: Added w-56 to force width */}
                         <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuGroup>
                             <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

@@ -177,7 +177,6 @@ export function LocalPaymentHistory({
   const handleBulkExportExcel = () => { exportToExcel(`local-payments-selected-${dateStr}`, generateExportData('selected'), 'Selected Payments'); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
   const handleBulkExportPdf = () => { exportToPdf(`local-payments-selected-${dateStr}`, 'Payment History (Selected)', `Selected: ${selectedIds.length}`, generateExportData('selected')); toast.success(`Exported ${selectedIds.length} transactions`); setSelectedIds([]); }
 
-  // FIX: Type guard instead of `as any` — no `any`, no unsafe cast
   const handleStatusFilterChange = (val: string) => {
     if (val === 'All' || val === 'Annual' || val === 'Monthly' || val === 'Mixed') {
       onFilterChange?.(val)
@@ -191,36 +190,41 @@ export function LocalPaymentHistory({
           title="Payment History"
           subtitle={`${filteredData.length} records found`}
           search={search}
-          setSearch={setSearch}
-          statusFilter={activeFilter}
-          setStatusFilter={handleStatusFilterChange}
-          statusOptions={['All', 'Annual', 'Monthly', 'Mixed']}
-          selectionCount={selectedIds.length}
-          onClearSelection={() => setSelectedIds([])}
-          bulkActionSlot={
-            <ExportDropdown 
-              onExportCsv={handleBulkExportCsv}
-              onExportExcel={handleBulkExportExcel}
-              onExportPdf={handleBulkExportPdf}
-            />
+          onSearchChange={setSearch}
+          searchPlaceholder="Search transactions..."
+          
+          filter={
+            <select
+              value={methodFilter}
+              onChange={(e) => { setMethodFilter(e.target.value); setCurrentPage(1); }}
+              className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+            >
+              <option value="All">All Methods</option>
+              <option value="M-Pesa">M-Pesa</option>
+              <option value="Bank">Bank</option>
+              <option value="Cash">Cash</option>
+            </select>
           }
-          filterSlot={
-            <div className="flex items-center gap-xs w-full lg:w-auto">
-              <select
-                value={methodFilter}
-                onChange={(e) => { setMethodFilter(e.target.value); setCurrentPage(1); }}
-                className="h-9 w-full lg:w-[130px] rounded-md border border-border bg-card px-3 py-1 text-paragraph-small text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="All">All Methods</option>
-                <option value="M-Pesa">M-Pesa</option>
-                <option value="Bank">Bank</option>
-                <option value="Cash">Cash</option>
-              </select>
-              
-              <div className="flex items-center gap-2 ml-2">
-                <Button variant="outline" onClick={handleGlobalPrint} className="h-9">
-                  <Printer className="mr-2 h-4 w-4" /> Print
-                </Button>
+
+          sort={
+            <select
+              value={activeFilter}
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+            >
+              {['All', 'Annual', 'Monthly', 'Mixed'].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          }
+
+          actions={
+            <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+              <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0">
+                <Printer className="h-4 w-4 mr-2" /> 
+                <span>Print</span>
+              </Button>
+              <div className="shrink-0">
                 <ExportDropdown 
                   onExportCsv={() => handleGlobalExport('csv')}
                   onExportExcel={() => handleGlobalExport('excel')}
@@ -229,6 +233,16 @@ export function LocalPaymentHistory({
                 />
               </div>
             </div>
+          }
+
+          selectionCount={selectedIds.length}
+          onClearSelection={() => setSelectedIds([])}
+          bulkActionSlot={
+            <ExportDropdown 
+              onExportCsv={handleBulkExportCsv}
+              onExportExcel={handleBulkExportExcel}
+              onExportPdf={handleBulkExportPdf}
+            />
           }
         />
 

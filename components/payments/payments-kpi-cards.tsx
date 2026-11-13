@@ -36,14 +36,14 @@ function formatCurrency(amount: number) {
 }
 
 export function PaymentsKpiCards({ stats }: Props) {
-  const cardClasses = "h-full transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card"
 
   return (
-    <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Total Transactions</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate mt-1 @[250px]/card:text-heading-1">
             {stats.totalTransactions}
           </CardTitle>
           <CardAction className="shrink-0">
@@ -65,7 +65,7 @@ export function PaymentsKpiCards({ stats }: Props) {
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Total Volume</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate @[250px]/card:text-heading-1">
             {formatCurrency(stats.totalVolume)}
           </CardTitle>
           <CardAction className="shrink-0">
@@ -87,7 +87,7 @@ export function PaymentsKpiCards({ stats }: Props) {
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>Volume Breakdown</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
             {stats.totalVolume > 0 ? ((stats.annualVolume / stats.totalVolume) * 100).toFixed(0) : 0}% Annual
           </CardTitle>
           <CardAction className="shrink-0">
@@ -112,7 +112,7 @@ export function PaymentsKpiCards({ stats }: Props) {
       <Card className={cardClasses}>
         <CardHeader>
           <CardDescription>This Month</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
             {formatCurrency(stats.thisMonthVolume)}
           </CardTitle>
           <CardAction className="shrink-0">

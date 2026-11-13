@@ -69,7 +69,7 @@ export default function RegionDetailPage({ params }: { params: Promise<{ slug: s
               <Skeleton className="h-4 w-[150px]" />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
             <Skeleton className="h-[140px] rounded-xl" />
             <Skeleton className="h-[140px] rounded-xl" />
             <Skeleton className="h-[140px] rounded-xl" />

@@ -40,7 +40,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [viewTransaction, setViewTransaction] = useState<CashbookRow | null>(null)
 
-  // NEW: State to hold the pending action if a selection exists
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const filteredData = useMemo(() => {
@@ -95,7 +94,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
 
   const dateStr = selectedDate.toISOString().split('T')[0]
 
-  // --- EXECUTION (Called by the confirmation dialog) ---
   const executeAction = (scope: 'all' | 'selected') => {
     if (!pendingAction) return
 
@@ -120,7 +118,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
     setPendingAction(null)
   }
 
-  // --- INTERCEPTORS (Top Toolbar) ---
   const handleGlobalPrint = () => {
     if (selectedIds.length > 0) {
       setPendingAction({ type: 'print' })
@@ -141,7 +138,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
     }
   }
 
-  // --- DIRECT BULK ACTIONS (Selection Bar) ---
   const handleBulkExportCsv = () => {
     exportToCsv(`cashbook-selected-${dateStr}`, generateExportData('selected'))
     toast.success(`Exported ${selectedIds.length} selected transactions`)
@@ -165,7 +161,26 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         title="Daily Cashbook"
         subtitle={`${filteredData.length} transactions recorded`}
         search={search}
-        setSearch={setSearch}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search transactions..."
+        
+        actions={
+          <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
+            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={filteredData.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> 
+              <span>Print</span>
+            </Button>
+            <div className="shrink-0">
+              <ExportDropdown 
+                onExportCsv={() => handleGlobalExport('csv')}
+                onExportExcel={() => handleGlobalExport('excel')}
+                onExportPdf={() => handleGlobalExport('pdf')}
+                disabled={filteredData.length === 0}
+              />
+            </div>
+          </div>
+        }
+
         selectionCount={selectedIds.length}
         onClearSelection={() => setSelectedIds([])}
         bulkActionSlot={
@@ -182,22 +197,8 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
             />
           </div>
         }
-        filterSlot={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9" disabled={filteredData.length === 0}>
-              <Printer className="mr-2 h-4 w-4" /> Print
-            </Button>
-            <ExportDropdown 
-              onExportCsv={() => handleGlobalExport('csv')}
-              onExportExcel={() => handleGlobalExport('excel')}
-              onExportPdf={() => handleGlobalExport('pdf')}
-              disabled={filteredData.length === 0}
-            />
-          </div>
-        }
       />
 
-      {/* Table */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -291,7 +292,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         itemName="transactions"
       />
 
-      {/* View Transaction Modal */}
       <Dialog open={!!viewTransaction} onOpenChange={(open) => !open && setViewTransaction(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -327,7 +327,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         </DialogContent>
       </Dialog>
 
-      {/* NEW: Confirmation Dialog */}
       <ExportConfirmDialog 
         open={!!pendingAction}
         onOpenChange={(open) => !open && setPendingAction(null)}

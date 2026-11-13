@@ -43,7 +43,7 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
 
   const rawCollectionPct = stats.totalExpected > 0 ? (stats.totalCollected / stats.totalExpected) * 100 : 0
   const displayCollectionPct = Math.min(rawCollectionPct, 100)
-  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"
+  const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card"
 
   const netCredit = Math.max(0, stats.totalCollected - stats.totalExpected)
   const inCredit = netCredit > 0
@@ -84,13 +84,13 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
   }, [stats.churches, search, statusFilter, periodView])
 
   return (
-    <div className="space-y-xl">
-      <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+    <div className="@container space-y-xl">
+      <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
         
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>Region Collected</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
               {formatCurrency(stats.totalCollected)}
             </CardTitle>
             <CardAction className="shrink-0">
@@ -116,7 +116,7 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('Overdue')}>
           <CardHeader>
             <CardDescription>{inCredit ? 'Net Credit' : 'Region Arrears'}</CardDescription>
-            <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${inCredit ? 'text-emerald-600' : 'text-destructive'}`}>
+            <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${inCredit ? 'text-emerald-600' : 'text-destructive '} @[250px]/card:text-heading-1`}>
               {formatCurrency(inCredit ? netCredit : stats.outstanding)}
             </CardTitle>
             <CardAction className="shrink-0">
@@ -155,7 +155,7 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('Paid')}>
           <CardHeader>
             <CardDescription>Compliance Rate</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
               {periodCompliancePct.toFixed(1)}%
             </CardTitle>
             <CardAction className="shrink-0">
@@ -182,7 +182,7 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>This Month</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate">
+            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
               {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
             </CardTitle>
             <CardAction className="shrink-0">

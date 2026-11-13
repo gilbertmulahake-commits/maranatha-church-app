@@ -9,7 +9,7 @@ export function ChurchProfileClient({ stats }: { stats: LocalChurchStats }) {
   const [filter, setFilter] = useState<'All' | 'Annual' | 'Monthly' | 'Mixed'>('All')
 
   return (
-    <div className="space-y-xl">
+    <div className="@container space-y-xl">
       <LocalKpiCards 
         stats={stats} 
         activeFilter={filter} 
