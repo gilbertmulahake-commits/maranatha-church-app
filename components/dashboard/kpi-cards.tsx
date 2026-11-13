@@ -125,7 +125,7 @@ export function KpiCards({ stats }: KpiCardsProps) {
               )}
               {netCredit > 0 && (
                 <p className="text-paragraph-mini text-emerald-600 font-medium">
-                  Network Net Credit: {formatCurrency(netCredit)}
+                  All-Time Net Credit: {formatCurrency(netCredit)}
                 </p>
               )}
             </div>
