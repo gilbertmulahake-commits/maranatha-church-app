@@ -1,3 +1,4 @@
+```markdown
 # Build Plan - Maranatha Church System
 
 This is the ordered list of units we will build. We will write a detailed spec for each unit before building it.
@@ -40,7 +41,7 @@ This is the ordered list of units we will build. We will write a detailed spec f
     - Migration baseline repair, environment templates, Bank Adapter Engine, Africa's Talking Live SMS integration, and Profile UI upgrade.
     - Successfully deployed to Vercel Production with Supabase and AT Sandbox wired up.
 
-### Phase 3.5: Post-MVP UI Componentization (Complete)
+### Phase 3.5: Post-MVP UI Componentization (Completed)
 
 Not originally planned, but necessary to fix production bugs discovered after deployment and to establish single-source-of-truth components before adding more features. All work is a strict refactor of existing screens — no new user-facing features.
 
@@ -56,14 +57,12 @@ Not originally planned, but necessary to fix production bugs discovered after de
   - **Fixes a real bug**: `overflow-hidden` on the old table wrapper silently clipped columns on tablet/mobile. `<TableShell>` uses `overflow-x-auto` so wide tables scroll horizontally instead of hiding data.
   - `TableFooter` (grand/daily totals) preserved **inside** `<TableShell>` in `arrears-table.tsx` and `cashbook-table.tsx`.
   - Verification: `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages, per-file `findstr` gate passed on all 7 files.
-
-**Pending (Follow-up):**
-- **15i. TableToolbar `<Select>` Standardization** — Filter and Sort dropdowns in the 7 tables use **native HTML `<select>`** with Tailwind styling (pre-existing, present on `main` before 15h — deliberately out of scope for 15h to keep it a pure wrapper migration). Swap to shadcn `<Select>` for consistency with the period toggle (already Base UI `<Select>` on mobile). Requires controlled-state rewrites (`onChange` → `onValueChange`) and per-file QA across 7 files.
+- **15i. TableToolbar `<Select>` Standardization (PR #36, commit `7261132`)** ✅ — Replaced all native HTML `<select>` elements in the 5 affected tables with shadcn `<Select>` (Base UI variant). Migrated `onChange` → `onValueChange`, added `if (val)` null guards, kept `h-9 w-full bg-card text-xs` trigger styling. Files: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`.
 
 ### Phase 4: Post-Deployment Enhancement (V2)
 
 **Pre-UAT (Blocking Handover)**
-15. **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts**
+15. **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts** ✅ (Merged PR #35)
     - Add `SYSTEM_ADMIN` to Role enum.
     - Create `lib/auth/protected-users.ts`.
     - Enforce protection in `user-actions.ts`.
@@ -107,3 +106,4 @@ Not originally planned, but necessary to fix production bugs discovered after de
 28. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
 29. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
 30. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)
+```

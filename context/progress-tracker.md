@@ -1,3 +1,4 @@
+```markdown
 # Progress Tracker
 
 Update this file after every meaningful implementation change.
@@ -6,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>` for shadcn `<Select>` in all 7 tables).
+Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -89,7 +90,7 @@ Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>
   - **15 files migrated** — 7 KPI components + 8 page Suspense skeleton files.
   - **`context/ui-context.md`** — Section 5 rewritten with `<KpiGrid>` / `<KpiValue>` standard; forbidden inline-grid example added; breakpoint documented as `1100px`.
   - **Verification:** `tsc --noEmit` clean, `lint` clean, `build` 18/18 pages, all `findstr` checks pass.
-- **Post-MVP: 7-Table Migration (Phase 3.5 / Unit 15h, branch `refactor/table-migration`, commit `80551c7`)**
+- **Post-MVP: 7-Table Migration (Phase 3.5 / Unit 15h, PR #34, commit `80551c7`)**
   - All 7 data tables migrated to `<TableShell>` + `<PrintButton>`: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`.
   - **Root-cause fix:** every table previously wrapped the shadcn `<Table>` in `<div className="... overflow-hidden">`. The `overflow-hidden` silently **clipped columns on tablet/mobile** with no horizontal scroll — a real user-facing data-loss bug on 9-column tables. `<TableShell>` uses `overflow-x-auto`.
   - **Cleanup:** removed `Printer` from `lucide-react` imports (all 7 files); removed `Table` from shadcn imports (all 7 files); removed unused `Button` import from `payments-table.tsx` and `local-payment-history.tsx`.
@@ -100,14 +101,20 @@ Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>
   - Created centralized RBAC helpers (`lib/auth/roles.ts`) and `PROTECTED_USER_IDS` (`lib/auth/protected-users.ts`).
   - Enforced protection in `user-actions.ts` (`getSystemUsers` filters protected IDs unless viewer is SYSTEM_ADMIN; `inviteUser` blocks SYSTEM_ADMIN creation).
   - Fixed routing bug: replaced `role.includes('NATIONAL')` with `isNationalLevel()` so SYSTEM_ADMIN can access `/dashboard/users` and full sidebar.
-  - Manually provisioned Vendor account (`gilbertmulahake.ke@gmail.com`) via Supabase Auth and Prisma DB. Hardcoded UUID to `PROTECTED_USER_IDS`. **Client handover unblocked.**
+  - Manually provisioned Vendor account (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) via Supabase Auth and Prisma DB. Hardcoded UUID to `PROTECTED_USER_IDS`. **Client handover unblocked.**
+- **Unit 15i: TableToolbar `<Select>` Standardization (PR #36, commit `7261132`)**
+  - Replaced all native HTML `<select>` elements in the 5 affected tables with shadcn `<Select>` (Base UI variant).
+  - Files: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`.
+  - Migrated `onChange={(e) => ...}` → `onValueChange={(val) => ...}`. Kept `h-9 w-full bg-card text-xs` styling on `<SelectTrigger>`.
+  - Fixed Base UI nullable type signatures: widened `handleStatusFilterChange` in `local-payment-history.tsx` to `string | null`; added `if (val)` guards in `region-table.tsx` and `regional-table.tsx`.
+  - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15i: TableToolbar `<Select>` standardization** — Swap native HTML `<select>` in the 7 tables for shadcn `<Select>`.
-- **Then:** 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
+- **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness** — Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle.
+- **Then:** 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -121,14 +128,14 @@ Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>
 - **Table Toolbar — `<TableToolbar>`:** All tables use the shared toolbar (search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` period toggle on mobile, icon-only Print/Export below `lg`).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
 - **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes. Custom Figma tokens protected by `twMerge` extension in `lib/utils.ts`.
-- **Tables:** All 8 tables (7 data + Users) use `<TableToolbar>`, `<TableShell>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. `<TableShell>` (`components/ui/table-shell.tsx`) owns the card frame and uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns (fixes the real `overflow-hidden` column-clipping bug — PR #33 / Unit 15h).
+- **Tables:** All 8 tables (7 data + Users) use `<TableToolbar>`, `<TableShell>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. `<TableShell>` (`components/ui/table-shell.tsx`) owns the card frame and uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns (fixes the real `overflow-hidden` column-clipping bug — PR #34 / Unit 15h).
 - **Print/Export Buttons:** All tables use `<PrintButton>` (icon-only below `lg`, custom `children` for non-default labels) and `<ExportDropdown>` (icon-only below `lg`).
-- **TableToolbar `<Select>` Standardization (Unit 15i, planned):** Filter and Sort dropdowns in the 7 tables currently use **native HTML `<select>`** with Tailwind styling, not shadcn `<Select>`. Pre-existing inconsistency (present on `main` before 15h). Deferred to its own unit to keep 15h a pure wrapper migration — a shadcn `<Select>` swap requires controlled-state rewrites (`onChange` → `onValueChange`) and per-file QA across 7 files.
+- **Table Filter/Sort Dropdowns — shadcn `<Select>`:** All 5 tables with filter/sort selects use shadcn `<Select>` (Base UI variant, `onValueChange`) instead of native HTML `<select>`. Trigger styled `h-9 w-full bg-card text-xs` to preserve desktop layout. Use `if (val)` null guards — Base UI passes `string | null` to `onValueChange`. (PR #36 / Unit 15i).
 - **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions intercepted by `<ExportConfirmDialog>` to clarify scope.
 - **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts.
 - **Next.js 16:** All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component.
@@ -138,7 +145,7 @@ Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
-- **Current HEAD:** `4824431` on `main` (Vendor UUID protected).
+- **Current HEAD:** `7261132` on `main` (Unit 15i merged).
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer.
@@ -166,7 +173,8 @@ Unit 15i — TableToolbar `<Select>` standardization (swap native HTML `<select>
 - **Git Pager Hang:** `git diff` and `git diff --stat` on large outputs trigger `less` pager. Use `git --no-pager diff` or press `q` to exit.
 - **File Encoding Mojibake:** Pasted file content sometimes shows `тАФ` instead of `—` or `ÔÇö` instead of `—`. Fix by saving with UTF-8 encoding in VS Code (bottom-right status bar → "Save with Encoding" → UTF-8).
 - **Container Query Requirement:** `@[Xpx]:` Tailwind arbitrary variants require `@container` on a nearest ancestor. Without it, they act like viewport width (wrong). `app/dashboard/layout.tsx` provides `@container/main`; KPI cards also have `@container/card` on the card wrapper for their own font tiers.
-- **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Completed extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`, `<TableShell>`, `<PrintButton>`. Pending: shadcn `<Select>` swap for TableToolbar filter/sort dropdowns (Unit 15i).
+- **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Completed extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`, `<TableShell>`, `<PrintButton>`. Pending: none — Unit 15i closed the last gap.
+- **Base UI `<Select>` Nullability:** Base UI's `<Select onValueChange>` signature passes `value: string | null` (cleared state). Never cast with `as string` — always guard with `if (val)` or widen the handler to accept `string | null`.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 ```
