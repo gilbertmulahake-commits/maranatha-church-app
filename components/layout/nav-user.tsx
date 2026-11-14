@@ -1,6 +1,7 @@
 'use client'
 
-import { IconDotsVertical, IconLogout, IconUser } from '@tabler/icons-react'
+import { useState } from 'react'
+import { IconDotsVertical, IconLogout, IconUser, IconLoader2 } from '@tabler/icons-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -39,10 +40,18 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const router = useRouter()
   const supabase = createClient()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      window.location.replace('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      setIsLoggingOut(false)
+    }
   }
 
   return (
@@ -105,6 +114,7 @@ export function NavUser({
               <DropdownMenuItem
                 onClick={() => router.push('/dashboard/settings')}
                 className="cursor-pointer"
+                disabled={isLoggingOut}
               >
                 <IconUser className="mr-2 h-4 w-4" />
                 My Profile
@@ -115,10 +125,15 @@ export function NavUser({
             
             <DropdownMenuItem
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive"
             >
-              <IconLogout className="mr-2 h-4 w-4" />
-              Log out
+              {isLoggingOut ? (
+                <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <IconLogout className="mr-2 h-4 w-4" />
+              )}
+              {isLoggingOut ? 'Logging out...' : 'Log out'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

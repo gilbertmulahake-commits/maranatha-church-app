@@ -313,7 +313,7 @@ export function LocalPaymentHistory({
                             </Badge>
                           }
                         />
-                        <TooltipContent side="top" className="w-64 text-center">
+                        <TooltipContent side="top" className="text-center">
                           Auto-allocated across Annual and Monthly dues
                         </TooltipContent>
                       </Tooltip>

@@ -4,6 +4,7 @@ import React from 'react'
 import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 export interface TableToolbarProps {
@@ -72,16 +73,21 @@ export function TableToolbar(props: TableToolbarProps) {
     </div>
   ) : null)
 
+  // ONLY CHANGE: Upgraded the legacy fallback from native <select> to shadcn <Select>
   const sortSlot = sort || (statusFilter !== undefined && setStatusFilter && statusOptions ? (
-    <select
+    <Select
       value={statusFilter}
-      onChange={(e) => setStatusFilter(e.target.value)}
-      className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+      onValueChange={(val) => { if (val) setStatusFilter(val) }}
     >
-      {statusOptions.map((opt) => (
-        <option key={opt} value={opt}>{opt}</option>
-      ))}
-    </select>
+      <SelectTrigger className="h-9 w-full bg-card text-xs">
+        <SelectValue placeholder="Status" />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map((opt) => (
+          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   ) : null)
 
   const filterSlotRendered = filter || (filterSlot ? (
@@ -98,7 +104,7 @@ export function TableToolbar(props: TableToolbarProps) {
         {subtitle && <p className="text-paragraph-small text-muted-foreground">{subtitle}</p>}
       </div>
 
-      {/* MASTER RESPONSIVE GRID */}
+      {/* MASTER RESPONSIVE GRID (Kept your preferred layout) */}
       <div className="grid grid-cols-1 gap-3 
                       @[600px]:grid-cols-2 
                       @[900px]:grid-cols-[minmax(300px,1fr)_auto_auto] @[900px]:items-center">
@@ -125,7 +131,7 @@ export function TableToolbar(props: TableToolbarProps) {
           {toggleSlot && <div className="shrink-0 w-full @[450px]:w-auto">{toggleSlot}</div>}
         </div>
 
-        {/* 2. CENTER: Filter & Sort */}
+        {/* 2. CENTER: Filter & Sort (Kept your preferred layout) */}
         <div className="flex w-full gap-2 @[600px]:col-start-1 @[900px]:col-start-2 @[900px]:justify-end @[900px]:w-auto">
           {filterSlotRendered && <div className="flex-1 @[600px]:flex-none">{filterSlotRendered}</div>}
           {sortSlot && <div className="flex-1 @[600px]:flex-none">{sortSlot}</div>}
