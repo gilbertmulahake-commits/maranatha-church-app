@@ -1,8 +1,8 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, LogOut, User } from 'lucide-react'
+import { Search, LogOut, User, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,18 +17,24 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 export function Topbar() {
-  const router = useRouter()
   const supabase = createClient()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      window.location.replace('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      setIsLoggingOut(false)
+    }
   }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background px-xl">
-      {/* Search Bar - FORCED FIX */}
+      {/* Search Bar */}
       <div className="flex flex-1 items-center gap-md">
         <div 
           className="relative w-full"
@@ -45,7 +51,7 @@ export function Topbar() {
       {/* User Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger render={
-          <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+          <Button variant="ghost" className="relative h-9 w-9 rounded-full" disabled={isLoggingOut}>
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary text-primary-foreground">
                 <User className="h-4 w-4" />
@@ -59,9 +65,17 @@ export function Topbar() {
             <DropdownMenuLabel className="text-sm">My Account</DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer text-sm">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+          <DropdownMenuItem 
+            onClick={handleSignOut} 
+            disabled={isLoggingOut}
+            className="text-destructive cursor-pointer text-sm"
+          >
+            {isLoggingOut ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="mr-2 h-4 w-4" />
+            )}
+            {isLoggingOut ? 'Signing out...' : 'Sign Out'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
