@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle).
+Unit 15.8 — Dashboard Experience Polish (Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -108,13 +108,22 @@ Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, 
   - Migrated `onChange={(e) => ...}` → `onValueChange={(val) => ...}`. Kept `h-9 w-full bg-card text-xs` styling on `<SelectTrigger>`.
   - Fixed Base UI nullable type signatures: widened `handleStatusFilterChange` in `local-payment-history.tsx` to `string | null`; added `if (val)` guards in `region-table.tsx` and `regional-table.tsx`.
   - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages.
+- **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness (PR #37, commit `32410f3`)**
+  - **Logout loading state:** Added `isLoggingOut` spinner + disabled state to `nav-user.tsx` (Sidebar) and `topbar.tsx` (Topbar).
+  - **"Mixed" badge tooltip:** Fixed collapsing vertical text and inverted arrow. `components/ui/tooltip.tsx` now uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]` + removed hardcoded `translate-y` on arrow + added `instant-open` animations.
+  - **Login page mobile stacking:** Added `px-4 py-12` container padding + migrated native inputs to shadcn `<Input>`, `<Label>`, `<Button>`.
+  - **Auth Router Cache bug:** Replaced `router.push()` with `window.location.replace()` on login and logout — this clears the Next.js Router Cache to prevent stale credentials and "Signing in..." ghost states.
+  - **Table toolbar mobile:** Replaced the final legacy native `<select>` fallback in `table-toolbar.tsx` with shadcn `<Select>`.
+  - **Sidebar auto-hide (mobile):** Added `usePathname` effect in `sidebar.tsx` — the mobile sheet closes automatically on route change.
+  - **Sidebar minimize toggle (desktop):** Reverted an incorrect tooltip-wrapper change in `sidebar.tsx` that caused a Base UI runtime crash. Standard shadcn behavior confirmed working.
+  - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness** — Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle.
-- **Then:** 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
+- **Unit 15.8: Dashboard Experience Polish** — Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link.
+- **Then:** 15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -128,7 +137,7 @@ Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, 
 - **Table Toolbar — `<TableToolbar>`:** All tables use the shared toolbar (search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` period toggle on mobile, icon-only Print/Export below `lg`).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -136,6 +145,9 @@ Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, 
 - **Tables:** All 8 tables (7 data + Users) use `<TableToolbar>`, `<TableShell>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. `<TableShell>` (`components/ui/table-shell.tsx`) owns the card frame and uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns (fixes the real `overflow-hidden` column-clipping bug — PR #34 / Unit 15h).
 - **Print/Export Buttons:** All tables use `<PrintButton>` (icon-only below `lg`, custom `children` for non-default labels) and `<ExportDropdown>` (icon-only below `lg`).
 - **Table Filter/Sort Dropdowns — shadcn `<Select>`:** All 5 tables with filter/sort selects use shadcn `<Select>` (Base UI variant, `onValueChange`) instead of native HTML `<select>`. Trigger styled `h-9 w-full bg-card text-xs` to preserve desktop layout. Use `if (val)` null guards — Base UI passes `string | null` to `onValueChange`. (PR #36 / Unit 15i).
+- **Tooltips — Universal Primitive:** `components/ui/tooltip.tsx` uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]` to auto-size the width and wrap long text. Never hardcode content in the base component — always pass via `children`. Never add `whitespace-nowrap` or `flex` to `TooltipPopup` — it forces vertical collapse. (Unit 15.7).
+- **Auth Redirects — Hard Reload:** Login and Logout **must** use `window.location.replace()` instead of `router.push()`. This clears the Next.js Router Cache so stale React state (loading spinners, input values) cannot be resurrected after navigation. The `eslint-disable` for `no-location-assign-relative-destination` is unnecessary because `window.location.replace` is allowed. (Unit 15.7).
+- **Sidebar — Auto-Hide on Mobile:** `SidebarProvider` imports `usePathname` from `next/navigation` and closes `openMobile` in an effect whenever the route changes. Prevents the mobile sheet from trapping the user after clicking a nav link. (Unit 15.7).
 - **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions intercepted by `<ExportConfirmDialog>` to clarify scope.
 - **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts.
 - **Next.js 16:** All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component.
@@ -145,7 +157,7 @@ Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, 
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
-- **Current HEAD:** `7261132` on `main` (Unit 15i merged).
+- **Current HEAD:** `32410f3` on `main` (Unit 15.7 merged).
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer.
@@ -175,6 +187,7 @@ Unit 15.7 — Critical Bug Fixes & Mobile Responsiveness (Logout loading state, 
 - **Container Query Requirement:** `@[Xpx]:` Tailwind arbitrary variants require `@container` on a nearest ancestor. Without it, they act like viewport width (wrong). `app/dashboard/layout.tsx` provides `@container/main`; KPI cards also have `@container/card` on the card wrapper for their own font tiers.
 - **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Completed extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`, `<TableShell>`, `<PrintButton>`. Pending: none — Unit 15i closed the last gap.
 - **Base UI `<Select>` Nullability:** Base UI's `<Select onValueChange>` signature passes `value: string | null` (cleared state). Never cast with `as string` — always guard with `if (val)` or widen the handler to accept `string | null`.
+- **Base UI `<TooltipTrigger>` Requirement:** A `<TooltipTrigger>` must always be wrapped inside `<Tooltip.Root>`. Do NOT conditionally return the trigger outside the root — Base UI will throw a runtime error.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 ```

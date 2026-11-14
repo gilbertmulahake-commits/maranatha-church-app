@@ -70,8 +70,9 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Vendor creates own SYSTEM_ADMIN account via Supabase Dashboard.
 
 **Immediate — Bugs & Mobile**
-16. **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness**
+16. **Unit 15.7: Critical Bug Fixes & Mobile Responsiveness** ✅ (Merged PR #37)
     - Logout loading state, "Mixed" badge tooltip, Login page mobile stacking, Table toolbar mobile, Sidebar auto-hide, Sidebar minimize toggle.
+    - Additional fixes discovered during implementation: Auth Router Cache bug (ghost "Signing in..." state after logout), Base UI Tooltip collapse, legacy native `<select>` in `TableToolbar`.
 
 **Safety — Password Reset & Audit**
 17. **Unit 16.1: Password Reset & Email Verification**
