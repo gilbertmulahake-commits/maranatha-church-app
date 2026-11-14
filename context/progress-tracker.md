@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Post-MVP — Table Componentization
+Post-MVP — Phase 3.5 complete. Unit 15.6 (SYSTEM_ADMIN, pre-UAT blocking) is next.
 
 ## Current Goal
-Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to use them, and fix the `overflow-hidden` column-clipping bug (per `ui-context.md` Section 9 which specifies `overflow-x-auto`). After this, proceed to Unit 15.6 (SYSTEM_ADMIN role).
+Unit 15.6 — SYSTEM_ADMIN role & protected user accounts. This blocks client handover; do not share credentials until it lands. Spec: `context/specs/15.6-system-admin-role.md`.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -90,12 +90,15 @@ Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to u
   - **`context/ui-context.md`** — Section 5 rewritten with `<KpiGrid>` / `<KpiValue>` standard; forbidden inline-grid example added; breakpoint documented as `1100px`.
   - **Verification:** `tsc --noEmit` clean, `lint` clean, `build` 18/18 pages, all `findstr` checks pass.
 
+- **Post-MVP: 7-Table Migration (Phase 3.5 / Unit 15h, branch `refactor/table-migration`, commit `80551c7`)**
+  - All 7 data tables migrated to `<TableShell>` + `<PrintButton>`: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`.
+  - **Root-cause fix:** every table previously wrapped the shadcn `<Table>` in `<div className="... overflow-hidden">`. The `overflow-hidden` silently **clipped columns on tablet/mobile** with no horizontal scroll — a real user-facing data-loss bug on 9-column tables. `<TableShell>` uses `overflow-x-auto`.
+  - **Cleanup:** removed `Printer` from `lucide-react` imports (all 7 files); removed `Table` from shadcn imports (all 7 files); removed unused `Button` import from `payments-table.tsx` and `local-payment-history.tsx`.
+  - **Preserved:** `TableFooter` (grand-total / daily-total rows) kept **inside** `<TableShell>` in `arrears-table.tsx` and `cashbook-table.tsx`; `overflow-hidden` on `region-table.tsx` compliance progress pill (correct usage — not a table wrapper).
+  - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages, per-file `findstr` gate passed on all 7 files.
+
 ## In Progress
-- **Table Componentization** — extract 3 shared components, migrate 7 tables:
-  - `components/ui/table-shell.tsx` (new) — wrapper with `overflow-x-auto` (fixes column-clipping bug).
-  - `components/ui/print-button.tsx` (new) — icon-only on mobile, custom `children` for labels.
-  - `components/ui/export-dropdown.tsx` — verify icon-only behavior present from PR #29 (may need no change).
-  - Migrate 7 tables: `church-table`, `payments-table`, `region-table`, `regional-table`, `arrears-table`, `cashbook-table`, `local-payment-history`.
+- None. Phase 3.5 (15h) complete on `refactor/table-migration` (commit `80551c7`). PR pending CodeRabbit review.
 
 ## Next Up
 - **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts** (Blocking Pre-UAT) — spec exists at `context/specs/15.6-system-admin-role.md`.
@@ -104,7 +107,7 @@ Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to u
   - Enforce protection in `user-actions.ts`.
   - Update `proxy.ts` and sidebar.
   - Vendor creates own SYSTEM_ADMIN account via Supabase Dashboard.
-- **Then:** 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
+- **Then:** 15i (TableToolbar `<Select>` standardization) → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -118,13 +121,14 @@ Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to u
 - **Table Toolbar — `<TableToolbar>`:** All tables use the shared toolbar (search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` period toggle on mobile, icon-only Print/Export below `lg`).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts` (Unit 15.6 pending). Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN.
-- **Post-deployment backlog structured into** table extraction → 15.6 → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 → 15i → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
 - **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes. Custom Figma tokens protected by `twMerge` extension in `lib/utils.ts`.
-- **Tables:** All tables use `<TableToolbar>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. **Structure will be wrapped in `<TableShell>` from `components/ui/table-shell.tsx` once table componentization lands** — `TableShell` uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns.
-- **Print/Export Buttons:** All tables will use `<PrintButton>` and `<ExportDropdown>` (both icon-only below `lg`). `PrintButton` accepts custom `children` for non-default labels.
+- **Tables:** All 7 tables use `<TableToolbar>`, `<TableShell>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. `<TableShell>` (`components/ui/table-shell.tsx`) owns the card frame and uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns (fixes the real `overflow-hidden` column-clipping bug — PR #33 / Unit 15h).
+- **Print/Export Buttons:** All tables use `<PrintButton>` (icon-only below `lg`, custom `children` for non-default labels) and `<ExportDropdown>` (icon-only below `lg`).
+- **TableToolbar `<Select>` Standardization (Unit 15i, planned):** Filter and Sort dropdowns in the 7 tables currently use **native HTML `<select>`** with Tailwind styling, not shadcn `<Select>`. Pre-existing inconsistency (present on `main` before 15h). Deferred to its own unit to keep 15h a pure wrapper migration — a shadcn `<Select>` swap requires controlled-state rewrites (`onChange` → `onValueChange`) and per-file QA across 7 files.
 - **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions intercepted by `<ExportConfirmDialog>` to clarify scope.
 - **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts.
 - **Next.js 16:** All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component.
@@ -134,7 +138,7 @@ Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to u
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
-- **Current HEAD:** `434083e` on `main` (KPI system extraction merged).
+- **Current HEAD:** `80551c7` on `refactor/table-migration` (7-table migration, PR #33 pending). `main` is at `4d06fe1` until PR #33 merges.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** that is invisible and immutable to the client's National Treasurer.
@@ -162,7 +166,7 @@ Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to u
 - **Git Pager Hang:** `git diff` and `git diff --stat` on large outputs trigger `less` pager. Use `git --no-pager diff` or press `q` to exit.
 - **File Encoding Mojibake:** Pasted file content sometimes shows `тАФ` instead of `—` or `ÔÇö` instead of `—`. Fix by saving with UTF-8 encoding in VS Code (bottom-right status bar → "Save with Encoding" → UTF-8).
 - **Container Query Requirement:** `@[Xpx]:` Tailwind arbitrary variants require `@container` on a nearest ancestor. Without it, they act like viewport width (wrong). `app/dashboard/layout.tsx` provides `@container/main`; KPI cards also have `@container/card` on the card wrapper for their own font tiers.
-- **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Proven extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`. Pending: `<TableShell>`, `<PrintButton>`.
+- **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Completed extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`, `<TableShell>`, `<PrintButton>`. Pending: shadcn `<Select>` swap for TableToolbar filter/sort dropdowns (Unit 15i).
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 ```
