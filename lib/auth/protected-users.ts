@@ -19,8 +19,8 @@
  */
 
 export const PROTECTED_USER_IDS: string[] = [
-  // Vendor UUIDs will be pasted here post-deployment.
-  // Example format: '00000000-0000-0000-0000-000000000000',
+  // Vendor UUIDs (SYSTEM_ADMIN accounts cannot be deleted/deactivated via UI)
+  '86f0852b-23f2-4a32-a478-4e7b096f792d',
 ]
 
 /**
