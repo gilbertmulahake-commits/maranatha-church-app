@@ -40,7 +40,7 @@ This is the ordered list of units we will build. We will write a detailed spec f
     - Migration baseline repair, environment templates, Bank Adapter Engine, Africa's Talking Live SMS integration, and Profile UI upgrade.
     - Successfully deployed to Vercel Production with Supabase and AT Sandbox wired up.
 
-### Phase 3.5: Post-MVP UI Componentization (In Progress)
+### Phase 3.5: Post-MVP UI Componentization (Complete)
 
 Not originally planned, but necessary to fix production bugs discovered after deployment and to establish single-source-of-truth components before adding more features. All work is a strict refactor of existing screens — no new user-facing features.
 
@@ -51,13 +51,14 @@ Not originally planned, but necessary to fix production bugs discovered after de
 - **15d. Responsive Toolbar (PR #29)** ✅ — `TableToolbar` refactored: search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` for period toggle on mobile, icon-only Print/Export below `lg`.
 - **15e. Responsive Shadcn Pattern (PR #30)** ✅ — `mx-auto max-w-[1440px]` on dashboard layout (prevents 4K stretch), `@container/main` for container queries, KPI density tuned (p-4 headers/footers, text-xs labels).
 - **15f. KPI System Extraction (PR #31)** ✅ — Created `<KpiGrid>` (3-tier responsive grid) and `<KpiValue>` (3-tier responsive typography). Migrated all 15 KPI locations (7 components + 8 Suspense skeletons).
-- **15g. Table Components Extracted (PR #32)** ✅ — Created `<TableShell>` (wrapper with `overflow-x-auto` — fixes column-clipping bug) and `<PrintButton>` (icon-only on mobile, custom label support). Not yet consumed by any table.
+- **15g. Table Components Extracted (PR #32)** ✅ — Created `<TableShell>` (wrapper with `overflow-x-auto` — fixes column-clipping bug) and `<PrintButton>` (icon-only on mobile, custom label support).
+- **15h. 7-Table Migration (PR #33, commit `80551c7`)** ✅ — All 7 tables migrated to `<TableShell>` + `<PrintButton>`: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`.
+  - **Fixes a real bug**: `overflow-hidden` on the old table wrapper silently clipped columns on tablet/mobile. `<TableShell>` uses `overflow-x-auto` so wide tables scroll horizontally instead of hiding data.
+  - `TableFooter` (grand/daily totals) preserved **inside** `<TableShell>` in `arrears-table.tsx` and `cashbook-table.tsx`.
+  - Verification: `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages, per-file `findstr` gate passed on all 7 files.
 
-**In Progress:**
-- **15h. 7-Table Migration** ⏳ — Migrate all 7 tables to use `<TableShell>` + `<PrintButton>`:
-  - `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`
-  - Per table: replace `<div className="rounded-xl border ... overflow-hidden"><Table>...</Table></div>` → `<TableShell>...</TableShell>`, replace inline `<Button><Printer/> Print</Button>` → `<PrintButton />`, remove unused imports.
-  - **Fixes a real bug**: `overflow-hidden` on the table wrapper silently clips columns on tablet/mobile. `<TableShell>` uses `overflow-x-auto` so wide tables scroll horizontally instead of hiding data.
+**Pending (Follow-up):**
+- **15i. TableToolbar `<Select>` Standardization** — Filter and Sort dropdowns in the 7 tables use **native HTML `<select>`** with Tailwind styling (pre-existing, present on `main` before 15h — deliberately out of scope for 15h to keep it a pure wrapper migration). Swap to shadcn `<Select>` for consistency with the period toggle (already Base UI `<Select>` on mobile). Requires controlled-state rewrites (`onChange` → `onValueChange`) and per-file QA across 7 files.
 
 ### Phase 4: Post-Deployment Enhancement (V2)
 
