@@ -18,12 +18,13 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
-// 🧩 Single-source-of-truth table frame + responsive print button.
-// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
-//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
-// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+// Single-source-of-truth table frame + responsive print button.
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
+// Unit 15i: Replaced native <select> with shadcn <Select> (Base UI variant).
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import {
   TableBody,
   TableCell,
@@ -281,20 +282,23 @@ export function RegionalTable({
         }
 
         sort={
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-card px-3 text-xs focus:ring-1 focus:ring-primary outline-none"
+          <Select 
+            value={statusFilter} 
+            onValueChange={(val) => { if (val) setStatusFilter(val) }}
           >
-            {['All', 'Paid', 'Partial', 'Overdue'].map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9 w-full bg-card text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {['All', 'Paid', 'Partial', 'Overdue'].map(opt => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         }
 
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
             <PrintButton onClick={handleGlobalPrint} disabled={churches.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
@@ -328,9 +332,6 @@ export function RegionalTable({
         }
       />
 
-      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
-          column-clipping bug from the previous clipped wrapper) and renders
-          the shadcn table primitive internally. Content is fed as children. */}
       <TableShell>
         <TableHeader className="bg-muted/50">
           <TableRow>
