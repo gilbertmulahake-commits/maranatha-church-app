@@ -148,6 +148,10 @@ enum PaymentStatus {
 }
 
 enum Role {
+  // SYSTEM_ADMIN is reserved for the vendor/platform owner. It must be
+  // first so it sorts to the top of UI dropdowns. Protected from UI-level
+  // delete/deactivate/role-change by `lib/auth/protected-users.ts` (Unit 15.6).
+  SYSTEM_ADMIN
   NATIONAL_TREASURER
   NATIONAL_OVERSEER
   REGIONAL_CHAIRMAN
