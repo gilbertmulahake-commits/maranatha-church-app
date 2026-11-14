@@ -40,6 +40,25 @@ This is the ordered list of units we will build. We will write a detailed spec f
     - Migration baseline repair, environment templates, Bank Adapter Engine, Africa's Talking Live SMS integration, and Profile UI upgrade.
     - Successfully deployed to Vercel Production with Supabase and AT Sandbox wired up.
 
+### Phase 3.5: Post-MVP UI Componentization (In Progress)
+
+Not originally planned, but necessary to fix production bugs discovered after deployment and to establish single-source-of-truth components before adding more features. All work is a strict refactor of existing screens — no new user-facing features.
+
+**Merged:**
+- **15a. Dashboard Reconciliation** ✅ — Strict Bucket Isolation rewritten in `scoring-actions.ts` to match National KPI compliance definition. Fixed Regional Leaderboard over-counting.
+- **15b. Net Credit Label** ✅ — `Network Net Credit` → `All-Time Net Credit` in `kpi-cards.tsx` (KPI uses lifetime, not YTD).
+- **15c. Region Edit Action** ✅ — Wired `EditRegionDialog` to previously dead "Edit Region" dropdown item.
+- **15d. Responsive Toolbar (PR #29)** ✅ — `TableToolbar` refactored: search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` for period toggle on mobile, icon-only Print/Export below `lg`.
+- **15e. Responsive Shadcn Pattern (PR #30)** ✅ — `mx-auto max-w-[1440px]` on dashboard layout (prevents 4K stretch), `@container/main` for container queries, KPI density tuned (p-4 headers/footers, text-xs labels).
+- **15f. KPI System Extraction (PR #31)** ✅ — Created `<KpiGrid>` (3-tier responsive grid) and `<KpiValue>` (3-tier responsive typography). Migrated all 15 KPI locations (7 components + 8 Suspense skeletons).
+- **15g. Table Components Extracted (PR #32)** ✅ — Created `<TableShell>` (wrapper with `overflow-x-auto` — fixes column-clipping bug) and `<PrintButton>` (icon-only on mobile, custom label support). Not yet consumed by any table.
+
+**In Progress:**
+- **15h. 7-Table Migration** ⏳ — Migrate all 7 tables to use `<TableShell>` + `<PrintButton>`:
+  - `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`
+  - Per table: replace `<div className="rounded-xl border ... overflow-hidden"><Table>...</Table></div>` → `<TableShell>...</TableShell>`, replace inline `<Button><Printer/> Print</Button>` → `<PrintButton />`, remove unused imports.
+  - **Fixes a real bug**: `overflow-hidden` on the table wrapper silently clips columns on tablet/mobile. `<TableShell>` uses `overflow-x-auto` so wide tables scroll horizontally instead of hiding data.
+
 ### Phase 4: Post-Deployment Enhancement (V2)
 
 **Pre-UAT (Blocking Handover)**
