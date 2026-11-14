@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   Eye,
   Edit,
-  Printer,
   Send,
   Loader2
 } from 'lucide-react'
@@ -19,8 +18,13 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
+// 🧩 Single-source-of-truth table frame + responsive print button.
+// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
+//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
+// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { TableShell } from '@/components/ui/table-shell'
+import { PrintButton } from '@/components/ui/print-button'
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -290,10 +294,8 @@ export function RegionalTable({
 
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={churches.length === 0}>
-              <Printer className="h-4 w-4 mr-2" /> 
-              <span>Print</span>
-            </Button>
+            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+            <PrintButton onClick={handleGlobalPrint} disabled={churches.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
                 onExportCsv={() => handleGlobalExport('csv')}
@@ -326,179 +328,180 @@ export function RegionalTable({
         }
       />
 
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
+      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+          column-clipping bug from the previous clipped wrapper) and renders
+          the shadcn table primitive internally. Content is fed as children. */}
+      <TableShell>
+        <TableHeader className="bg-muted/50">
+          <TableRow>
+            <TableHead className="w-[50px]">
+              <Checkbox
+                checked={selectedChurches.length === paginatedData.length && paginatedData.length > 0}
+                onCheckedChange={toggleAll}
+              />
+            </TableHead>
+            <TableHead
+              className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
+              onClick={() => requestSort('church_name')}
+            >
+              <div className="flex items-center gap-xs">
+                Church <ArrowUpDown className="h-3 w-3" />
+              </div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Pastor</TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Treasurer</TableHead>
+
+            <TableHead
+              className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
+              onClick={() => requestSort(isMonthly ? 'monthlyPaid' : 'annualPaid')}
+            >
+              <div className="flex items-center gap-xs">
+                {paidLabel} <ArrowUpDown className="h-3 w-3" />
+              </div>
+            </TableHead>
+            <TableHead
+              className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
+              onClick={() => requestSort(isMonthly ? 'monthlyOutstanding' : 'annualOutstanding')}
+            >
+              <div className="flex items-center gap-xs">
+                {outLabel} <ArrowUpDown className="h-3 w-3" />
+              </div>
+            </TableHead>
+
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
+            <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedData.length === 0 ? (
             <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={selectedChurches.length === paginatedData.length && paginatedData.length > 0}
-                  onCheckedChange={toggleAll}
-                />
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
-                onClick={() => requestSort('church_name')}
-              >
-                <div className="flex items-center gap-xs">
-                  Church <ArrowUpDown className="h-3 w-3" />
-                </div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Pastor</TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Treasurer</TableHead>
-
-              <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
-                onClick={() => requestSort(isMonthly ? 'monthlyPaid' : 'annualPaid')}
-              >
-                <div className="flex items-center gap-xs">
-                  {paidLabel} <ArrowUpDown className="h-3 w-3" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground"
-                onClick={() => requestSort(isMonthly ? 'monthlyOutstanding' : 'annualOutstanding')}
-              >
-                <div className="flex items-center gap-xs">
-                  {outLabel} <ArrowUpDown className="h-3 w-3" />
-                </div>
-              </TableHead>
-
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
-              <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
+              <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                No churches found matching your filters.
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
-                  No churches found matching your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedData.map((church) => {
-                const activeStatus = isMonthly ? church.monthlyStatus : church.annualStatus
-                const prepaidStatus = isMonthly
-                  ? formatPrepaidStatus(church.monthlyCredit, 'Monthly')
-                  : formatPrepaidStatus(church.annualCredit, 'Annual')
+          ) : (
+            paginatedData.map((church) => {
+              const activeStatus = isMonthly ? church.monthlyStatus : church.annualStatus
+              const prepaidStatus = isMonthly
+                ? formatPrepaidStatus(church.monthlyCredit, 'Monthly')
+                : formatPrepaidStatus(church.annualCredit, 'Annual')
 
-                return (
-                  <TableRow key={church.id} className="hover:bg-muted/50">
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedChurches.includes(church.id)}
-                        onCheckedChange={() => toggleOne(church.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground text-paragraph-small">
-                        {church.church_name}
-                      </div>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">
-                        {church.church_code}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-foreground text-paragraph-small">
-                        {church.pastor_name || 'N/A'}
-                      </div>
-                      <div className="text-paragraph-mini tabular-nums text-muted-foreground">
-                        {church.pastor_phone}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-foreground text-paragraph-small">
-                        {church.treasurer_name}
-                      </div>
-                      <div className="text-paragraph-mini tabular-nums text-muted-foreground">
-                        {church.contact_phone}
-                      </div>
-                    </TableCell>
+              return (
+                <TableRow key={church.id} className="hover:bg-muted/50">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedChurches.includes(church.id)}
+                      onCheckedChange={() => toggleOne(church.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground text-paragraph-small">
+                      {church.church_name}
+                    </div>
+                    <div className="font-mono text-paragraph-mini text-muted-foreground">
+                      {church.church_code}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-foreground text-paragraph-small">
+                      {church.pastor_name || 'N/A'}
+                    </div>
+                    <div className="text-paragraph-mini tabular-nums text-muted-foreground">
+                      {church.pastor_phone}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-foreground text-paragraph-small">
+                      {church.treasurer_name}
+                    </div>
+                    <div className="text-paragraph-mini tabular-nums text-muted-foreground">
+                      {church.contact_phone}
+                    </div>
+                  </TableCell>
 
-                    <TableCell className="tabular-nums font-medium text-emerald-600 text-paragraph-small">
-                      {formatCurrency(isMonthly ? church.monthlyPaid : church.annualPaid)}
-                    </TableCell>
+                  <TableCell className="tabular-nums font-medium text-emerald-600 text-paragraph-small">
+                    {formatCurrency(isMonthly ? church.monthlyPaid : church.annualPaid)}
+                  </TableCell>
 
-                    <TableCell className="tabular-nums font-medium text-paragraph-small">
-                      {prepaidStatus ? (
-                        <span className="text-emerald-600">{prepaidStatus}</span>
-                      ) : (
-                        <span className="text-destructive">
-                          {formatCurrency(isMonthly ? church.monthlyOutstanding : church.annualOutstanding)}
-                        </span>
-                      )}
-                    </TableCell>
+                  <TableCell className="tabular-nums font-medium text-paragraph-small">
+                    {prepaidStatus ? (
+                      <span className="text-emerald-600">{prepaidStatus}</span>
+                    ) : (
+                      <span className="text-destructive">
+                        {formatCurrency(isMonthly ? church.monthlyOutstanding : church.annualOutstanding)}
+                      </span>
+                    )}
+                  </TableCell>
 
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          activeStatus === 'Paid'
-                            ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                            : activeStatus === 'Partial'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : activeStatus === 'Overdue'
-                            ? 'bg-red-100 text-red-700 border-red-200'
-                            : 'bg-gray-100 text-gray-700 border-gray-200'
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={
+                        activeStatus === 'Paid'
+                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                          : activeStatus === 'Partial'
+                          ? 'bg-amber-100 text-amber-700 border-amber-200'
+                          : activeStatus === 'Overdue'
+                          ? 'bg-red-100 text-red-700 border-red-200'
+                          : 'bg-gray-100 text-gray-700 border-gray-200'
+                      }
+                    >
+                      {activeStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
                         }
-                      >
-                        {activeStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Actions
-                            </DropdownMenuLabel>
-                          </DropdownMenuGroup>
+                      />
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Actions
+                          </DropdownMenuLabel>
+                        </DropdownMenuGroup>
 
-                          <DropdownMenuItem
-                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
-                            onClick={() => setViewingChurch(mapToChurchRow(church))}
-                          >
-                            <Eye className="mr-2 h-4 w-4" /> View Details
-                          </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                          onClick={() => setViewingChurch(mapToChurchRow(church))}
+                        >
+                          <Eye className="mr-2 h-4 w-4" /> View Details
+                        </DropdownMenuItem>
 
-                          <DropdownMenuItem
-                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
-                            onClick={() => setEditingChurch(mapToChurchRow(church))}
-                          >
-                            <Edit className="mr-2 h-4 w-4" /> Edit Church
-                          </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                          onClick={() => setEditingChurch(mapToChurchRow(church))}
+                        >
+                          <Edit className="mr-2 h-4 w-4" /> Edit Church
+                        </DropdownMenuItem>
 
-                          <DropdownMenuSeparator />
+                        <DropdownMenuSeparator />
 
-                          {(activeStatus === 'Partial' || activeStatus === 'Overdue') && (
-                            <SendReminderButton
-                              churchId={church.church_code}
-                              churchName={church.church_name}
-                              pastorName={church.pastor_name}
-                              phone={church.pastor_phone}
-                              senderRole={userRole}
-                              annualOutstanding={church.annualOutstanding}
-                              monthlyOutstanding={church.monthlyOutstanding}
-                            />
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                        {(activeStatus === 'Partial' || activeStatus === 'Overdue') && (
+                          <SendReminderButton
+                            churchId={church.church_code}
+                            churchName={church.church_name}
+                            pastorName={church.pastor_name}
+                            phone={church.pastor_phone}
+                            senderRole={userRole}
+                            annualOutstanding={church.annualOutstanding}
+                            monthlyOutstanding={church.monthlyOutstanding}
+                          />
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
+        </TableBody>
+      </TableShell>
 
       <DataTablePagination
         currentPage={currentPage}
