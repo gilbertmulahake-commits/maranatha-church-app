@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, MoreHorizontal, MapPin, Eye, Edit, Printer } from 'lucide-react'
+import { ArrowUpDown, MoreHorizontal, MapPin, Eye, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,14 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
+// 🧩 Single-source-of-truth table frame + responsive print button.
+// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
+//   bug from the old clipped-wrapper). Renders <Table> internally.
+// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { TableShell } from '@/components/ui/table-shell'
+import { PrintButton } from '@/components/ui/print-button'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -196,10 +202,8 @@ export function RegionTable({
 
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={data.length === 0}>
-              <Printer className="h-4 w-4 mr-2" /> 
-              <span>Print</span>
-            </Button>
+            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+            <PrintButton onClick={handleGlobalPrint} disabled={data.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
                 onExportCsv={() => handleGlobalExport('csv')}
@@ -222,123 +226,126 @@ export function RegionTable({
         }
       />
 
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
+      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+          column-clipping bug from the previous clipped wrapper)
+          and renders <Table> internally. Content is fed as children. */}
+      <TableShell>
+        <TableHeader className="bg-muted/50">
+          <TableRow>
+            <TableHead className="w-[40px] text-center">
+              <Checkbox 
+                checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
+                onCheckedChange={toggleAll}
+              />
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('name')}>
+              <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Chairman</TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('churchCount')}>
+              <div className="flex items-center gap-xs">Churches <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('totalCollected')}>
+              <div className="flex items-center gap-xs">Collected <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('compliancePct')}>
+              <div className="flex items-center gap-xs">Compliance <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
+            <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedData.length === 0 ? (
             <TableRow>
-              <TableHead className="w-[40px] text-center">
-                <Checkbox 
-                  checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
-                  onCheckedChange={toggleAll}
-                />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('name')}>
-                <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Chairman</TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('churchCount')}>
-                <div className="flex items-center gap-xs">Churches <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('totalCollected')}>
-                <div className="flex items-center gap-xs">Collected <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('compliancePct')}>
-                <div className="flex items-center gap-xs">Compliance <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Status</TableHead>
-              <TableHead className="text-right text-paragraph-small font-medium text-muted-foreground">Actions</TableHead>
+              <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                No regions found matching your filters.
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
-                  No regions found matching your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedData.map((region) => {
-                const isAtRisk = region.compliancePct < 50
-                return (
-                  <TableRow key={region.id} className="hover:bg-muted/50">
-                    <TableCell className="text-center">
-                      <Checkbox 
-                        checked={selectedIds.includes(region.id)}
-                        onCheckedChange={() => toggleOne(region.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`} className="font-medium text-foreground text-paragraph-small hover:underline flex items-center gap-1.5">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {region.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-foreground text-paragraph-small">{region.chairman_name}</div>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">{region.contact_phone}</div>
-                    </TableCell>
-                    <TableCell className="text-paragraph-small text-muted-foreground">
-                      {region.churchCount}
-                    </TableCell>
-                    <TableCell className="font-medium tabular-nums text-emerald-600 text-paragraph-small">
-                      {formatCurrency(region.totalCollected)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium tabular-nums text-paragraph-small w-10">{region.compliancePct.toFixed(1)}%</span>
-                        <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${isAtRisk ? 'bg-destructive' : 'bg-emerald-500'}`} 
-                            style={{ width: `${region.compliancePct}%` }} 
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={isAtRisk ? 'bg-red-100 text-red-700 border-red-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}>
-                        {isAtRisk ? 'Needs Attention' : 'On Track'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          }
+          ) : (
+            paginatedData.map((region) => {
+              const isAtRisk = region.compliancePct < 50
+              return (
+                <TableRow key={region.id} className="hover:bg-muted/50">
+                  <TableCell className="text-center">
+                    <Checkbox 
+                      checked={selectedIds.includes(region.id)}
+                      onCheckedChange={() => toggleOne(region.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`} className="font-medium text-foreground text-paragraph-small hover:underline flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      {region.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-foreground text-paragraph-small">{region.chairman_name}</div>
+                    <div className="font-mono text-paragraph-mini text-muted-foreground">{region.contact_phone}</div>
+                  </TableCell>
+                  <TableCell className="text-paragraph-small text-muted-foreground">
+                    {region.churchCount}
+                  </TableCell>
+                  <TableCell className="font-medium tabular-nums text-emerald-600 text-paragraph-small">
+                    {formatCurrency(region.totalCollected)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium tabular-nums text-paragraph-small w-10">{region.compliancePct.toFixed(1)}%</span>
+                      {/* Progress pill — overflow-hidden here is CORRECT (clips the fill
+                          to the rounded track). Not a table wrapper. Keep it. */}
+                      <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${isAtRisk ? 'bg-destructive' : 'bg-emerald-500'}`} 
+                          style={{ width: `${region.compliancePct}%` }} 
                         />
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Actions
-                            </DropdownMenuLabel>
-                          </DropdownMenuGroup>
-                          
-                          <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`}>
-                            <DropdownMenuItem className="cursor-pointer text-paragraph-small whitespace-nowrap">
-                              <Eye className="mr-2 h-4 w-4" /> View Details
-                            </DropdownMenuItem>
-                          </Link>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <DropdownMenuItem 
-                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
-                            onClick={() => setRegionToEdit(region)}
-                          >
-                            <Edit className="mr-2 h-4 w-4" /> Edit Region
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={isAtRisk ? 'bg-red-100 text-red-700 border-red-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}>
+                      {isAtRisk ? 'Needs Attention' : 'On Track'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Actions
+                          </DropdownMenuLabel>
+                        </DropdownMenuGroup>
+                        
+                        <Link href={`/dashboard/regions/${region.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                          <DropdownMenuItem className="cursor-pointer text-paragraph-small whitespace-nowrap">
+                            <Eye className="mr-2 h-4 w-4" /> View Details
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                        </Link>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuItem 
+                          className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                          onClick={() => setRegionToEdit(region)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" /> Edit Region
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
+        </TableBody>
+      </TableShell>
 
       <DataTablePagination
         currentPage={currentPage}

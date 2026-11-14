@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, Eye, Send, Printer } from 'lucide-react'
+import { ArrowUpDown, Eye, Send } from 'lucide-react'
 import Link from 'next/link'
 import { ArrearsRow } from '@/lib/actions/report-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
@@ -12,8 +12,14 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { Button } from '@/components/ui/button'
+// 🧩 Single-source-of-truth table frame + responsive print button.
+// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
+//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
+// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { TableShell } from '@/components/ui/table-shell'
+import { PrintButton } from '@/components/ui/print-button'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter
+  TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter
 } from '@/components/ui/table'
 import { toast } from 'sonner'
 
@@ -190,10 +196,8 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0" disabled={filteredData.length === 0}>
-              <Printer className="h-4 w-4 mr-2" /> 
-              <span>Print</span>
-            </Button>
+            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+            <PrintButton onClick={handleGlobalPrint} disabled={filteredData.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
                 onExportCsv={() => handleGlobalExport('csv')}
@@ -222,96 +226,97 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         }
       />
 
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
+      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+          column-clipping bug from the previous clipped wrapper) and renders
+          the shadcn table primitive internally. TableFooter lives inside. */}
+      <TableShell>
+        <TableHeader className="bg-muted/50">
+          <TableRow>
+            <TableHead className="w-[40px] text-center">
+              <Checkbox 
+                checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
+                onCheckedChange={toggleAll}
+              />
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('church_name')}>
+              <div className="flex items-center gap-xs">Church <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('region_name')}>
+              <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('annualOutstanding')}>
+              <div className="flex items-center justify-end gap-xs">Annual Out <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('monthlyOutstanding')}>
+              <div className="flex items-center justify-end gap-xs">Monthly Out <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('totalOutstanding')}>
+              <div className="flex items-center justify-end gap-xs">Total Owed <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedData.length === 0 ? (
             <TableRow>
-              <TableHead className="w-[40px] text-center">
-                <Checkbox 
-                  checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
-                  onCheckedChange={toggleAll}
-                />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('church_name')}>
-                <div className="flex items-center gap-xs">Church <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('region_name')}>
-                <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('annualOutstanding')}>
-                <div className="flex items-center justify-end gap-xs">Annual Out <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('monthlyOutstanding')}>
-                <div className="flex items-center justify-end gap-xs">Monthly Out <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('totalOutstanding')}>
-                <div className="flex items-center justify-end gap-xs">Total Owed <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+              <TableCell colSpan={7} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                No arrears found matching your criteria.
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-paragraph-small text-muted-foreground">
-                  No arrears found matching your criteria.
+          ) : (
+            paginatedData.map((row) => (
+              <TableRow key={row.id} className="hover:bg-muted/50">
+                <TableCell className="text-center">
+                  <Checkbox 
+                    checked={selectedIds.includes(row.id)}
+                    onCheckedChange={() => toggleOne(row.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-foreground text-paragraph-small">{row.church_name}</div>
+                  <div className="font-mono text-paragraph-mini text-muted-foreground">{row.church_code}</div>
+                </TableCell>
+                <TableCell className="text-paragraph-small text-muted-foreground">
+                  {row.region_name}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
+                  {row.annualOutstanding > 0 ? formatCurrency(row.annualOutstanding) : '-'}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
+                  {row.monthlyOutstanding > 0 ? formatCurrency(row.monthlyOutstanding) : '-'}
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums text-paragraph-small text-destructive">
+                  {formatCurrency(row.totalOutstanding)}
+                </TableCell>
+                <TableCell className="text-center">
+                  <Link href={`/dashboard/churches/${row.church_code}`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 </TableCell>
               </TableRow>
-            ) : (
-              paginatedData.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/50">
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={selectedIds.includes(row.id)}
-                      onCheckedChange={() => toggleOne(row.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-foreground text-paragraph-small">{row.church_name}</div>
-                    <div className="font-mono text-paragraph-mini text-muted-foreground">{row.church_code}</div>
-                  </TableCell>
-                  <TableCell className="text-paragraph-small text-muted-foreground">
-                    {row.region_name}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
-                    {row.annualOutstanding > 0 ? formatCurrency(row.annualOutstanding) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
-                    {row.monthlyOutstanding > 0 ? formatCurrency(row.monthlyOutstanding) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums text-paragraph-small text-destructive">
-                    {formatCurrency(row.totalOutstanding)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Link href={`/dashboard/churches/${row.church_code}`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-          <TableFooter className="bg-muted/80 border-t border-border">
-            <TableRow>
-              <TableCell colSpan={3} className="font-bold text-foreground text-paragraph-small text-right">
-                Grand Total:
-              </TableCell>
-              <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-                {totals.annual > 0 ? formatCurrency(totals.annual) : '-'}
-              </TableCell>
-              <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-                {totals.monthly > 0 ? formatCurrency(totals.monthly) : '-'}
-              </TableCell>
-              <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-                {formatCurrency(totals.total)}
-              </TableCell>
-              <TableCell />
-            </TableRow>
-          </TableFooter>
-        </Table>
-      </div>
+            ))
+          )}
+        </TableBody>
+        <TableFooter className="bg-muted/80 border-t border-border">
+          <TableRow>
+            <TableCell colSpan={3} className="font-bold text-foreground text-paragraph-small text-right">
+              Grand Total:
+            </TableCell>
+            <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
+              {totals.annual > 0 ? formatCurrency(totals.annual) : '-'}
+            </TableCell>
+            <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
+              {totals.monthly > 0 ? formatCurrency(totals.monthly) : '-'}
+            </TableCell>
+            <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
+              {formatCurrency(totals.total)}
+            </TableCell>
+            <TableCell />
+          </TableRow>
+        </TableFooter>
+      </TableShell>
 
       <DataTablePagination
         currentPage={currentPage}

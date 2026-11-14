@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, MoreHorizontal, Edit, Trash2, Printer } from 'lucide-react'
+import { ArrowUpDown, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { deleteChurch } from '@/lib/actions/church-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
@@ -16,8 +16,14 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
+// 🧩 Single-source-of-truth table frame + responsive print button.
+// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
+//   bug from the old clipped-wrapper). Renders <Table> internally.
+// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { TableShell } from '@/components/ui/table-shell'
+import { PrintButton } from '@/components/ui/print-button'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup
@@ -286,10 +292,8 @@ export function ChurchTable({
 
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0">
-              <Printer className="h-4 w-4 mr-2" /> 
-              <span>Print</span>
-            </Button>
+            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+            <PrintButton onClick={handleGlobalPrint} disabled={data.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
                 onExportCsv={() => handleGlobalExport('csv')}
@@ -322,120 +326,121 @@ export function ChurchTable({
         }
       />
 
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
+      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+          column-clipping bug from the previous clipped wrapper)
+          and renders <Table> internally. Content is fed as children. */}
+      <TableShell>
+        <TableHeader className="bg-muted/50">
+          <TableRow>
+            <TableHead className="w-[40px] text-center">
+              <Checkbox 
+                checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
+                onCheckedChange={toggleAll}
+              />
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('church_name')}>
+              <div className="flex items-center gap-xs">Church <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('region')}>
+              <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Pastor</TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground">Treasurer</TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort(periodView === 'year' ? 'annualPaid' : 'monthlyPaid')}>
+              <div className="flex items-center justify-end gap-xs">{paidLabel} <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort(periodView === 'year' ? 'annualOutstanding' : 'monthlyOutstanding')}>
+              <div className="flex items-center justify-end gap-xs">{outLabel} <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Status</TableHead>
+            <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedData.length === 0 ? (
             <TableRow>
-              <TableHead className="w-[40px] text-center">
-                <Checkbox 
-                  checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
-                  onCheckedChange={toggleAll}
-                />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('church_name')}>
-                <div className="flex items-center gap-xs">Church <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('region')}>
-                <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Pastor</TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground">Treasurer</TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort(periodView === 'year' ? 'annualPaid' : 'monthlyPaid')}>
-                <div className="flex items-center justify-end gap-xs">{paidLabel} <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort(periodView === 'year' ? 'annualOutstanding' : 'monthlyOutstanding')}>
-                <div className="flex items-center justify-end gap-xs">{outLabel} <ArrowUpDown className="h-3 w-3" /></div>
-              </TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Status</TableHead>
-              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+              <TableCell colSpan={9} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                No churches found matching your filters.
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-paragraph-small text-muted-foreground">
-                  No churches found matching your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedData.map((church) => {
-                const activeStatus = periodView === 'year' ? church.annualStatus : church.monthlyStatus
-                const paidAmount = periodView === 'year' ? church.annualPaid : church.monthlyPaid
-                const outstandingAmount = periodView === 'year' ? church.annualOutstanding : church.monthlyOutstanding
-                const credit = periodView === 'year' ? church.annualCredit : church.monthlyCredit
-                
-                const prepaidText = formatPrepaidStatus(credit, periodView === 'year' ? 'Annual' : 'Monthly')
+          ) : (
+            paginatedData.map((church) => {
+              const activeStatus = periodView === 'year' ? church.annualStatus : church.monthlyStatus
+              const paidAmount = periodView === 'year' ? church.annualPaid : church.monthlyPaid
+              const outstandingAmount = periodView === 'year' ? church.annualOutstanding : church.monthlyOutstanding
+              const credit = periodView === 'year' ? church.annualCredit : church.monthlyCredit
+              
+              const prepaidText = formatPrepaidStatus(credit, periodView === 'year' ? 'Annual' : 'Monthly')
 
-                return (
-                  <TableRow key={church.id} className="hover:bg-muted/50">
-                    <TableCell className="text-center">
-                      <Checkbox 
-                        checked={selectedIds.includes(church.id)}
-                        onCheckedChange={() => toggleOne(church.id)}
+              return (
+                <TableRow key={church.id} className="hover:bg-muted/50">
+                  <TableCell className="text-center">
+                    <Checkbox 
+                      checked={selectedIds.includes(church.id)}
+                      onCheckedChange={() => toggleOne(church.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/dashboard/churches/${church.church_code}`} className="font-medium text-foreground text-paragraph-small hover:underline">
+                      {church.church_name}
+                    </Link>
+                    <div className="font-mono text-paragraph-mini text-muted-foreground">{church.church_code}</div>
+                  </TableCell>
+                  <TableCell className="text-paragraph-small text-muted-foreground">{church.region?.name || 'Unassigned'}</TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground text-paragraph-small">{church.pastor_name}</div>
+                    <div className="font-mono text-paragraph-mini text-muted-foreground">{church.pastor_phone}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground text-paragraph-small">{church.treasurer_name}</div>
+                    <div className="font-mono text-paragraph-mini text-muted-foreground">{church.contact_phone}</div>
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums text-emerald-600 text-paragraph-small">
+                    {formatCurrency(paidAmount)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums text-paragraph-small">
+                    {outstandingAmount > 0 ? (
+                      <span className="text-destructive">{formatCurrency(outstandingAmount)}</span>
+                    ) : prepaidText ? (
+                      <span className="text-emerald-600">{prepaidText}</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {getStatusBadge(activeStatus || 'N/A')}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/dashboard/churches/${church.church_code}`} className="font-medium text-foreground text-paragraph-small hover:underline">
-                        {church.church_name}
-                      </Link>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">{church.church_code}</div>
-                    </TableCell>
-                    <TableCell className="text-paragraph-small text-muted-foreground">{church.region?.name || 'Unassigned'}</TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground text-paragraph-small">{church.pastor_name}</div>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">{church.pastor_phone}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-foreground text-paragraph-small">{church.treasurer_name}</div>
-                      <div className="font-mono text-paragraph-mini text-muted-foreground">{church.contact_phone}</div>
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums text-emerald-600 text-paragraph-small">
-                      {formatCurrency(paidAmount)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums text-paragraph-small">
-                      {outstandingAmount > 0 ? (
-                        <span className="text-destructive">{formatCurrency(outstandingAmount)}</span>
-                      ) : prepaidText ? (
-                        <span className="text-emerald-600">{prepaidText}</span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getStatusBadge(activeStatus || 'N/A')}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Actions
-                            </DropdownMenuLabel>
-                          </DropdownMenuGroup>
-                          <DropdownMenuItem onClick={() => setChurchToEdit(church)} className="cursor-pointer text-paragraph-small whitespace-nowrap">
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setChurchToDelete(church)} className="text-destructive cursor-pointer text-paragraph-small whitespace-nowrap">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Actions
+                          </DropdownMenuLabel>
+                        </DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => setChurchToEdit(church)} className="cursor-pointer text-paragraph-small whitespace-nowrap">
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setChurchToDelete(church)} className="text-destructive cursor-pointer text-paragraph-small whitespace-nowrap">
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
+        </TableBody>
+      </TableShell>
 
       <DataTablePagination
         currentPage={currentPage}

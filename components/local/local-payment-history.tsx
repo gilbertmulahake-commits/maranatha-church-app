@@ -1,18 +1,23 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, Split, Printer } from 'lucide-react'
+import { ArrowUpDown, Split } from 'lucide-react'
 import { LocalChurchStats } from '@/lib/actions/local-actions'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
+// 🧩 Single-source-of-truth table frame + responsive print button.
+// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
+//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
+// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { TableShell } from '@/components/ui/table-shell'
+import { PrintButton } from '@/components/ui/print-button'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
@@ -220,10 +225,8 @@ export function LocalPaymentHistory({
 
           actions={
             <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-              <Button variant="outline" onClick={handleGlobalPrint} className="h-9 px-3 shrink-0">
-                <Printer className="h-4 w-4 mr-2" /> 
-                <span>Print</span>
-              </Button>
+              {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+              <PrintButton onClick={handleGlobalPrint} disabled={filteredData.length === 0} />
               <div className="shrink-0">
                 <ExportDropdown 
                   onExportCsv={() => handleGlobalExport('csv')}
@@ -246,91 +249,92 @@ export function LocalPaymentHistory({
           }
         />
 
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/50">
+        {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+            column-clipping bug from the previous clipped wrapper) and renders
+            the shadcn table primitive internally. Content is fed as children. */}
+        <TableShell>
+          <TableHeader className="bg-muted/50">
+            <TableRow>
+              <TableHead className="w-[40px] text-center">
+                <Checkbox 
+                  checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
+                  onCheckedChange={toggleAll}
+                />
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('transaction_id')}>
+                <div className="flex items-center gap-xs">Transaction ID <ArrowUpDown className="h-3 w-3" /></div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('amount_paid')}>
+                <div className="flex items-center justify-end gap-xs">Amount <ArrowUpDown className="h-3 w-3" /></div>
+              </TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Type</TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Method</TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('payment_date')}>
+                <div className="flex items-center gap-xs">Date & Time <ArrowUpDown className="h-3 w-3" /></div>
+              </TableHead>
+              <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedData.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[40px] text-center">
-                  <Checkbox 
-                    checked={selectedIds.length > 0 && selectedIds.length === paginatedData.length}
-                    onCheckedChange={toggleAll}
-                  />
-                </TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('transaction_id')}>
-                  <div className="flex items-center gap-xs">Transaction ID <ArrowUpDown className="h-3 w-3" /></div>
-                </TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('amount_paid')}>
-                  <div className="flex items-center justify-end gap-xs">Amount <ArrowUpDown className="h-3 w-3" /></div>
-                </TableHead>
-                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Type</TableHead>
-                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center">Method</TableHead>
-                <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('payment_date')}>
-                  <div className="flex items-center gap-xs">Date & Time <ArrowUpDown className="h-3 w-3" /></div>
-                </TableHead>
-                <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
+                <TableCell colSpan={7} className="text-center py-12 text-paragraph-small text-muted-foreground">
+                  No transactions found matching your filters.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-paragraph-small text-muted-foreground">
-                    No transactions found matching your filters.
+            ) : (
+              paginatedData.map((payment) => (
+                <TableRow key={payment.id} className="hover:bg-muted/50">
+                  <TableCell className="text-center">
+                    <Checkbox 
+                      checked={selectedIds.includes(payment.id)}
+                      onCheckedChange={() => toggleOne(payment.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono text-paragraph-small text-muted-foreground">
+                    {payment.transaction_id}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums text-emerald-600 text-paragraph-small">
+                    {formatCurrency(payment.amount_paid)}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {payment.is_mixed ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help">
+                              <Split className="mr-1 h-3 w-3" /> Mixed
+                            </Badge>
+                          }
+                        />
+                        <TooltipContent side="top" className="w-64 text-center">
+                          Auto-allocated across Annual and Monthly dues
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Badge variant="outline" className={payment.has_annual ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}>
+                        {payment.has_annual ? 'Annual' : 'Monthly'}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-paragraph-small text-muted-foreground">
+                    {payment.payment_method === 'M_Pesa' ? 'M-Pesa' : payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'}
+                  </TableCell>
+                  <TableCell className="text-paragraph-small text-muted-foreground">
+                    {formatDate(payment.payment_date)}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <AllocationBreakdownDialog 
+                      transactionId={payment.transaction_id}
+                      totalAmount={payment.amount_paid}
+                      allocations={payment.allocations || []}
+                    />
                   </TableCell>
                 </TableRow>
-              ) : (
-                paginatedData.map((payment) => (
-                  <TableRow key={payment.id} className="hover:bg-muted/50">
-                    <TableCell className="text-center">
-                      <Checkbox 
-                        checked={selectedIds.includes(payment.id)}
-                        onCheckedChange={() => toggleOne(payment.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-paragraph-small text-muted-foreground">
-                      {payment.transaction_id}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums text-emerald-600 text-paragraph-small">
-                      {formatCurrency(payment.amount_paid)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {payment.is_mixed ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help">
-                                <Split className="mr-1 h-3 w-3" /> Mixed
-                              </Badge>
-                            }
-                          />
-                          <TooltipContent side="top" className="w-64 text-center">
-                            Auto-allocated across Annual and Monthly dues
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Badge variant="outline" className={payment.has_annual ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}>
-                          {payment.has_annual ? 'Annual' : 'Monthly'}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center text-paragraph-small text-muted-foreground">
-                      {payment.payment_method === 'M_Pesa' ? 'M-Pesa' : payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'}
-                    </TableCell>
-                    <TableCell className="text-paragraph-small text-muted-foreground">
-                      {formatDate(payment.payment_date)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <AllocationBreakdownDialog 
-                        transactionId={payment.transaction_id}
-                        totalAmount={payment.amount_paid}
-                        allocations={payment.allocations || []}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </TableShell>
 
         <DataTablePagination
           currentPage={currentPage}
