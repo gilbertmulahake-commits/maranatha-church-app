@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { HeroKpi } from '@/components/dashboard/hero-kpi'
 import { RecentPayments } from '@/components/dashboard/recent-payments'
 
+import { KpiGrid } from '@/components/ui/kpi-grid'
+
 async function DashboardContent() {
   await connection()
 
@@ -105,12 +107,12 @@ export default function DashboardPage() {
             <Skeleton className="h-[240px] rounded-2xl lg:col-span-8" />
             <Skeleton className="h-[240px] rounded-xl lg:col-span-4" />
           </div>
-          <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+          <KpiGrid>
             <Skeleton className="h-[140px] rounded-xl" />
             <Skeleton className="h-[140px] rounded-xl" />
             <Skeleton className="h-[140px] rounded-xl" />
             <Skeleton className="h-[140px] rounded-xl" />
-          </div>
+          </KpiGrid>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
             <Skeleton className="h-[380px] rounded-xl lg:col-span-2" />
             <Skeleton className="h-[380px] rounded-xl" />

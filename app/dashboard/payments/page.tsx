@@ -5,6 +5,8 @@ import { PaymentsKpiCards } from '@/components/payments/payments-kpi-cards'
 import { PaymentsTable } from '@/components/payments/payments-table'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import { KpiGrid } from '@/components/ui/kpi-grid'
+
 async function PaymentsContent() {
   await connection()
   const { payments, stats } = await getPayments()
@@ -30,12 +32,12 @@ export default function PaymentsPage() {
       <Suspense
         fallback={
           <div className="space-y-xl">
-            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+            <KpiGrid>
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
-            </div>
+            </KpiGrid>
             <Skeleton className="h-[600px] rounded-xl" />
           </div>
         }

@@ -1,10 +1,12 @@
 "use client"
 
 import { Banknote, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LocalChurchStats } from '@/lib/actions/local-actions'
 import { StackedBar } from '@/components/dashboard/stacked-bar'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
 
 interface Props {
   stats: LocalChurchStats
@@ -42,14 +44,14 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
   const monthlyDisplay = getPrimaryFigure(stats.monthlyOutstanding, stats.monthlyPaid)
 
   return (
-    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
+    <KpiGrid>
       
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Total Contributions</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue className="text-emerald-600">
             {formatCurrency(stats.totalPaid)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
               <Banknote className="h-3 w-3 mr-1" /> Lifetime
@@ -73,9 +75,9 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
       <Card className={`${cardClasses} ${activeFilter === 'Annual' ? activeClass : ''}`} onClick={() => onFilterChange?.('Annual')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Annual Fee</CardDescription>
-          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1 ${stats.annualStatus === 'N/A' ? 'text-muted-foreground' : annualDisplay.colorClass}`}>
+          <KpiValue className={stats.annualStatus === 'N/A' ? 'text-muted-foreground' : annualDisplay.colorClass}>
             {stats.annualStatus === 'N/A' ? 'N/A' : annualDisplay.amount}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             {getBadge(stats.annualStatus)}
           </CardAction>
@@ -97,9 +99,9 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
       <Card className={`${cardClasses} ${activeFilter === 'Monthly' ? activeClass : ''}`} onClick={() => onFilterChange?.('Monthly')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Monthly Fees</CardDescription>
-          <CardTitle className={`text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1 ${monthlyDisplay.colorClass}`}>
+          <KpiValue className={monthlyDisplay.colorClass}>
             {monthlyDisplay.amount}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             {getBadge(stats.monthlyStatus)}
           </CardAction>
@@ -121,9 +123,9 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Overall Compliance</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue>
             {stats.overallStatus}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
               <ShieldCheck className="h-3 w-3 mr-1" /> Status
@@ -142,6 +144,6 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
         </CardFooter>
       </Card>
 
-    </div>
+    </KpiGrid>
   )
 }

@@ -2,8 +2,12 @@
 
 import { useState, useMemo } from 'react'
 import { RegionalTable } from '@/components/regional/regional-table'
+
 import { StackedBar } from '@/components/dashboard/stacked-bar'
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
+
+import { Card, CardAction, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Banknote, AlertTriangle, CheckCircle2, CalendarDays, CheckCircle } from 'lucide-react'
 import type { RegionalChurchData } from '@/lib/actions/regional-actions'
@@ -85,14 +89,13 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
 
   return (
     <div className="@container space-y-xl">
-      <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
-        
+      <KpiGrid>
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>Region Collected</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+            <KpiValue>
               {formatCurrency(stats.totalCollected)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
                 <Banknote className="h-3 w-3" /> YTD
@@ -116,9 +119,9 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('Overdue')}>
           <CardHeader>
             <CardDescription>{inCredit ? 'Net Credit' : 'Region Arrears'}</CardDescription>
-            <CardTitle className={`text-heading-2 font-bold tabular-nums truncate ${inCredit ? 'text-emerald-600' : 'text-destructive '} @[250px]/card:text-heading-1`}>
+            <KpiValue className={inCredit ? 'text-emerald-600' : 'text-destructive'}>
               {formatCurrency(inCredit ? netCredit : stats.outstanding)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               {inCredit ? (
                 <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
@@ -155,9 +158,9 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('Paid')}>
           <CardHeader>
             <CardDescription>Compliance Rate</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+            <KpiValue>
               {periodCompliancePct.toFixed(1)}%
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
                 <CheckCircle2 className="h-3 w-3" /> {periodView === 'year' ? 'Annual' : 'Monthly'}
@@ -182,9 +185,9 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
         <Card className={cardClasses} onClick={() => setStatusFilter('All')}>
           <CardHeader>
             <CardDescription>This Month</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+            <KpiValue>
               {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline">
                 <CalendarDays className="h-3 w-3" /> Current
@@ -204,11 +207,11 @@ export function RegionDetailClient({ stats }: { stats: SingleRegionStats }) {
             </p>
           </CardFooter>
         </Card>
-      </div>
+      </KpiGrid>
 
       <RegionalTable
         churches={filteredChurches}
-        regionName={stats.regionName} // <-- FIXED: Added missing prop
+        regionName={stats.regionName}
         search={search}
         setSearch={setSearch}
         statusFilter={statusFilter}

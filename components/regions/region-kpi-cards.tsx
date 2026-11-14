@@ -1,9 +1,12 @@
 "use client"
 
 import { Banknote, AlertTriangle, ShieldCheck } from 'lucide-react'
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+
 import { StackedBar } from '@/components/dashboard/stacked-bar'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
 
 interface RegionStats {
   totalCollected: number
@@ -35,13 +38,13 @@ export function RegionKpiCards({ stats, onFilterChange }: Props) {
   const cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card"
 
   return (
-    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
+    <KpiGrid>
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Total Collected</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue>
             {formatCurrency(stats.totalCollected)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
               <Banknote className="h-3 w-3 mr-1" /> Portfolio
@@ -65,9 +68,9 @@ export function RegionKpiCards({ stats, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Needs Attention')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Total Arrears</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue className="text-destructive">
             {formatCurrency(stats.totalArrears)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 text-[10px] px-2 py-0.5">
               <AlertTriangle className="h-3 w-3 mr-1" /> Owed
@@ -92,9 +95,9 @@ export function RegionKpiCards({ stats, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Needs Attention')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Regions At Risk</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue>
             {stats.regionsAtRisk}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 text-[10px] px-2 py-0.5">
               <AlertTriangle className="h-3 w-3 mr-1" /> Action
@@ -114,9 +117,9 @@ export function RegionKpiCards({ stats, onFilterChange }: Props) {
       <Card className={cardClasses}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Top Region</CardDescription>
-          <CardTitle className="text-heading-2 font-bold truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue>
             {stats.topRegionName}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
               <ShieldCheck className="h-3 w-3 mr-1" /> {stats.topRegionPct.toFixed(1)}%
@@ -132,6 +135,6 @@ export function RegionKpiCards({ stats, onFilterChange }: Props) {
           </p>
         </CardFooter>
       </Card>
-    </div>
+    </KpiGrid>
   )
 }
