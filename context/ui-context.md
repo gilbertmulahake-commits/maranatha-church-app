@@ -122,14 +122,42 @@ Every KPI row across the system (National, Regional, Local, Payments, Churches) 
 
 ## 6. Data Table & Toolbar Standard
 No table should ever be rendered without the `<TableToolbar>` component.
+
+### 6.1 Toolbar
 - **Toolbar:** Includes Title, Subtitle (scope), Search (`md:w-[300px]` fixed on desktop, `w-full` on mobile), Filters (Status/Region), and a Bulk Action Bar.
 - **Period Toggle:** Use `<Select>` on mobile, `<Button>` group on desktop (`md:hidden` / `hidden md:flex` pattern).
 - **Icon-Only Buttons:** Print and Export buttons must hide their text below `lg` (`<span className="hidden lg:inline">Label</span>`) and show only the icon.
-- **Checkboxes:** **EVERY** table must have a `<Checkbox>` column as the first column. 
 - **Bulk Action Bar:** Appears when checkboxes are selected. Shows count and action buttons (e.g., "Send Reminders", "Print", or "Export Selected").
+
+### 6.2 Table Structure - `<TableShell>` MANDATORY
+- **ALWAYS wrap the table in `<TableShell>` from `components/ui/table-shell.tsx`.**
+- **NEVER** re-implement the `rounded-xl border border-border bg-card shadow-sm overflow-x-auto` wrapper inline.
+- **NEVER use `overflow-hidden` on the table wrapper** — it silently clips columns on tablet/mobile. The `<TableShell>` component uses `overflow-x-auto` (per Section 9's rule) so wide tables scroll horizontally instead of hiding data.
+- **To change the table framing:** edit `components/ui/table-shell.tsx` — one file, all 7 tables.
+
+**Correct:**
+```tsx
+<TableShell>
+  <TableHeader>...</TableHeader>
+  <TableBody>...</TableBody>
+</TableShell>
+```
+
+**Wrong (forbidden):**
+```tsx
+<div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+  <Table>
+    ...
+  </Table>
+</div>
+```
+
+### 6.3 Standard Table Elements
+- **Checkboxes:** **EVERY** table must have a `<Checkbox>` column as the first column.
 - **Exports:** Every table must use the custom `<ExportDropdown>` component (providing CSV, Excel, and PDF options).
+- **Print Button:** All tables use `<PrintButton>` from `components/ui/print-button.tsx`. It is icon-only below `lg`, accepts an optional `children` prop for non-default labels (e.g., `<PrintButton onClick={handlePrint}>Print Receipt</PrintButton>`), and defaults to "Print" when no children are provided.
 - **Export Interceptor:** When a user clicks a global Print/Export button in the toolbar while rows are selected, a `<ExportConfirmDialog>` must intercept and ask for confirmation (Export All vs Export Selected). Direct bulk exports bypass the prompt.
-- **Structure:** Always wrap the `<Table>` in `<div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">`. Table rows must use `hover:bg-muted/50`.
+- **Table Rows:** Must use `hover:bg-muted/50`.
 - **Financial Cells:** Must use `text-right font-medium tabular-nums`.
 
 ## 7. Component Standards (shadcn/ui & Tailwind)
@@ -158,7 +186,7 @@ We strictly use shadcn/ui (Base UI variant).
 ## 9. Responsive Design & Layout
 - **KPI Cards:** Always wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. See Section 5.1. Never re-implement the grid class inline. Never apply `text-heading-*` to KPI numbers inline — use `<KpiValue>`.
 - **Charts:** `grid grid-cols-1 gap-md lg:grid-cols-3` (Area Chart takes 2 cols, Doughnut takes 1).
-- **Data Tables:** Always wrap tables in `overflow-x-auto`. Hide non-essential columns on smaller screens.
+- **Data Tables:** Always use `<TableShell>` (which provides `overflow-x-auto`). Never use `overflow-hidden` on a table wrapper — it clips columns on narrow screens. Hide non-essential columns on smaller screens.
 
 ## 10. Interaction, Animations & UX Rules
 - **Transitions:** All interactive elements must have `transition-colors` or `transition-all duration-200`.

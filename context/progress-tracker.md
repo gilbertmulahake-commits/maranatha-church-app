@@ -3,10 +3,10 @@
 Update this file after every meaningful implementation change.
 
 ## Current Phase
-Pre-UAT — SYSTEM_ADMIN Role Addition
+Post-MVP — Table Componentization
 
 ## Current Goal
-Implement Unit 15.6 to secure vendor access before handing over client credentials.
+Extract `<TableShell>` and `<PrintButton>` components, migrate all 7 tables to use them, and fix the `overflow-hidden` column-clipping bug (per `ui-context.md` Section 9 which specifies `overflow-x-auto`). After this, proceed to Unit 15.6 (SYSTEM_ADMIN role).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -64,17 +64,47 @@ Implement Unit 15.6 to secure vendor access before handing over client credentia
   - Wired up all environment variables (Supabase Production DB, AT Sandbox, etc.).
   - Ran `npx prisma7 migrate deploy` to push local migrations to the live Supabase database.
   - Fixed AT Sandbox `404 InvalidSenderId` by removing the literal `from: 'sandbox'` parameter (AT default shortcode is used instead).
+- **Post-MVP: Dashboard Reconciliation (merged)**
+  - `lib/actions/scoring-actions.ts` — rewrote `getRegionalScores` compliance calculation to use **Strict Bucket Isolation** (matches National KPI definition). Was previously using aggregate `totalPaid >= totalExpected`, causing the Regional Leaderboard to over-count compliant churches.
+  - `components/dashboard/kpi-cards.tsx` — badge changed `YTD` → `All Time` on Total Collected card (the number is lifetime, label was misleading).
+  - Removed rogue `cn` npm package (legacy artifact causing 6 shadcn primitives to fail: `button`, `calendar`, `label`, `popover`, `progress`, `select`). All 6 fixed to import from `@/lib/utils`.
+  - Removed unused `@tanstack/react-table`.
+- **Post-MVP: Net Credit Label (merged)**
+  - `kpi-cards.tsx` — `Network Net Credit` → `All-Time Net Credit`. The 10,500 KES discrepancy vs the YTD hero card is because the KPI card uses lifetime (2025+2026) while the hero uses YTD. Both correct; label now clarifies.
+- **Post-MVP: Region Edit Action (merged)**
+  - `components/regions/region-table.tsx` — "Edit Region" menu item was a dead button (no `onClick`). Wired up `EditRegionDialog` with `regionToEdit` state.
+- **Post-MVP: Responsive Toolbar (PR #29, merged)**
+  - `components/ui/table-toolbar.tsx` — full refactor:
+    - Search bar `md:w-[300px]` fixed on desktop, `w-full` on mobile (fixes collapse-to-icon bug).
+    - Period toggle: Base UI `<Select>` on mobile, `<Button>` group on desktop (`md:hidden` / `hidden md:flex` pattern).
+    - Print and Export buttons: icon-only below `lg`, full text at `lg+`.
+  - All 7 tables updated with icon-only Print button in `filterSlot`.
+- **Post-MVP: Responsive Shadcn Pattern (PR #30, merged)**
+  - `app/dashboard/layout.tsx` — added `mx-auto max-w-[1440px]` (prevents 4K stretch) + `@container/main` (enables sidebar-aware container queries).
+  - 15 KPI grids moved to `@[600px]:grid-cols-2` (2-col max at that point — since revised, see below).
+  - KPI density tuned: `p-4` headers/footers, `text-xs` labels, `text-[11px]` footers.
+- **Post-MVP: KPI System Extraction (commit 434083e, merged)**
+  - **`components/ui/kpi-grid.tsx`** (new) — 3-tier responsive grid: 1 col < 600px container, 2 cols 600–1100px, 4 cols > 1100px. Requires `@container` ancestor.
+  - **`components/ui/kpi-value.tsx`** (new) — 3-tier responsive typography: `heading-3` base, `@[300px]/card:heading-2`, `@[420px]/card:heading-1`. Preserves `tabular-nums`, `font-bold`, `truncate`, `mt-1`. Color via `className`.
+  - **15 files migrated** — 7 KPI components + 8 page Suspense skeleton files.
+  - **`context/ui-context.md`** — Section 5 rewritten with `<KpiGrid>` / `<KpiValue>` standard; forbidden inline-grid example added; breakpoint documented as `1100px`.
+  - **Verification:** `tsc --noEmit` clean, `lint` clean, `build` 18/18 pages, all `findstr` checks pass.
 
 ## In Progress
-- None.
+- **Table Componentization** — extract 3 shared components, migrate 7 tables:
+  - `components/ui/table-shell.tsx` (new) — wrapper with `overflow-x-auto` (fixes column-clipping bug).
+  - `components/ui/print-button.tsx` (new) — icon-only on mobile, custom `children` for labels.
+  - `components/ui/export-dropdown.tsx` — verify icon-only behavior present from PR #29 (may need no change).
+  - Migrate 7 tables: `church-table`, `payments-table`, `region-table`, `regional-table`, `arrears-table`, `cashbook-table`, `local-payment-history`.
 
 ## Next Up
-- **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts** (Blocking Pre-UAT)
+- **Unit 15.6: SYSTEM_ADMIN Role & Protected User Accounts** (Blocking Pre-UAT) — spec exists at `context/specs/15.6-system-admin-role.md`.
   - Add `SYSTEM_ADMIN` to Role enum.
   - Create `lib/auth/protected-users.ts`.
   - Enforce protection in `user-actions.ts`.
   - Update `proxy.ts` and sidebar.
   - Vendor creates own SYSTEM_ADMIN account via Supabase Dashboard.
+- **Then:** 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -83,27 +113,33 @@ Implement Unit 15.6 to secure vendor access before handing over client credentia
 - **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the webhook. Requires a manual entry UI for National HQ. (Addressed in Unit 17).
 
 ## Architecture Decisions
-- **SYSTEM_ADMIN Role:** Added to preserve vendor access post-handover. Protected at app layer via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN.
-- **Post-deployment backlog structured into** 15.6 → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
-- **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. It is excluded from all financial calculations and can be activated or removed without migrations.
-- **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. This enables admin-created payment categories without schema changes.
+- **KPI Grid — `<KpiGrid>`:** All KPI rows wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. Never inline `grid grid-cols-*` for a KPI row. 3-tier: 1 col < 600px container, 2 cols 600–1100px, 4 cols > 1100px. To change the standard, edit the component — one file, not 15.
+- **KPI Value — `<KpiValue>`:** All KPI numbers use `<KpiValue>` from `components/ui/kpi-value.tsx`. Never inline `text-heading-*` or `truncate` on a KPI number. Color via `className` (e.g., `<KpiValue className="text-destructive">`). 3-tier font: `heading-3` base → `heading-2` at 300px → `heading-1` at 420px.
+- **Table Toolbar — `<TableToolbar>`:** All tables use the shared toolbar (search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` period toggle on mobile, icon-only Print/Export below `lg`).
+- **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
+- **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts` (Unit 15.6 pending). Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN.
+- **Post-deployment backlog structured into** table extraction → 15.6 → 15.7 → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
+- **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
-- **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes.
-- **KPI Cards:** All cards use `text-heading-2 font-bold tabular-nums truncate` for the main figure, and `CardAction` uses `shrink-0` to prevent overlap.
-- **Tables:** All tables use `TableToolbar`, checkboxes for bulk selection, and shadcn `<Table>` primitives.
-- **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions are intercepted by `<ExportConfirmDialog>` to clarify the scope.
-- **Dialogs:** The base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, and `text-heading-3` for alerts.
+- **Design System:** Strict use of semantic tokens defined in `globals.css`. No hardcoded hexes. Custom Figma tokens protected by `twMerge` extension in `lib/utils.ts`.
+- **Tables:** All tables use `<TableToolbar>`, checkboxes for bulk selection, and shadcn `<Table>` primitives. **Structure will be wrapped in `<TableShell>` from `components/ui/table-shell.tsx` once table componentization lands** — `TableShell` uses `overflow-x-auto` so wide tables scroll horizontally instead of clipping columns.
+- **Print/Export Buttons:** All tables will use `<PrintButton>` and `<ExportDropdown>` (both icon-only below `lg`). `PrintButton` accepts custom `children` for non-default labels.
+- **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions intercepted by `<ExportConfirmDialog>` to clarify scope.
+- **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts.
 - **Next.js 16:** All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component.
 - **Financial Ledger:** Cumulative lifetime calculation via `getExpectedUpToDate()`. Strict Bucket Isolation applies across all tables, KPIs, and SMS messages.
-- **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Attribution is handled purely via the `PaymentAllocation` table.
+- **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Attribution handled purely via the `PaymentAllocation` table.
 - **Migration Baseline Repair (Unit 15 Phase 1):** The remote DB had 2 orphan `_prisma_migrations` records (`init`, `add_user_model`) with no corresponding local files. Repaired by (1) backing up via `pg_dump`, (2) clearing `_prisma_migrations`, (3) generating a fresh baseline migration from the current schema, and (4) marking it applied. Going forward: **no `db push`, no `migrate reset` on real data, commit all migrations, backup before any destructive operation.**
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
+- **Current HEAD:** `434083e` on `main` (KPI system extraction merged).
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** that is invisible and immutable to the client's National Treasurer.
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
+- **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase.
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
 - **Stable Stack (Do Not Blindly Upgrade):** Next.js 16, Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
 - **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper.
@@ -117,9 +153,16 @@ Implement Unit 15.6 to secure vendor access before handing over client credentia
 - **`use-mobile.ts` Refactor:** Refactored from `useEffect` + `setState` to `useSyncExternalStore` to satisfy `react-hooks/set-state-in-effect`. Do not revert.
 - **`sendBulkReminders` Signature:** Now takes exactly 2 arguments — `(recipients, senderRole)`. Do NOT reintroduce `periodView`.
 - **Prisma 7 CLI Syntax:** `migrate diff` uses `--to-schema` (not `--to-schema-datamodel`). Older Prisma tutorials may reference the old flag.
-- **`lib/utils.ts` twMerge Expansion:** During Phase 1 lint cleanup, the `twMerge` config in `lib/utils.ts` was expanded to register the full spacing scale across all directions (`pt`, `pb`, `pl`, `pr`, `mx`, `my`, `ml`, `mr`, `gap-x`, `gap-y`) using a shared `SPACING_SCALE` constant. This was **not** a reset — the protected `extendTailwindMerge` block is intact. Do not revert. Prevents silent class-drop bugs in components using directional spacing tokens.
+- **`lib/utils.ts` twMerge Expansion:** The `twMerge` config in `lib/utils.ts` registers the full spacing scale across all directions (`pt`, `pb`, `pl`, `pr`, `mx`, `my`, `ml`, `mr`, `gap-x`, `gap-y`) using a shared `SPACING_SCALE` constant. This was **not** a reset — the protected `extendTailwindMerge` block is intact. Do not revert.
 - **Next.js Env Precedence:** Next.js loads `.env.production` automatically during `npm run build` with priority over `.env`. Having `.env.production` locally with empty values breaks builds (missing Supabase keys cause `/login` prerender errors). Convention: keep only `.env.production.example` locally; create the real `.env.production` exclusively on Vercel's server environment.
 - **Africa's Talking Endpoint Config:** `AFRICASTALKING_API_URL` defaults to production (`https://api.africastalking.com/version1/messaging`). For sandbox testing, override with `https://api.sandbox.africastalking.com/version1/messaging`. `.env.production.example` pre-sets the sandbox URL as a safe default — never accidentally bill live SMS credits during UAT.
 - **SMS Duplicate-Prevention:** `safeLogSms()` swallows `SmsLog` write failures so a successful AT send always returns `{ success: true }`. If you ever refactor `sendSms()`, preserve this invariant: **DB log failure must not surface as SMS-send failure** — otherwise UI retries cause duplicate messages.
 - **Africa's Talking Phone Format:** AT requires E.164 (`+254XXXXXXXXX`). The DB stores local format (`0XXXXXXXXX`). `normalizeKenyanPhone()` handles the conversion — never call the AT API with a raw DB phone value.
+- **Windows CMD `findstr` Quirk:** `findstr /S /C:"x" file1.tsx file2.tsx` with explicit file lists is unreliable — only processes the first path. Use directory wildcards (`findstr /S /C:"x" components\*.tsx`). Also: `findstr` without `/C:` treats spaces as OR separators, not literal. Always use `/C:"literal string"`.
+- **Git Pager Hang:** `git diff` and `git diff --stat` on large outputs trigger `less` pager. Use `git --no-pager diff` or press `q` to exit.
+- **File Encoding Mojibake:** Pasted file content sometimes shows `тАФ` instead of `—` or `ÔÇö` instead of `—`. Fix by saving with UTF-8 encoding in VS Code (bottom-right status bar → "Save with Encoding" → UTF-8).
+- **Container Query Requirement:** `@[Xpx]:` Tailwind arbitrary variants require `@container` on a nearest ancestor. Without it, they act like viewport width (wrong). `app/dashboard/layout.tsx` provides `@container/main`; KPI cards also have `@container/card` on the card wrapper for their own font tiers.
+- **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Proven extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`. Pending: `<TableShell>`, `<PrintButton>`.
+- **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
+- **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 ```
