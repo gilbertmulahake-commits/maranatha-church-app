@@ -4,8 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { isProtectedUser } from '@/lib/auth/protected-users'
+import { isNationalLevel } from '@/lib/auth/roles'
 
-// Validate incoming role against the Prisma Role enum
+// Validate incoming role against the Prisma Role enum.
+// Note: SYSTEM_ADMIN is intentionally excluded from this schema. 
+// Accounts with this role must be created manually via the Supabase Dashboard.
 const roleSchema = z.enum([
   'NATIONAL_TREASURER',
   'NATIONAL_OVERSEER',
@@ -76,8 +80,8 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     
-    // Security: Only National HQ can list users
-    if (!dbUser || !dbUser.role.includes('NATIONAL')) {
+    // Security: Only National HQ (and System Admin) can list users
+    if (!dbUser || !isNationalLevel(dbUser.role)) {
       return []
     }
 
@@ -89,7 +93,13 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
       orderBy: { created_at: 'desc' }
     })
 
-    return users.map(u => ({
+    // Unit 15.6: Filter out protected users if the viewer is NOT a SYSTEM_ADMIN
+    const isViewerSystemAdmin = dbUser.role === 'SYSTEM_ADMIN'
+    const filteredUsers = isViewerSystemAdmin 
+      ? users 
+      : users.filter(u => !isProtectedUser(u.id))
+
+    return filteredUsers.map(u => ({
       id: u.id,
       email: u.email,
       role: u.role,
@@ -116,7 +126,9 @@ export async function inviteUser(formData: FormData) {
     if (!user) return { error: 'Not authenticated' }
     
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!dbUser || !dbUser.role.includes('NATIONAL')) return { error: 'Unauthorized. Only National HQ can invite users.' }
+    if (!dbUser || !isNationalLevel(dbUser.role)) {
+      return { error: 'Unauthorized. Only National HQ can invite users.' }
+    }
 
     // 2. Extract Data
     const email = formData.get('email') as string

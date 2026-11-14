@@ -6,6 +6,8 @@ import { UsersTable } from '@/components/users/users-table'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Skeleton } from '@/components/ui/skeleton'
+// 🛡️ Import centralized RBAC helper
+import { isNationalLevel } from '@/lib/auth/roles'
 
 async function UsersContent() {
   await connection()
@@ -15,7 +17,10 @@ async function UsersContent() {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-  if (!dbUser || !dbUser.role.includes('NATIONAL')) {
+  
+  // 🛡️ FIX: Replaced hardcoded '.includes("NATIONAL")' with isNationalLevel().
+  // This correctly grants access to SYSTEM_ADMIN, NATIONAL_TREASURER, and NATIONAL_OVERSEER.
+  if (!dbUser || !isNationalLevel(dbUser.role)) {
     redirect('/dashboard')
   }
 
@@ -28,7 +33,8 @@ async function UsersContent() {
     }),
   ])
 
-  return <UsersTable users={users} regions={regions} churches={churches} />
+  // 🛡️ Pass viewerRole to the table for UI defense-in-depth
+  return <UsersTable users={users} regions={regions} churches={churches} viewerRole={dbUser.role} />
 }
 
 export default function UsersPage() {

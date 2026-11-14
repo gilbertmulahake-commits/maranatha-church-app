@@ -24,15 +24,8 @@ import {
 } from '@/components/ui/sidebar'
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
-
-type Role =
-  | 'NATIONAL_TREASURER'
-  | 'NATIONAL_OVERSEER'
-  | 'REGIONAL_CHAIRMAN'
-  | 'REGIONAL_TREASURER'
-  | 'LOCAL_PASTOR'
-  | 'CHURCH_TREASURER'
-  | null
+import { Role } from '@prisma/client'
+import { isNationalLevel, isRegionalLevel } from '@/lib/auth/roles'
 
 // FIXED: Use Tabler's `Icon` type (matches NavMain's expected prop)
 type NavItem = {
@@ -41,11 +34,13 @@ type NavItem = {
   icon: Icon
 }
 
-export function AppSidebar({ role, userEmail }: { role: Role; userEmail?: string }) {
+export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?: string }) {
   let navMain: NavItem[] = []
   let navSecondary: NavItem[] = []
 
-  if (role === 'NATIONAL_TREASURER' || role === 'NATIONAL_OVERSEER') {
+  // 🛡️ Using centralized RBAC helpers instead of hardcoded string arrays.
+  // SYSTEM_ADMIN is included in NATIONAL_ROLES, so it inherits full access.
+  if (isNationalLevel(role)) {
     navMain = [
       { title: 'Dashboard', url: '/dashboard', icon: IconLayoutDashboard },
       { title: 'Regions', url: '/dashboard/regions', icon: IconMapPin },
@@ -55,7 +50,7 @@ export function AppSidebar({ role, userEmail }: { role: Role; userEmail?: string
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
       { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt },
     ]
-  } else if (role === 'REGIONAL_CHAIRMAN' || role === 'REGIONAL_TREASURER') {
+  } else if (isRegionalLevel(role)) {
     navMain = [
       { title: 'Regional Dashboard', url: '/dashboard/regional', icon: IconLayoutDashboard },
       { title: 'Regional Payments', url: '/dashboard/payments', icon: IconCreditCard },
