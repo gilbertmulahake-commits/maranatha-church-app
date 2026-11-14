@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChurchProfileClient } from '@/components/churches/church-profile-client'
 import { getExpectedUpToDate, getPeriodStatus, getCreditBalance } from '@/lib/utils/financial'
 
+import { KpiGrid } from '@/components/ui/kpi-grid'
+
 async function ChurchProfileContent({ params }: { params: Promise<{ code: string }> }) {
   await connection()
   const resolvedParams = await params
@@ -164,12 +166,12 @@ export default function ChurchProfilePage({ params }: { params: Promise<{ code: 
               <Skeleton className="h-4 w-[150px]" />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+          <KpiGrid>
             <Skeleton className="h-32 w-full rounded-xl" />
             <Skeleton className="h-32 w-full rounded-xl" />
             <Skeleton className="h-32 w-full rounded-xl" />
             <Skeleton className="h-32 w-full rounded-xl" />
-          </div>
+          </KpiGrid>
           <Skeleton className="h-[400px] rounded-xl" />
         </div>
       }

@@ -4,6 +4,7 @@ import { getChurches, getChurchStats } from '@/lib/actions/church-actions'
 import { CreateChurchDialog } from '@/components/churches/create-church-dialog'
 import { ChurchDashboard } from '@/components/churches/church-dashboard'
 import { Skeleton } from '@/components/ui/skeleton'
+import { KpiGrid } from '@/components/ui/kpi-grid'
 
 async function ChurchesContent({
   searchParams,
@@ -48,12 +49,12 @@ export default function ChurchesPage({
       <Suspense
         fallback={
           <div className="space-y-xl">
-            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+            <KpiGrid>
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
               <Skeleton className="h-[140px] rounded-xl" />
-            </div>
+            </KpiGrid>
             <Skeleton className="h-[600px] rounded-xl" />
           </div>
         }

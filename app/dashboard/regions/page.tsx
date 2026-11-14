@@ -5,6 +5,8 @@ import { CreateRegionDialog } from '@/components/regions/create-region-dialog'
 import { RegionDashboard } from '@/components/regions/region-dashboard'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import { KpiGrid } from '@/components/ui/kpi-grid'
+
 async function RegionsContent() {
   await connection()
 
@@ -32,12 +34,12 @@ export default function RegionsPage() {
       <Suspense
         fallback={
           <div className="space-y-xl">
-            <div className="grid grid-cols-1 gap-md md:grid-cols-2 lg:grid-cols-4">
+            <KpiGrid>
               <Skeleton className="h-[120px] rounded-xl" />
               <Skeleton className="h-[120px] rounded-xl" />
               <Skeleton className="h-[120px] rounded-xl" />
               <Skeleton className="h-[120px] rounded-xl" />
-            </div>
+            </KpiGrid>
             <Skeleton className="h-[400px] rounded-xl" />
           </div>
         }

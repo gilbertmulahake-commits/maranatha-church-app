@@ -5,11 +5,13 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { RegionalStatsSuccess } from '@/lib/actions/regional-actions'
+
 import { StackedBar } from '@/components/dashboard/stacked-bar'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
 
 interface Props {
   stats: RegionalStatsSuccess
@@ -53,13 +55,13 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
     'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card'
 
   return (
-    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
+    <KpiGrid>
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>Region Collected</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+          <KpiValue>
             {formatCurrency(stats.totalCollected)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
               <Banknote className="h-3 w-3" /> YTD
@@ -91,9 +93,9 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Overdue')}>
         <CardHeader>
           <CardDescription>Region Arrears</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate @[250px]/card:text-heading-1">
+          <KpiValue className="text-destructive">
             {formatCurrency(stats.outstanding)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">
               <AlertTriangle className="h-3 w-3" /> Owed
@@ -125,9 +127,9 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('Paid')}>
         <CardHeader>
           <CardDescription>Compliance Rate</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+          <KpiValue>
             {periodCompliancePct.toFixed(1)}%
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
               <CheckCircle2 className="h-3 w-3" /> {periodView === 'year' ? 'Annual' : 'Monthly'}
@@ -152,9 +154,9 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
       <Card className={cardClasses} onClick={() => onFilterChange?.('All')}>
         <CardHeader>
           <CardDescription>This Month</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate @[250px]/card:text-heading-1">
+          <KpiValue>
             {formatCurrency(stats.thisMonthCollectedAnnual + stats.thisMonthCollectedMonthly)}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline">
               <CalendarDays className="h-3 w-3" /> Current
@@ -182,6 +184,6 @@ export function RegionalKpiCards({ stats, periodView, onFilterChange }: Props) {
           </div>
         </CardFooter>
       </Card>
-    </div>
+    </KpiGrid>
   )
 }

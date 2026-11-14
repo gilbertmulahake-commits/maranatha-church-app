@@ -46,7 +46,7 @@ Every number representing currency, percentages, or counts must use the `tabular
 ### Typographic Scale (Figma Mapped)
 - **Page Titles (`<h1>`):** `text-heading-2 font-bold text-foreground`
 - **Section Titles (`<h2>` in Toolbars):** `text-heading-4 font-bold tracking-tight`
-- **KPI Main Numbers:** `text-heading-2 font-bold tabular-nums truncate` (Note: We use `heading-2` instead of `heading-1` to prevent layout breakage when figures reach millions).
+- **KPI Main Numbers:** Handled by **`<KpiValue>`** from `components/ui/kpi-value.tsx`. **Never** apply `text-heading-*` inline to a KPI number. The component owns the 3-tier responsive font scale (see Section 5.2).
 - **Card Labels:** `text-paragraph-small text-muted-foreground`
 - **Table Headers:** `text-paragraph-small font-medium text-muted-foreground`
 - **Table Cells:** `text-paragraph-small text-foreground`
@@ -80,17 +80,51 @@ We do not use arbitrary values. We use a strict Tailwind scale.
 - **Toasts (Sonner):** `z-[200]`
 
 ## 5. KPI Card Standard
-Every KPI card across the system (National, Regional, Tabs) must follow this exact structure:
-1.  **Wrapper:** `cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card"`
-2.  **Header:** `<CardDescription>` (label), `<CardTitle>` (Main figure using `text-heading-2 font-bold tabular-nums truncate`), and a `<CardAction className="shrink-0">` (Badge).
-3.  **Footer:** 
-    - If using a `StackedBar`, **do not** repeat the "Annual X · Monthly Y" text below it. The StackedBar already has a legend.
-    - The footer should only contain the actionable context (e.g., "Target Exceeded", "Network Net Credit", or the percentage).
-    - *Never leave empty space or inconsistent margins.*
+Every KPI row across the system (National, Regional, Local, Payments, Churches) must follow this exact structure.
+
+### 5.1 The Grid Wrapper — MANDATORY
+- **ALWAYS wrap KPI rows in `<KpiGrid>` from `components/ui/kpi-grid.tsx`.**
+- **NEVER** re-implement the KPI grid class (`grid grid-cols-*`) inline in a component. The `<KpiGrid>` component owns the **3-tier responsive breakpoint**:
+  - **1 column** below 600px container
+  - **2 columns** 600–1100px container
+  - **4 columns** above 1100px container
+- **To change the standard:** edit `components/ui/kpi-grid.tsx` — **one file**, not 15.
+- **Requires `@container`** on an ancestor. `app/dashboard/layout.tsx` provides `@container/main`.
+- **Suspense skeletons MUST also use `<KpiGrid>`** so the loading state matches the real component (no layout shift).
+
+**Correct:**
+```tsx
+<KpiGrid>
+  <Card>...</Card>
+  <Card>...</Card>
+  <Card>...</Card>
+  <Card>...</Card>
+</KpiGrid>
+```
+
+**Wrong (forbidden):**
+```tsx
+<div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2 @[1100px]:grid-cols-4">
+  ...
+</div>
+```
+
+### 5.2 The Individual Card
+1. **Wrapper:** `cardClasses = "h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card"`
+2. **Header (`p-4 pb-2`):** `<CardDescription>` (label, `text-xs font-medium text-muted-foreground`), **`<KpiValue>`** from `components/ui/kpi-value.tsx` for the main figure, and a `<CardAction className="shrink-0">` (Badge).
+   - **`<KpiValue>` owns the responsive typography:** `text-heading-3` base, `@[300px]/card:text-heading-2`, `@[420px]/card:text-heading-1`.
+   - **Pass color via `className`** (e.g., `<KpiValue className="text-destructive">`, `<KpiValue className="text-emerald-600">`, or a ternary for dynamic colors).
+   - **Never** apply `text-heading-*` or `truncate` to the KPI number inline — the component handles both.
+3. **Footer (`p-4 pt-2`):**
+   - If using a `StackedBar`, **do not** repeat the "Annual X · Monthly Y" text below it. The StackedBar already has a legend.
+   - The footer should only contain the actionable context (e.g., "Target Exceeded", "All-Time Net Credit", or the percentage) in `text-[11px] text-muted-foreground`.
+   - *Never leave empty space or inconsistent margins.*
 
 ## 6. Data Table & Toolbar Standard
 No table should ever be rendered without the `<TableToolbar>` component.
-- **Toolbar:** Includes Title, Subtitle (scope), Search (`maxWidth: '24rem'`), Filters (Status/Region), and a Bulk Action Bar.
+- **Toolbar:** Includes Title, Subtitle (scope), Search (`md:w-[300px]` fixed on desktop, `w-full` on mobile), Filters (Status/Region), and a Bulk Action Bar.
+- **Period Toggle:** Use `<Select>` on mobile, `<Button>` group on desktop (`md:hidden` / `hidden md:flex` pattern).
+- **Icon-Only Buttons:** Print and Export buttons must hide their text below `lg` (`<span className="hidden lg:inline">Label</span>`) and show only the icon.
 - **Checkboxes:** **EVERY** table must have a `<Checkbox>` column as the first column. 
 - **Bulk Action Bar:** Appears when checkboxes are selected. Shows count and action buttons (e.g., "Send Reminders", "Print", or "Export Selected").
 - **Exports:** Every table must use the custom `<ExportDropdown>` component (providing CSV, Excel, and PDF options).
@@ -122,7 +156,7 @@ We strictly use shadcn/ui (Base UI variant).
 - **Bars/Lines:** Use `radius={[4, 4, 0, 0]}` for bar charts to give a soft, modern top edge.
 
 ## 9. Responsive Design & Layout
-- **KPI Cards:** `grid grid-cols-1 gap-md @[600px]:grid-cols-2`.
+- **KPI Cards:** Always wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. See Section 5.1. Never re-implement the grid class inline. Never apply `text-heading-*` to KPI numbers inline — use `<KpiValue>`.
 - **Charts:** `grid grid-cols-1 gap-md lg:grid-cols-3` (Area Chart takes 2 cols, Doughnut takes 1).
 - **Data Tables:** Always wrap tables in `overflow-x-auto`. Hide non-essential columns on smaller screens.
 
@@ -130,7 +164,7 @@ We strictly use shadcn/ui (Base UI variant).
 - **Transitions:** All interactive elements must have `transition-colors` or `transition-all duration-200`.
 - **Hover States:** Table rows must have `hover:bg-muted/50`. Buttons must have `hover:bg-primary/90`.
 - **Focus Rings:** All inputs/buttons must have `focus:ring-1 focus:ring-primary`.
-- **Loading States:** Always use `<Suspense>` with a `<Skeleton>` fallback matching the layout.
+- **Loading States:** Always use `<Suspense>` with a `<Skeleton>` fallback matching the layout. KPI skeletons must use `<KpiGrid>`.
 - **Empty States:** If a table or chart has no data, show a centered icon, a muted message, and a CTA button if applicable.
 - **Pagination:** Default to 15 rows per page.
 

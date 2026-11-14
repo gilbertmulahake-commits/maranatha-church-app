@@ -1,9 +1,12 @@
 "use client"
 
 import { Building2, CheckCircle, AlertTriangle } from 'lucide-react'
-import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+
 import { StackedBar } from '@/components/dashboard/stacked-bar'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
 
 interface Props {
   localStats: { total: number; compliant: number; partial: number; overdue: number; na: number }
@@ -16,14 +19,14 @@ export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props
   const viewLabel = periodView === 'year' ? 'annual view' : 'monthly view'
 
   return (
-    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
+    <KpiGrid>
       
       <Card className={cardClasses} onClick={() => onFilterChange('All')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Total Churches</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue>
             {localStats.total}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-[10px] px-2 py-0.5">
               <Building2 className="h-3 w-3 mr-1" /> {viewLabel}
@@ -48,9 +51,9 @@ export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props
       <Card className={cardClasses} onClick={() => onFilterChange('Paid')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Compliant</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-emerald-600 truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue className="text-emerald-600">
             {localStats.compliant}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
               <CheckCircle className="h-3 w-3 mr-1" /> {localStats.total > 0 ? ((localStats.compliant / localStats.total) * 100).toFixed(1) : 0}%
@@ -70,9 +73,9 @@ export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props
       <Card className={cardClasses} onClick={() => onFilterChange('Partial')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Partial</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-amber-600 truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue className="text-amber-600">
             {localStats.partial}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 text-[10px] px-2 py-0.5">
               <AlertTriangle className="h-3 w-3 mr-1" /> {localStats.total > 0 ? ((localStats.partial / localStats.total) * 100).toFixed(1) : 0}%
@@ -92,9 +95,9 @@ export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props
       <Card className={cardClasses} onClick={() => onFilterChange('Overdue')}>
         <CardHeader className="p-4 pb-2">
           <CardDescription className="text-xs font-medium text-muted-foreground">Overdue</CardDescription>
-          <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate mt-1 @[250px]/card:text-heading-1">
+          <KpiValue className="text-destructive">
             {localStats.overdue}
-          </CardTitle>
+          </KpiValue>
           <CardAction className="shrink-0">
             <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 text-[10px] px-2 py-0.5">
               <AlertTriangle className="h-3 w-3 mr-1" /> {localStats.total > 0 ? ((localStats.overdue / localStats.total) * 100).toFixed(1) : 0}%
@@ -111,6 +114,6 @@ export function ChurchKpiCards({ localStats, periodView, onFilterChange }: Props
         </CardFooter>
       </Card>
 
-    </div>
+    </KpiGrid>
   )
 }

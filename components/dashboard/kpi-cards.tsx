@@ -5,11 +5,13 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+
 import { StackedBar } from './stacked-bar'
+import { KpiGrid } from '@/components/ui/kpi-grid'
+import { KpiValue } from '@/components/ui/kpi-value'
 
 interface KpiCardsProps {
   stats: {
@@ -59,17 +61,16 @@ export function KpiCards({ stats }: KpiCardsProps) {
   const isThisMonthExceeded = stats.thisMonthCollectionPct > 100
 
   return (
-    <div className="grid grid-cols-1 gap-md @[600px]:grid-cols-2">
-      
+    <KpiGrid>
       {/* CARD 1: Total Collected */}
       <Link href="/dashboard/payments" className="block">
         <Card className={cardClasses}>
           {/* FIXED: Reduced padding and tightened typography */}
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">Total Collected</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+            <KpiValue>
               {formatCurrency(stats.totalCollected)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
                 <TrendingUp className="h-3 w-3 mr-1" /> All Time
@@ -102,9 +103,9 @@ export function KpiCards({ stats }: KpiCardsProps) {
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">Total Arrears</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums text-destructive truncate mt-1 @[250px]/card:text-heading-1">
+            <KpiValue className="text-destructive">
               {formatCurrency(stats.outstanding)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 text-[10px] px-2 py-0.5">
                 <AlertTriangle className="h-3 w-3 mr-1" /> Owed
@@ -139,9 +140,9 @@ export function KpiCards({ stats }: KpiCardsProps) {
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">Compliance Rate</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+            <KpiValue className="text-emerald-600">
               {stats.compliancePct.toFixed(1)}%
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
                 <Banknote className="h-3 w-3 mr-1" /> Rate
@@ -168,9 +169,9 @@ export function KpiCards({ stats }: KpiCardsProps) {
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">This Month</CardDescription>
-            <CardTitle className="text-heading-2 font-bold tabular-nums truncate mt-1 @[250px]/card:text-heading-1">
+            <KpiValue>
               {formatCurrency(stats.thisMonthCollections)}
-            </CardTitle>
+            </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-[10px] px-2 py-0.5">
                 <CalendarDays className="h-3 w-3 mr-1" /> Current
@@ -198,6 +199,6 @@ export function KpiCards({ stats }: KpiCardsProps) {
         </Card>
       </Link>
 
-    </div>
+    </KpiGrid>
   )
 }
