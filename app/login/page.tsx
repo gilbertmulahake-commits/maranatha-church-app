@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import Link from 'next/link' // ADDED
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -28,6 +29,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      // Hard reload clears Next.js Router Cache and React state
       window.location.replace('/dashboard')
     }
   }
@@ -44,7 +46,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="space-y-6" onSubmit={handleLogin} autoComplete="off">
+        <form className="space-y-6" onSubmit={handleLogin}>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
@@ -61,7 +63,16 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              {/* ADDED: Flex container for label and forgot password link */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link 
+                  href="/login/forgot-password" 
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 name="password"
