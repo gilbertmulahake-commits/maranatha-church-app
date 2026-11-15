@@ -197,7 +197,7 @@ export function RegionTable({
             <SelectTrigger className="h-9 w-full bg-card text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="start" sideOffset={0}>
               {['All', 'Needs Attention', 'On Track'].map(opt => (
                 <SelectItem key={opt} value={opt}>{opt}</SelectItem>
               ))}
@@ -316,7 +316,8 @@ export function RegionTable({
                           </Button>
                         }
                       />
-                      <DropdownMenuContent align="end" className="w-56">
+                      {/* FIXED: Added sideOffset={0} */}
+                      <DropdownMenuContent align="end" sideOffset={0} className="w-56">
                         <DropdownMenuGroup>
                           <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Actions

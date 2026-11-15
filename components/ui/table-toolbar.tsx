@@ -82,7 +82,7 @@ export function TableToolbar(props: TableToolbarProps) {
       <SelectTrigger className="h-9 w-full bg-card text-xs">
         <SelectValue placeholder="Status" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent align="start" sideOffset={0}>
         {statusOptions.map((opt) => (
           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
         ))}

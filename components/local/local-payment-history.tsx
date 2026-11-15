@@ -208,7 +208,7 @@ export function LocalPaymentHistory({
               <SelectTrigger className="h-9 w-full bg-card text-xs">
                 <SelectValue placeholder="All Methods" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="start" sideOffset={0}>
                 <SelectItem value="All">All Methods</SelectItem>
                 <SelectItem value="M-Pesa">M-Pesa</SelectItem>
                 <SelectItem value="Bank">Bank</SelectItem>
@@ -225,7 +225,7 @@ export function LocalPaymentHistory({
               <SelectTrigger className="h-9 w-full bg-card text-xs">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="start" sideOffset={0}>
                 {['All', 'Annual', 'Monthly', 'Mixed'].map(opt => (
                   <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                 ))}
