@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 15.10 — Executive Command Center (Dashboard V2) — **COMPLETE** (all 4 tiers shipped). See `context/architecture.md` and `context/ui-context.md` §5.3.
+Unit 16.1 (Password Reset) is complete. Next up: Unit 16.2 (User Lifecycle) or Unit 16.3 (Audit Log).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -130,13 +130,18 @@ Unit 15.10 — Executive Command Center (Dashboard V2) — **COMPLETE** (all 4 t
   - **Data Layer:** `dashboard-actions.ts` now returns `aging0_30`, `aging31_60`, `aging61_90`, `aging90_plus`, `totalCollectedThisWeek`, and `allTimeCollections`. `scoring-actions.ts` now returns `outstandingAmount`, `outstandingAnnual`, `outstandingMonthly` per region.
   - **Global Range Toggle:** Lifted to `dashboard-view.tsx` header (Week / Month / Year / All Time). Drives the Hero card, KPI cards, and chart simultaneously. Container queries (`@[Xpx]/dashboard`) keep it responsive across all 8 states.
   - **Architecture:** Split `app/dashboard/page.tsx` (pure Server Component) from `components/dashboard/dashboard-view.tsx` (Client Component holding `range` state) to satisfy the Server/Client boundary.
+- **Unit 16.1: Password Reset & Email Verification**
+  - Implemented full "Forgot Password" flow (`/login/forgot-password`).
+  - Implemented password update page (`/login/update-password`).
+  - **Critical Fix:** Switched from PKCE `?code=` flow to Supabase `token_hash` verification. Updated Supabase email template to use `{{ .TokenHash }}` to prevent Next.js SSR cookie/session race conditions. Flow verified end-to-end.
+  - **Infrastructure:** Configured Resend SMTP in Supabase to bypass Free Tier rate limits for UAT.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15.10 Phase 2 (UI Implementation):** Building the new "Action Center" card with the SMS CTA. Building the "Arrears Aging" chart. Enhancing the Leaderboard with the Arrears column.
-- **Then:** 16.x (Password Reset & Audit) → 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
+- **Unit 16.2: User Lifecycle** — Soft delete (`is_active` on User), force password reset, role change with audit trail.
+- **Then:** 16.3 (Audit Log) → 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -171,7 +176,7 @@ Unit 15.10 — Executive Command Center (Dashboard V2) — **COMPLETE** (all 4 t
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
-- **Current HEAD:** `32410f3` on `main` (Unit 15.7 merged; V2 Dashboard changes uncommitted).
+- **Current HEAD:** `c7da3a0` on `feat/16.1-password-reset` (Unit 16.1 pending merge). `main` is at `54cc925`.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer.
@@ -202,6 +207,8 @@ Unit 15.10 — Executive Command Center (Dashboard V2) — **COMPLETE** (all 4 t
 - **Component Extraction Discipline:** When 3+ files share a pattern, extract a component before editing them. Completed extractions: `<TableToolbar>`, `<ExportDropdown>`, `<DataTablePagination>`, `<ExportConfirmDialog>`, `<KpiGrid>`, `<KpiValue>`, `<TableShell>`, `<PrintButton>`. Pending: none — Unit 15i closed the last gap.
 - **Base UI `<Select>` Nullability:** Base UI's `<Select onValueChange>` signature passes `value: string | null` (cleared state). Never cast with `as string` — always guard with `if (val)` or widen the handler to accept `string | null`.
 - **Base UI `<TooltipTrigger>` Requirement:** A `<TooltipTrigger>` must always be wrapped inside `<Tooltip.Root>`. Do NOT conditionally return the trigger outside the root — Base UI will throw a runtime error.
+- **Supabase Auth PKCE Quirk:** For auth emails (Reset Password, Magic Links, Invites), the PKCE `?code=` exchange is unreliable in Next.js App Router due to `@supabase/ssr` auto-detection racing with manual exchange. Always use the `{{ .TokenHash }}` approach with `verifyOtp()`.
+- **SMTP Provider:** Supabase is configured to use Resend SMTP (`smtp.resend.com`). The Free Tier built-in email service is restricted to 3 emails/hour and pre-authorized addresses only. Do not revert to the built-in service.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 ```
