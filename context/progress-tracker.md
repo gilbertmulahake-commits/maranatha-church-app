@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 16.1 (Password Reset) is complete. Next up: Unit 16.2 (User Lifecycle) or Unit 16.3 (Audit Log).
+Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wired. Remaining: Region mutations, KCB webhook, and the `/dashboard/audit-logs` UI.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -135,13 +135,32 @@ Unit 16.1 (Password Reset) is complete. Next up: Unit 16.2 (User Lifecycle) or U
   - Implemented password update page (`/login/update-password`).
   - **Critical Fix:** Switched from PKCE `?code=` flow to Supabase `token_hash` verification. Updated Supabase email template to use `{{ .TokenHash }}` to prevent Next.js SSR cookie/session race conditions. Flow verified end-to-end.
   - **Infrastructure:** Configured Resend SMTP in Supabase to bypass Free Tier rate limits for UAT.
+- **Unit 16.2: User Lifecycle Management**
+  - Added `is_active` (soft delete) and `requires_password_reset` to `User` model.
+  - Enforced inactive user blocking in `app/dashboard/layout.tsx` (`redirect('/login?error=account_disabled')`).
+  - Enforced forced password reset in `app/dashboard/layout.tsx` (`redirect('/force-password-reset')`).
+  - Created `/force-password-reset` page (Server Component + Suspense wrapper) and `force-reset-form.tsx` (Client Component).
+  - Updated `UsersTable` with Status column (Active/Inactive/Reset Required) and Lifecycle actions (Change Role, Force Reset, Deactivate/Reactivate).
+  - Created `toggleUserStatus`, `forcePasswordReset`, `clearPasswordResetFlag`, `updatePasswordAndClearFlag`, `updateUserRole` server actions.
+  - **Critical Fix:** Fixed a Next.js 16 rendering bug on the `/force-password-reset` page by using `<Suspense>` and `await connection()`.
+- **Unit 16.3: System-Wide Audit Log (Partial)**
+  - Added `AuditLog` model to Prisma (`20261115211407_add_audit_log_system`).
+  - Created `lib/actions/audit-actions.ts` with `logAudit()` helper (wrapped in try/catch so audit failures never roll back main transactions).
+  - Wired `logAudit()` into `user-actions.ts` (6 actions: `USER_INVITED`, `USER_ACTIVATED`, `USER_DEACTIVATED`, `PASSWORD_RESET_FORCED`, `USER_ROLE_CHANGED`, `PASSWORD_CHANGED`).
+  - Wired `logAudit()` into `church-actions.ts` (3 actions: `CHURCH_CREATED`, `CHURCH_UPDATED`, `CHURCH_DELETED`).
+  - **Verified:** Live test confirmed `USER_DEACTIVATED` logs correctly with `before_data`, `after_data`, `actor_email`, and `metadata`.
 
 ## In Progress
-- None.
+- **Unit 16.3: System-Wide Audit Log (Partial)**
+  - Remaining Steps:
+    1. Wire `region-actions.ts` (`REGION_CREATED`, `REGION_UPDATED`, `REGION_DELETED`).
+    2. Wire `app/api/webhooks/kcb/route.ts` (`PAYMENT_RECEIVED` with allocation details).
+    3. Build `/dashboard/audit-logs` page (table with filters, RBAC, CSV export).
+    4. Commit and close Unit 16.3.
 
 ## Next Up
-- **Unit 16.2: User Lifecycle** — Soft delete (`is_active` on User), force password reset, role change with audit trail.
-- **Then:** 16.3 (Audit Log) → 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
+- **Unit 16.5: Client Admin Roles** (ADMIN1/ADMIN2) — Now safe to build because every admin action is auditable.
+- **Then:** 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -156,7 +175,7 @@ Unit 16.1 (Password Reset) is complete. Next up: Unit 16.2 (User Lifecycle) or U
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard) → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 (in progress) → 16.5 → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -174,12 +193,14 @@ Unit 16.1 (Password Reset) is complete. Next up: Unit 16.2 (User Lifecycle) or U
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Attribution handled purely via the `PaymentAllocation` table.
 - **Migration Baseline Repair (Unit 15 Phase 1):** The remote DB had 2 orphan `_prisma_migrations` records (`init`, `add_user_model`) with no corresponding local files. Repaired by (1) backing up via `pg_dump`, (2) clearing `_prisma_migrations`, (3) generating a fresh baseline migration from the current schema, and (4) marking it applied. Going forward: **no `db push`, no `migrate reset` on real data, commit all migrations, backup before any destructive operation.**
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
+- **Audit Log System (Unit 16.3):** Append-only table. `logAudit()` must be called *after* successful mutations and must NEVER throw (wrapped in try/catch). `before_data` and `after_data` contain JSON snapshots for forensic recovery.
+- **User Lifecycle (Unit 16.2):** Soft delete via `is_active`. Forced resets via `requires_password_reset` flag + `force-password-reset` fallback page. Enforced directly in the dashboard layout.
 
 ## Session Notes
-- **Current HEAD:** `c7da3a0` on `feat/16.1-password-reset` (Unit 16.1 pending merge). `main` is at `54cc925`.
+- **Current HEAD:** `66b03ef` on `feat/16.3-audit-log-system`. `main` is at `54cc925`.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
-- **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer.
+- **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer. *(Note: Audit logs show a typo `gilbertmulaha.ke@gmail.com` — needs fixing before handover).*
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase.
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.

@@ -52,7 +52,7 @@ Not originally planned, but necessary to fix production bugs discovered after de
 - **15e. Responsive Shadcn Pattern (PR #30)** ✅ — `mx-auto max-w-[1440px]` on dashboard layout (prevents 4K stretch), `@container/main` for container queries, KPI density tuned (p-4 headers/footers, text-xs labels).
 - **15f. KPI System Extraction (PR #31)** ✅ — Created `<KpiGrid>` (3-tier responsive grid) and `<KpiValue>` (3-tier responsive typography). Migrated all 15 KPI locations (7 components + 8 Suspense skeletons).
 - **15g. Table Components Extracted (PR #32)** ✅ — Created `<TableShell>` (wrapper with `overflow-x-auto` — fixes column-clipping bug) and `<PrintButton>` (icon-only on mobile, custom label support).
-- **15h. 7-Table Migration (PR #33, commit `80551c7`)** ✅ — All 7 tables migrated to `<TableShell>` + `<PrintButton>`: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`.
+- **15h. 7-Table Migration (PR #34, commit `80551c7`)** ✅ — All 7 tables migrated to `<TableShell>` + `<PrintButton>`: `church-table.tsx`, `payments-table.tsx`, `region-table.tsx`, `regional-table.tsx`, `arrears-table.tsx`, `cashbook-table.tsx`, `local-payment-history.tsx`.
   - **Fixes a real bug**: `overflow-hidden` on the old table wrapper silently clipped columns on tablet/mobile. `<TableShell>` uses `overflow-x-auto` so wide tables scroll horizontally instead of hiding data.
   - `TableFooter` (grand/daily totals) preserved **inside** `<TableShell>` in `arrears-table.tsx` and `cashbook-table.tsx`.
   - Verification: `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages, per-file `findstr` gate passed on all 7 files.
@@ -74,41 +74,52 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Additional fixes discovered during implementation: Auth Router Cache bug (ghost "Signing in..." state after logout), Base UI Tooltip collapse, legacy native `<select>` in `TableToolbar`.
 
 **Safety — Password Reset & Audit**
-17. **Unit 16.1: Password Reset & Email Verification**
+17. **Unit 16.1: Password Reset & Email Verification** ✅
     - Forgot Password flow, reset landing page, email verification enforcement.
-18. **Unit 16.2: User Lifecycle**
-    - Soft delete (`is_active` on User), force password reset, role change with audit trail.
-19. **Unit 16.3: Audit Log System**
-    - New `AuditLog` Prisma model, log all mutations, `/dashboard/audit-logs` page with filters + CSV export.
+    - **Critical:** Uses `{{ .TokenHash }}` (not PKCE `?code=`) to avoid Next.js SSR cookie race. Supabase SMTP is Resend (Free Tier rate limits bypassed).
+18. **Unit 16.2: User Lifecycle** ✅
+    - Soft delete (`is_active` on User), force password reset (`requires_password_reset`), role change with audit trail.
+    - Enforced in `app/dashboard/layout.tsx` (redirects inactive users and forced-reset users).
+    - `UsersTable` has Status column + Lifecycle actions (Change Role, Force Reset, Deactivate/Reactivate).
+19. **Unit 16.3: Audit Log System** (⏳ **IN PROGRESS — PARTIAL**)
+    - New `AuditLog` Prisma model ✅ (migration `20261115211407_add_audit_log_system`).
+    - `logAudit()` helper in `lib/actions/audit-actions.ts` ✅ (never throws — audit failures don't roll back main transactions).
+    - Wired: User mutations (6 actions ✅) + Church mutations (3 actions ✅).
+    - **Pending:** Region mutations (`REGION_CREATED`, `REGION_UPDATED`, `REGION_DELETED`), KCB webhook (`PAYMENT_RECEIVED`), and `/dashboard/audit-logs` UI page (table + filters + CSV export + RBAC gating).
+    - **Current branch:** `feat/16.3-audit-log-system`, HEAD `66b03ef`. See `HANDOFF_UNIT_16.3.md` for resume instructions.
+
+**Client Admin Roles**
+20. **Unit 16.5: Client Admin Roles (ADMIN1/ADMIN2)** (NEXT UP)
+    - Add two client-facing admin roles that sit below SYSTEM_ADMIN but above NATIONAL_TREASURER.
+    - Now safe to build because every admin action is auditable (Unit 16.3).
+    - Scope TBD — draft spec required before implementation.
 
 **Enhancement — Dashboard Polish**
-20. **Unit 15.8: Dashboard Experience Polish**
-    - Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link.
-21. **Unit 15.9: Dashboard Mini Tables**
-    - Mini Regions table (top 5 compliance), Mini Churches table (recent/at-risk).
-22. **Unit 15.10: Executive Command Center (Dashboard V2)** ✅ (this session)
+21. **Unit 15.10: Executive Command Center (Dashboard V2)** ✅ (this session)
     - Overhauled the National Dashboard layout to prioritize executive decision-making over generic data reporting.
     - **Tier 1 (Command Bar):** Hero Card (Expected-to-Date vs Target), Action Center (Arrears count + CTA to SMS).
     - **Tier 2 (Bucket Health):** Isolated Annual and Monthly KPIs, Compliance Snapshot (Counts, not percentages), Network Coverage KPI.
     - **Tier 3 (Analytics):** Arrears Aging Distribution (0-30, 31-60, 61-90, 90+ days) replacing the Doughnut chart.
     - **Tier 4 (Accountability):** Leaderboard with Arrears column + Region Breakdown Dialog, Live Feed moved to right side (5 cols).
-    
+
+> **Note on 15.8 and 15.9:** The original `15.8 (Dashboard Experience Polish)` and `15.9 (Dashboard Mini Tables)` units were **superseded by Unit 15.10 (V2 Dashboard)**. The V2 architecture absorbed the interactive live feed (Tier 4), replaced the doughnut chart with arrears aging (Tier 3), and added the region breakdown modal (Tier 4). Any residual sub-items (e.g., church profile modal on row select, functional "My Profile" link) can be verified during UAT and addressed as micro-fixes if needed.
+
 **Major Features — Payment Flows**
-23. **Unit 17: Unmatched Payments Queue & Manual Entry**
+22. **Unit 17: Unmatched Payments Queue & Manual Entry**
     - `UnmatchedPayment` model, Levenshtein fuzzy matching, `/dashboard/payments/unmatched` review UI, manual entry form for cash/cheques.
-24. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
+23. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
     - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
 
 **Onboarding & Support**
-25. **Unit 19: In-App Help & Onboarding**
+24. **Unit 19: In-App Help & Onboarding**
     - Tooltips, contextual help cards, `react-joyride` tour, `/help` page, help drawer.
 
 **Breakthrough — Real Bank Sandbox**
-26. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
-27. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
+25. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
+26. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
 
 **Polish — As Time Allows**
-28. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
-29. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
-30. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
-31. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)
+27. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
+28. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
+29. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
+30. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)

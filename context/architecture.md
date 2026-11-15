@@ -105,20 +105,54 @@
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table, allowing for mixed deposits and future prepayments without breaking reconciliation.
 - **Fund Accounting (Future):** All payments are currently split into `Annual` and `Monthly` buckets. In V2, the system will support arbitrary **Funds**. Each fund is a separate ledger. The Reconciliation Engine will route incoming funds based on a fund code included in the payment reference (e.g., `CH001-BUILD`).
 
-## 8. Future Schema Additions (V2 Planned)
+## 8. Schema Additions
 
-### UnmatchedPayment (Unit 17)
-For webhook payments that fail BillRefNumber matching. Required by Invariant #5.
-Fields: id, bank_reference, bank_name, raw_bill_ref, amount, payer_phone, raw_payload (JSON), status, suggested_church_id, assigned_church_id, assigned_payment_id, reviewed_by, reviewed_at, notes, created_at.
+### AuditLog (Unit 16.3) — ✅ IMPLEMENTED (Partial)
 
-### PaymentIntent (Unit 18)
+Migration: `20261115211407_add_audit_log_system`.
+
+**Purpose:** System-wide forensic audit trail for every critical mutation (users, churches, regions, payments). Append-only — no updates, no deletes, even by SYSTEM_ADMIN.
+
+**Fields:**
+- `id` (String, PK)
+- `actor_id` (String?) — Supabase Auth user ID; nullable for system actions
+- `actor_email` (String?) — Snapshot at time of action (survives user deletion)
+- `actor_role` (Role?) — Snapshot at time of action
+- `action` (String) — e.g., `USER_INVITED`, `CHURCH_UPDATED`, `PAYMENT_RECEIVED`
+- `entity` (String) — e.g., `User`, `Church`, `Region`, `Payment`
+- `entity_id` (String?) — PK of the affected record
+- `before_data` (Json?) — Full snapshot before mutation (null for CREATE)
+- `after_data` (Json?) — Full snapshot after mutation (null for DELETE)
+- `metadata` (Json?) — Extra context (e.g., IP address, alloc lines for payments)
+- `created_at` (DateTime, default now())
+
+**Indexes:** `created_at`, `actor_id`, `entity`, `action`.
+
+**Helper:** `lib/actions/audit-actions.ts` → `logAudit(payload)`.
+- **CRITICAL INVARIANT:** `logAudit()` must **NEVER throw**. It wraps its body in `try/catch` with `console.error` fallback. An audit failure must not roll back the main mutation it's logging.
+- **CRITICAL RULE:** Call `logAudit()` **AFTER** the main Prisma transaction succeeds — never inside it. Otherwise a logging failure would trigger transaction rollback, causing the mutation itself to be rolled back (opposite of what we want).
+
+**Wired mutations (as of Unit 16.3 partial):**
+- User: `USER_INVITED`, `USER_ACTIVATED`, `USER_DEACTIVATED`, `PASSWORD_RESET_FORCED`, `PASSWORD_CHANGED` (email recovery + forced reset), `USER_ROLE_CHANGED`
+- Church: `CHURCH_CREATED`, `CHURCH_UPDATED`, `CHURCH_DELETED`
+
+**Pending (Unit 16.3 remaining):**
+- Region mutations: `REGION_CREATED`, `REGION_UPDATED`, `REGION_DELETED`
+- KCB webhook: `PAYMENT_RECEIVED` (with `allocations` breakdown in `after_data`)
+- `/dashboard/audit-logs` UI page (table + filters + CSV export + RBAC gating: SYSTEM_ADMIN, NATIONAL_TREASURER, NATIONAL_OVERSEER only)
+
+### UnmatchedPayment (Unit 17 — Planned)
+
+For webhook payments that fail `BillRefNumber` matching. Required by Invariant #5.
+
+Fields: `id`, `bank_reference`, `bank_name`, `raw_bill_ref`, `amount`, `payer_phone`, `raw_payload` (JSON), `status`, `suggested_church_id`, `assigned_church_id`, `assigned_payment_id`, `reviewed_by`, `reviewed_at`, `notes`, `created_at`.
+
+### PaymentIntent (Unit 18 — Planned)
+
 For the guided payment wizard to track in-progress payments and match them to incoming webhooks within a time window.
-Fields: id, church_id, amount, payment_type, phone, status, matched_payment_id, created_by, expires_at, created_at.
 
-### AuditLog (Unit 16.3)
-System-wide mutation tracking for compliance. Every payment, church, user, and settings change is logged.
-Fields: id, user_id, action, entity, entity_id, metadata (JSON), ip_address, created_at.
-**Append-only**: no updates, no deletes, even by admin.
+Fields: `id`, `church_id`, `amount`, `payment_type`, `phone`, `status`, `matched_payment_id`, `created_by`, `expires_at`, `created_at`.
 
-### LoginHistory (Unit 16.4, optional)
-Track login attempts for security monitoring. Fields: id, user_id, ip_address, user_agent, success, created_at.
+### LoginHistory (Unit 16.4 — Optional, Not Yet Scheduled)
+
+Track login attempts for security monitoring. Fields: `id`, `user_id`, `ip_address`, `user_agent`, `success`, `created_at`.
