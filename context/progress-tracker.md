@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 15.8 — Dashboard Experience Polish (Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link).
+Unit 15.10 — Executive Command Center (Dashboard V2) — **COMPLETE** (all 4 tiers shipped). See `context/architecture.md` and `context/ui-context.md` §5.3.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -117,13 +117,26 @@ Unit 15.8 — Dashboard Experience Polish (Interactive live feed, Doughnut chart
   - **Sidebar auto-hide (mobile):** Added `usePathname` effect in `sidebar.tsx` — the mobile sheet closes automatically on route change.
   - **Sidebar minimize toggle (desktop):** Reverted an incorrect tooltip-wrapper change in `sidebar.tsx` that caused a Base UI runtime crash. Standard shadcn behavior confirmed working.
   - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 18/18 pages.
+- **Unit 15.8 & 15.9: Dashboard Experience Polish & Mini Tables (Architecture Blueprint Completed)**
+  - Rather than building the old Dashboard V1 layout, we completely re-architected the dashboard into an **Executive Command Center (V2)**.
+  - Defined the 4-Tier Layout: Command Bar (Hero + Action Center), Bucket Health (Annual KPI, Monthly KPI, Compliance Snapshot), Analytics (Arrears Aging replacing Doughnut), and Accountability (Enhanced Leaderboard).
+  - Created the `DashboardView` Client Component to manage the unified `range` state (`week | month | year | all`).
+  - Updated `dashboard-actions.ts` to pre-compute weekly, monthly, yearly, and all-time collection data.
+- **Unit 15.10: Executive Command Center (Dashboard V2) — COMPLETE (this session)**
+  - **Tier 1 Command Bar:** Hero KPI tracks Expected-to-Date (not year-end target), so the progress bar shows "Ahead of schedule" accurately. New `ActionCenter.tsx` component with arrears breakdown + direct "Send Reminders" CTA.
+  - **Tier 2 Bucket Health (3 KPI cards):** Annual Bucket (5,000/yr isolated), Monthly Bucket (500/mo isolated), Compliance Snapshot (raw counts Paid/Partial/Overdue/N/A — no misleading %). Dropped the redundant "This Period" card.
+  - **Tier 3 Analytics:** Replaced Doughnut with `ArrearsAging.tsx` (0-30, 31-60, 61-90, 90+ day buckets with escalation warning at 90+>25%).
+  - **Tier 4 Accountability:** Leaderboard now on the left (7 cols) with a new **Arrears** column. Live Feed on the right (5 cols). Row actions replaced `<Link>` with a `<Button>` that opens `RegionBreakdownDialog` (rank, compliance bar, arrears split, score, tier + "View Region Page" CTA). Modal width fixed by matching `create-church-dialog` pattern (`sm:max-w-[500px] min-w-[320px]`).
+  - **Data Layer:** `dashboard-actions.ts` now returns `aging0_30`, `aging31_60`, `aging61_90`, `aging90_plus`, `totalCollectedThisWeek`, and `allTimeCollections`. `scoring-actions.ts` now returns `outstandingAmount`, `outstandingAnnual`, `outstandingMonthly` per region.
+  - **Global Range Toggle:** Lifted to `dashboard-view.tsx` header (Week / Month / Year / All Time). Drives the Hero card, KPI cards, and chart simultaneously. Container queries (`@[Xpx]/dashboard`) keep it responsive across all 8 states.
+  - **Architecture:** Split `app/dashboard/page.tsx` (pure Server Component) from `components/dashboard/dashboard-view.tsx` (Client Component holding `range` state) to satisfy the Server/Client boundary.
 
 ## In Progress
 - None.
 
 ## Next Up
-- **Unit 15.8: Dashboard Experience Polish** — Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link.
-- **Then:** 15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish (see `context/specs/00-build-plan.md`).
+- **Unit 15.10 Phase 2 (UI Implementation):** Building the new "Action Center" card with the SMS CTA. Building the "Arrears Aging" chart. Enhancing the Leaderboard with the Arrears column.
+- **Then:** 16.x (Password Reset & Audit) → 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -137,7 +150,8 @@ Unit 15.8 — Dashboard Experience Polish (Interactive live feed, Doughnut chart
 - **Table Toolbar — `<TableToolbar>`:** All tables use the shared toolbar (search `md:w-[300px]` on desktop / `w-full` on mobile, Base UI `<Select>` period toggle on mobile, icon-only Print/Export below `lg`).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.8/15.9 → 16.x → 17 → 18 → 19 → 20/21 → polish.
+- **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard) → 16.x → 17 → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -157,7 +171,7 @@ Unit 15.8 — Dashboard Experience Polish (Interactive live feed, Doughnut chart
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 
 ## Session Notes
-- **Current HEAD:** `32410f3` on `main` (Unit 15.7 merged).
+- **Current HEAD:** `32410f3` on `main` (Unit 15.7 merged; V2 Dashboard changes uncommitted).
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor (me) will have a SYSTEM_ADMIN account** (`gilbertmulahake.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`) that is invisible and immutable to the client's National Treasurer.

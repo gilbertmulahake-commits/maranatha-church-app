@@ -1,4 +1,4 @@
-import { Banknote, TrendingUp, AlertTriangle, CalendarDays, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Target, Calendar, MapPin } from 'lucide-react'
 import {
   Card,
   CardAction,
@@ -9,37 +9,21 @@ import {
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 
-import { StackedBar } from './stacked-bar'
 import { KpiGrid } from '@/components/ui/kpi-grid'
 import { KpiValue } from '@/components/ui/kpi-value'
 
 interface KpiCardsProps {
   stats: {
-    totalCollected: number
     totalCollectedAnnual: number
     totalCollectedMonthly: number
-    totalExpected: number
     totalExpectedAnnual: number
     totalExpectedMonthly: number
-    
-    outstanding: number
-    outstandingAnnual: number
-    outstandingMonthly: number
-    
-    collectionPct: number
-    compliancePct: number
     compliantChurches: number
     partialChurches: number
     overdueChurches: number
+    naChurches: number
     totalChurches: number
     totalRegions: number
-
-    thisMonthCollectedAnnual: number
-    thisMonthCollectedMonthly: number
-    thisMonthCollections: number
-    thisMonthExpected: number
-    thisMonthCollectionPct: number
-    thisMonthTransactionCount: number
   }
 }
 
@@ -52,153 +36,182 @@ function formatCurrency(amount: number) {
 }
 
 export function KpiCards({ stats }: KpiCardsProps) {
-  // FIXED: Added @container/card to allow the card to respond to its own width
   const cardClasses =
     'h-full cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-md bg-gradient-to-t from-primary/5 to-card @container/card'
 
-  const netCredit = Math.max(0, stats.totalCollected - stats.totalExpected)
-  const isCollectionExceeded = stats.collectionPct > 100
-  const isThisMonthExceeded = stats.thisMonthCollectionPct > 100
+  const annualPct = stats.totalExpectedAnnual > 0 
+    ? (stats.totalCollectedAnnual / stats.totalExpectedAnnual) * 100 
+    : 0
+  const annualSurplus = Math.max(0, stats.totalCollectedAnnual - stats.totalExpectedAnnual)
+  const annualArrears = Math.max(0, stats.totalExpectedAnnual - stats.totalCollectedAnnual)
+
+  const monthlyPct = stats.totalExpectedMonthly > 0 
+    ? (stats.totalCollectedMonthly / stats.totalExpectedMonthly) * 100 
+    : 0
+  const monthlySurplus = Math.max(0, stats.totalCollectedMonthly - stats.totalExpectedMonthly)
+  const monthlyArrears = Math.max(0, stats.totalExpectedMonthly - stats.totalCollectedMonthly)
 
   return (
     <KpiGrid>
-      {/* CARD 1: Total Collected */}
-      <Link href="/dashboard/payments" className="block">
+      {/* CARD 1: Annual Bucket */}
+      <Link href="/dashboard/churches?bucket=annual" className="block">
         <Card className={cardClasses}>
-          {/* FIXED: Reduced padding and tightened typography */}
           <CardHeader className="p-4 pb-2">
-            <CardDescription className="text-xs font-medium text-muted-foreground">Total Collected</CardDescription>
-            <KpiValue>
-              {formatCurrency(stats.totalCollected)}
+            <CardDescription className="text-xs font-medium text-muted-foreground">
+              Annual Bucket (KES 5,000/yr)
+            </CardDescription>
+            <KpiValue className={annualPct >= 100 ? 'text-emerald-600' : annualPct >= 50 ? 'text-amber-600' : 'text-destructive'}>
+              {annualPct.toFixed(1)}%
             </KpiValue>
             <CardAction className="shrink-0">
-              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
-                <TrendingUp className="h-3 w-3 mr-1" /> All Time
+              <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 text-[10px] px-2 py-0.5">
+                <Target className="h-3 w-3 mr-1" /> Annual
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-            <StackedBar
-              segments={[
-                { label: `Annual ${formatCurrency(stats.totalCollectedAnnual)}`, value: stats.totalCollectedAnnual, color: 'bg-blue-500' },
-                { label: `Monthly ${formatCurrency(stats.totalCollectedMonthly)}`, value: stats.totalCollectedMonthly, color: 'bg-emerald-500' },
-              ]}
-              total={Math.max(stats.totalCollected, stats.totalExpected)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isCollectionExceeded ? (
+          <CardFooter className="flex-col items-start gap-1 text-xs p-4 pt-2">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Collected:</span>
+              <span className="font-bold text-foreground tabular-nums">{formatCurrency(stats.totalCollectedAnnual)}</span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Expected:</span>
+              <span className="font-medium text-foreground tabular-nums">{formatCurrency(stats.totalExpectedAnnual)}</span>
+            </div>
+            <p className="text-[11px] mt-1">
+              {annualPct >= 100 ? (
                 <span className="text-emerald-600 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Target Exceeded
+                  <CheckCircle2 className="h-3 w-3" /> Ahead by {formatCurrency(annualSurplus)}
                 </span>
               ) : (
-                `${stats.collectionPct.toFixed(1)}% of ${formatCurrency(stats.totalExpected)} expected`
+                <span className="text-destructive font-medium flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Behind by {formatCurrency(annualArrears)}
+                </span>
               )}
             </p>
           </CardFooter>
         </Card>
       </Link>
 
-      {/* CARD 2: Total Arrears (Gross) */}
-      <Link href="/dashboard/churches?status=Overdue" className="block">
+      {/* CARD 2: Monthly Bucket */}
+      <Link href="/dashboard/churches?bucket=monthly" className="block">
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
-            <CardDescription className="text-xs font-medium text-muted-foreground">Total Arrears</CardDescription>
-            <KpiValue className="text-destructive">
-              {formatCurrency(stats.outstanding)}
+            <CardDescription className="text-xs font-medium text-muted-foreground">
+              Monthly Bucket (KES 500/mo)
+            </CardDescription>
+            <KpiValue className={monthlyPct >= 100 ? 'text-emerald-600' : monthlyPct >= 50 ? 'text-amber-600' : 'text-destructive'}>
+              {monthlyPct.toFixed(1)}%
             </KpiValue>
             <CardAction className="shrink-0">
-              <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 text-[10px] px-2 py-0.5">
-                <AlertTriangle className="h-3 w-3 mr-1" /> Owed
+              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
+                <Calendar className="h-3 w-3 mr-1" /> Monthly
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-            {stats.outstanding > 0 && (
-              <StackedBar
-                segments={[
-                  { label: `Annual ${formatCurrency(stats.outstandingAnnual)}`, value: stats.outstandingAnnual, color: 'bg-red-500' },
-                  { label: `Monthly ${formatCurrency(stats.outstandingMonthly)}`, value: stats.outstandingMonthly, color: 'bg-amber-500' },
-                ]}
-              />
-            )}
-            <div className="flex flex-col gap-1 w-full mt-1">
-              {stats.outstanding === 0 && (
-                <p className="text-[11px] text-emerald-600 font-medium">All contributions are up to date.</p>
-              )}
-              {netCredit > 0 && (
-                <p className="text-[11px] text-emerald-600 font-medium">
-                  All-Time Net Credit: {formatCurrency(netCredit)}
-                </p>
-              )}
+          <CardFooter className="flex-col items-start gap-1 text-xs p-4 pt-2">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Collected:</span>
+              <span className="font-bold text-foreground tabular-nums">{formatCurrency(stats.totalCollectedMonthly)}</span>
             </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Expected:</span>
+              <span className="font-medium text-foreground tabular-nums">{formatCurrency(stats.totalExpectedMonthly)}</span>
+            </div>
+            <p className="text-[11px] mt-1">
+              {monthlyPct >= 100 ? (
+                <span className="text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Ahead by {formatCurrency(monthlySurplus)}
+                </span>
+              ) : (
+                <span className="text-destructive font-medium flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Behind by {formatCurrency(monthlyArrears)}
+                </span>
+              )}
+            </p>
           </CardFooter>
         </Card>
       </Link>
 
-      {/* CARD 3: Compliance Rate */}
+      {/* CARD 3: Compliance Snapshot */}
       <Link href="/dashboard/regions" className="block">
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
-            <CardDescription className="text-xs font-medium text-muted-foreground">Compliance Rate</CardDescription>
-            <KpiValue className="text-emerald-600">
-              {stats.compliancePct.toFixed(1)}%
+            <CardDescription className="text-xs font-medium text-muted-foreground">
+              Compliance Snapshot
+            </CardDescription>
+            <KpiValue className="text-foreground">
+              {stats.compliantChurches} / {stats.totalChurches}
             </KpiValue>
             <CardAction className="shrink-0">
-              <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
-                <Banknote className="h-3 w-3 mr-1" /> Rate
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                Fully Paid
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-            <StackedBar
-              segments={[
-                { label: `${stats.compliantChurches} paid`, value: stats.compliantChurches, color: 'bg-emerald-500' },
-                { label: `${stats.partialChurches} partial`, value: stats.partialChurches, color: 'bg-amber-500' },
-                { label: `${stats.overdueChurches} overdue`, value: stats.overdueChurches, color: 'bg-red-500' },
-              ]}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
+          <CardFooter className="flex-col items-start gap-1.5 text-xs p-4 pt-2">
+            <div className="flex items-center justify-between w-full">
+              <span className="flex items-center gap-1.5 text-emerald-600">
+                <CheckCircle2 className="h-3 w-3" /> Paid
+              </span>
+              <span className="font-bold text-foreground tabular-nums">{stats.compliantChurches}</span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="flex items-center gap-1.5 text-amber-600">
+                <AlertTriangle className="h-3 w-3" /> Partial
+              </span>
+              <span className="font-bold text-foreground tabular-nums">{stats.partialChurches}</span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="flex items-center gap-1.5 text-destructive">
+                <AlertTriangle className="h-3 w-3" /> Overdue
+              </span>
+              <span className="font-bold text-foreground tabular-nums">{stats.overdueChurches}</span>
+            </div>
+            {stats.naChurches > 0 && (
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center gap-1.5 text-muted-foreground">N/A</span>
+                <span className="font-bold text-muted-foreground tabular-nums">{stats.naChurches}</span>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-1 w-full">
               Across {stats.totalRegions} regions · {stats.totalChurches} churches
             </p>
           </CardFooter>
         </Card>
       </Link>
 
-      {/* CARD 4: This Month */}
-      <Link href="/dashboard/payments" className="block">
+      {/* CARD 4: Network Overview */}
+      <Link href="/dashboard/churches" className="block">
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
-            <CardDescription className="text-xs font-medium text-muted-foreground">This Month</CardDescription>
-            <KpiValue>
-              {formatCurrency(stats.thisMonthCollections)}
+            <CardDescription className="text-xs font-medium text-muted-foreground">
+              Network Coverage
+            </CardDescription>
+            <KpiValue className="text-foreground">
+              {stats.totalChurches}
             </KpiValue>
             <CardAction className="shrink-0">
               <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                <CalendarDays className="h-3 w-3 mr-1" /> Current
+                <MapPin className="h-3 w-3 mr-1" /> {stats.totalRegions} Regions
               </Badge>
             </CardAction>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-            <StackedBar
-              segments={[
-                { label: `Annual ${formatCurrency(stats.thisMonthCollectedAnnual)}`, value: stats.thisMonthCollectedAnnual, color: 'bg-blue-500' },
-                { label: `Monthly ${formatCurrency(stats.thisMonthCollectedMonthly)}`, value: stats.thisMonthCollectedMonthly, color: 'bg-emerald-500' },
-              ]}
-              total={Math.max(stats.thisMonthCollections, stats.thisMonthExpected)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isThisMonthExceeded ? (
-                <span className="text-emerald-600 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Target Exceeded
-                </span>
-              ) : (
-                `${stats.thisMonthCollectionPct.toFixed(1)}% of ${formatCurrency(stats.thisMonthExpected)} due this month`
-              )}
+          <CardFooter className="flex-col items-start gap-1.5 text-xs p-4 pt-2">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">Active</span>
+              <span className="font-bold text-foreground tabular-nums">{stats.totalChurches - stats.naChurches}</span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-muted-foreground">N/A (New)</span>
+              <span className="font-bold text-foreground tabular-nums">{stats.naChurches}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 w-full">
+              Total registered churches
             </p>
           </CardFooter>
         </Card>
       </Link>
-
     </KpiGrid>
   )
 }

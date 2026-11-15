@@ -1,3 +1,4 @@
+```markdown
 # UI Context & Design System (Enterprise Grade)
 
 ## 1. Design Philosophy
@@ -119,6 +120,25 @@ Every KPI row across the system (National, Regional, Local, Payments, Churches) 
    - If using a `StackedBar`, **do not** repeat the "Annual X · Monthly Y" text below it. The StackedBar already has a legend.
    - The footer should only contain the actionable context (e.g., "Target Exceeded", "All-Time Net Credit", or the percentage) in `text-[11px] text-muted-foreground`.
    - *Never leave empty space or inconsistent margins.*
+## 5.3 Executive Dashboard Layout (V2 Blueprint)
+The National Dashboard must follow a strict 4-tier architectural hierarchy to ensure the Treasurer can make decisions in under 30 seconds. Never revert to the generic KPI row layout.
+
+### Tier 1: The Command Bar
+- **Hero Card (Left):** Tracks "Schedule Adherence." The primary progress bar fills against **Expected-to-Date** (e.g., 105,500), NOT the Year-End Target (e.g., 121,000). Show YTD net credit here.
+- **Action Center (Right):** Replaces the Live Feed's top-right slot. Shows "Ksh X owed by Y churches" split by Annual/Monthly. **Must include a functional "Send Reminders" CTA.**
+
+### Tier 2: The Bucket Health Row (3 Cards)
+- **Annual Bucket:** Shows collected vs expected for the 5000/yr bucket. Isolated.
+- **Monthly Bucket:** Shows collected vs expected for the 500/mo bucket. Isolated.
+- **Compliance Snapshot:** Shows raw counts (Paid: X, Partial: Y, Overdue: Z). **Never use percentages here** (e.g., "27.3%" is misleading).
+
+### Tier 3: The Analytics Row (2 Charts)
+- **Collection Trend (7 cols):** Area chart with a global header toggle.
+- **Arrears Aging (5 cols):** Replaces the Doughnut chart. Stacked bar chart showing 0-30 / 31-60 / 61-90 / 90+ day buckets. This replaces the "Type" and "Channel" doughnut toggles.
+
+### Tier 4: Accountability & Activity (Bottom)
+- **Live Feed (Left):** Moved down to make room for the Action Center.
+- **Enhanced Leaderboard (Right):** Must include a column for "Arrears" so a region's financial health is fully transparent.
 
 ## 6. Data Table & Toolbar Standard
 No table should ever be rendered without the `<TableToolbar>` component.
@@ -175,6 +195,7 @@ We strictly use shadcn/ui (Base UI variant).
 - **Grouping:** Must always wrap labels and items inside `<DropdownMenuGroup>` to satisfy Base UI context requirements.
 - **Width:** All action dropdown menus must use `className="w-56"` and `whitespace-nowrap` to prevent text wrapping.
 - **Icons:** Lucide React. Stroke width `2` (default). Sizes: `h-4 w-4` inline, `h-5 w-5` for buttons, `h-3 w-3` inside badges.
+- **Alignment & Positioning:** All dropdowns must be explicitly aligned to their trigger button. Use `align="end"` for right-aligned actions (e.g., table row menus, profile menus). Use `align="start"` for left-aligned actions. Use `side="bottom"` and `sideOffset={4}` to ensure the dropdown sits perfectly top-aligned with the button's bottom edge without awkward floating gaps.
 
 ## 8. Data Visualization (Recharts)
 - **Compliance Doughnut:** The main dashboard doughnut chart displays Church Compliance (Paid, Partial, Overdue, N/A), NOT Payment Methods.
@@ -215,3 +236,4 @@ We use `Sonner` for all user feedback. Never use `alert()`.
 - **Contrast:** Text must meet WCAG AA ratios.
 - **Labels:** Every input must have an associated `<label>`.
 - **Semantic HTML:** Use `<button>` for buttons, `<a>` for links.
+```

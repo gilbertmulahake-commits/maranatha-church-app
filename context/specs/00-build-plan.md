@@ -1,4 +1,3 @@
-```markdown
 # Build Plan - Maranatha Church System
 
 This is the ordered list of units we will build. We will write a detailed spec for each unit before building it.
@@ -87,24 +86,29 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Interactive live feed, Doughnut chart enhancement, Church profile modal on row select, Functional "My Profile" link.
 21. **Unit 15.9: Dashboard Mini Tables**
     - Mini Regions table (top 5 compliance), Mini Churches table (recent/at-risk).
-
+22. **Unit 15.10: Executive Command Center (Dashboard V2)** ✅ (this session)
+    - Overhauled the National Dashboard layout to prioritize executive decision-making over generic data reporting.
+    - **Tier 1 (Command Bar):** Hero Card (Expected-to-Date vs Target), Action Center (Arrears count + CTA to SMS).
+    - **Tier 2 (Bucket Health):** Isolated Annual and Monthly KPIs, Compliance Snapshot (Counts, not percentages), Network Coverage KPI.
+    - **Tier 3 (Analytics):** Arrears Aging Distribution (0-30, 31-60, 61-90, 90+ days) replacing the Doughnut chart.
+    - **Tier 4 (Accountability):** Leaderboard with Arrears column + Region Breakdown Dialog, Live Feed moved to right side (5 cols).
+    
 **Major Features — Payment Flows**
-22. **Unit 17: Unmatched Payments Queue & Manual Entry**
+23. **Unit 17: Unmatched Payments Queue & Manual Entry**
     - `UnmatchedPayment` model, Levenshtein fuzzy matching, `/dashboard/payments/unmatched` review UI, manual entry form for cash/cheques.
-23. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
+24. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
     - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
 
 **Onboarding & Support**
-24. **Unit 19: In-App Help & Onboarding**
+25. **Unit 19: In-App Help & Onboarding**
     - Tooltips, contextual help cards, `react-joyride` tour, `/help` page, help drawer.
 
 **Breakthrough — Real Bank Sandbox**
-25. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
-26. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
+26. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
+27. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
 
 **Polish — As Time Allows**
-27. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
-28. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
-29. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
-30. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)
-```
+28. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
+29. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
+30. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
+31. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)

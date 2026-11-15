@@ -12,6 +12,9 @@ export type RegionalScoreData = {
   leadershipEngagement: number
   finalScore: number
   incentiveTier: 'Tier 1' | 'Tier 2' | 'Tier 3' | 'No Incentive'
+  outstandingAmount: number
+  outstandingAnnual: number
+  outstandingMonthly: number
 }
 
 /**
@@ -24,6 +27,9 @@ export type RegionalScoreData = {
  * Compliance uses `getExpectedUpToDate(church.created_at, now)` so that
  * year-end arrears carried forward from prior years correctly depress the
  * score — this is the whole point of the Unit 10.0 ledger upgrade.
+ *
+ * Also returns `outstandingAmount` per region (gross arrears, strict bucket isolation)
+ * so the Leaderboard can display arrears alongside compliance.
  */
 export async function getRegionalScores(): Promise<RegionalScoreData[]> {
   try {
@@ -31,7 +37,6 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
       include: {
         churches: {
           include: {
-            // FIXED: Include allocations to properly calculate bucket isolation
             payments: { 
               where: { status: 'Paid' },
               include: { allocations: true }
@@ -41,20 +46,18 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
       },
     })
 
-    // Capture "now" once so every church in every region is measured
-    // against exactly the same instant (avoids micro-drift if the loop
-    // crosses a minute/day boundary mid-iteration).
     const now = new Date()
 
     const scores = regions.map((region) => {
       let compliantChurches = 0
+      let outstandingAnnual = 0
+      let outstandingMonthly = 0
       const totalChurches = region.churches.length
 
       region.churches.forEach((church) => {
         let annualPaid = 0
         let monthlyPaid = 0
 
-        // Read from allocations for strict bucket isolation
         church.payments.forEach((p) => {
           if (p.allocations.length === 0) {
             const amount = Number(p.amount_paid)
@@ -69,32 +72,30 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
           }
         })
 
-        // Cumulative expected: from the church's created_at up to now.
         const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(
           church.created_at,
           now
         )
 
+        // Gross arrears per bucket — Strict Bucket Isolation
+        outstandingAnnual += Math.max(0, expectedAnnual - annualPaid)
+        outstandingMonthly += Math.max(0, expectedMonthly - monthlyPaid)
+
         const annualStatus = getPeriodStatus(annualPaid, expectedAnnual)
         const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
-        // FIXED: Strict Bucket Isolation. Church must be Paid in BOTH buckets.
         if (annualStatus === 'Paid' && monthlyStatus === 'Paid') {
           compliantChurches++
         }
       })
 
       const compliancePct = totalChurches > 0 ? (compliantChurches / totalChurches) * 100 : 0
+      const outstandingAmount = outstandingAnnual + outstandingMonthly
 
-      // Mocked sub-scores — scaled from compliance until real inputs exist.
-      // These are intentionally simple so they don't skew the ranking; when
-      // real timeliness/reporting/engagement data sources are wired up,
-      // swap the mock formulas here.
       const timelinessPct = compliancePct > 0 ? 85 : 0
       const reportingAccuracy = compliancePct > 0 ? 90 : 0
       const leadershipEngagement = compliancePct > 0 ? 95 : 0
 
-      // 40/30/20/10 weighted final score
       const finalScore =
         compliancePct * 0.4 +
         timelinessPct * 0.3 +
@@ -115,6 +116,9 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
         leadershipEngagement,
         finalScore,
         incentiveTier,
+        outstandingAmount,
+        outstandingAnnual,
+        outstandingMonthly,
       }
     })
 
