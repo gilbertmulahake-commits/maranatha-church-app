@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { clearPasswordResetFlag } from '@/lib/actions/user-actions'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,6 @@ export default function UpdatePasswordPage() {
         const tokenHash = params.get('token_hash')
         const type = params.get('type')
 
-        // Case 1: Supabase passed an error in the URL
         if (urlError) {
           setError('Invalid or expired reset link. Please request a new one.')
           window.history.replaceState({}, '', window.location.pathname)
@@ -32,7 +32,6 @@ export default function UpdatePasswordPage() {
           return
         }
 
-        // Case 2: A token_hash is present — use verifyOtp to establish the session
         if (tokenHash && type === 'recovery') {
           const { error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
@@ -42,14 +41,12 @@ export default function UpdatePasswordPage() {
           if (verifyError) {
             setError(verifyError.message || 'Invalid or expired reset link. Please request a new one.')
           } else {
-            // Clean the URL so refresh doesn't retry the exchange
             window.history.replaceState({}, '', window.location.pathname)
           }
           setCheckingSession(false)
           return
         }
 
-        // Case 3: No token_hash, no error — check if user already has a session
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
           setError('No reset link detected. Please check your email or request a new link.')
@@ -87,6 +84,8 @@ export default function UpdatePasswordPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      // If admin had forced a reset, clear the flag now (idempotent)
+      await clearPasswordResetFlag()
       setSuccess(true)
       setLoading(false)
       setTimeout(() => {

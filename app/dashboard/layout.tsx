@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/layout/site-header'
 import { getCurrentUserRole } from '@/lib/actions/auth-actions'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
 import { Skeleton } from '@/components/ui/skeleton'
 
 async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,20 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
 
   if (!user) {
     redirect('/login')
+  }
+
+  // Unit 16.2: User lifecycle enforcement
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+
+  // Block inactive users
+  if (dbUser && !dbUser.is_active) {
+    await supabase.auth.signOut()
+    redirect('/login?error=account_disabled')
+  }
+
+  // Force password reset if flagged (e.g., admin action)
+  if (dbUser && dbUser.requires_password_reset) {
+    redirect('/force-password-reset')
   }
 
   const role = await getCurrentUserRole()
