@@ -2,28 +2,39 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip as RechartsTooltip, 
-  Legend,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid
 } from 'recharts'
+import { TrendingUp } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { ArrearsAging } from './arrears-aging'
 
 interface DashboardChartsProps {
+  range: 'week' | 'month' | 'year' | 'all'
+  setRange: (val: 'week' | 'month' | 'year' | 'all') => void
   monthlyCollections: { name: string; amount: number }[]
-  complianceData: {
-    compliant: number
-    partial: number
-    overdue: number
-    na: number
-  }
+  weeklyCollections: { name: string; amount: number }[]
+  yearlyCollections: { name: string; amount: number }[]
+  allTimeCollections: { name: string; amount: number }[]
+  aging0_30: number
+  aging31_60: number
+  aging61_90: number
+  aging90_plus: number
+  totalActionRequired: number
 }
+
+const chartConfig = {
+  amount: {
+    label: "Collected",
+    color: "var(--color-primary)",
+  },
+} satisfies ChartConfig
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-KE', { 
@@ -33,35 +44,121 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-export function DashboardCharts({ monthlyCollections, complianceData }: DashboardChartsProps) {
-  
-  // Data for the Compliance Doughnut
-  const pieData = [
-    { name: 'Paid', value: complianceData.compliant, fill: 'var(--color-emerald-500)' },
-    { name: 'Partial', value: complianceData.partial, fill: 'var(--color-amber-500)' },
-    { name: 'Overdue', value: complianceData.overdue, fill: 'var(--color-rose-500)' },
-    { name: 'N/A', value: complianceData.na, fill: 'var(--color-slate-300)' },
-  ].filter(d => d.value > 0) // Don't render 0-value slices
+export function DashboardCharts({ 
+  range,
+  setRange,
+  monthlyCollections, 
+  weeklyCollections, 
+  yearlyCollections, 
+  allTimeCollections,
+  aging0_30,
+  aging31_60,
+  aging61_90,
+  aging90_plus,
+  totalActionRequired,
+}: DashboardChartsProps) {
+  const trendData = {
+    week: weeklyCollections,
+    month: monthlyCollections,
+    year: yearlyCollections,
+    all: allTimeCollections
+  }[range]
+
+  const trendTotal = trendData.reduce((sum, item) => sum + item.amount, 0)
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
+    <div className="grid grid-cols-1 @[800px]/dashboard:grid-cols-12 gap-md">
       
       {/* Area Chart: Collection Trend */}
-      <Card className="lg:col-span-2 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-heading-4 font-bold text-foreground">Collection Trend</CardTitle>
-          <CardDescription>6-month rolling view of national collections.</CardDescription>
+      <Card className="col-span-1 @[800px]/dashboard:col-span-6 @[1100px]/dashboard:col-span-7 shadow-sm flex flex-col @container/card">
+        <CardHeader className="flex flex-col pb-6 gap-4">
+          <div className="w-full space-y-1">
+            <div className="flex items-center justify-between gap-4 w-full">
+              <CardTitle className="flex items-center gap-2 text-heading-4 font-bold text-foreground">
+                <TrendingUp className="h-4 w-4 text-primary shrink-0" /> 
+                <span className="truncate">Collection Trend</span>
+              </CardTitle>
+              <span className="text-heading-4 font-bold text-foreground tabular-nums tracking-tight whitespace-nowrap shrink-0">
+                {formatCurrency(trendTotal)}
+              </span>
+            </div>
+            <CardDescription className="text-xs @[450px]/card:text-sm">
+              {range === 'week' ? 'Current week collections.' : range === 'month' ? '6-month rolling view of collections.' : range === 'year' ? 'Current year collections.' : 'Lifetime collection history.'}
+            </CardDescription>
+          </div>
+
+          <div className="hidden @[450px]/card:flex items-center gap-1 bg-muted rounded-lg p-1 h-10 w-fit">
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-8 px-4 text-sm font-medium transition-all",
+                range === 'week' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground'
+              )}
+              onClick={() => setRange('week')}
+            >
+              This Week
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-8 px-4 text-sm font-medium transition-all",
+                range === 'month' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground'
+              )}
+              onClick={() => setRange('month')}
+            >
+              This Month
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-8 px-4 text-sm font-medium transition-all",
+                range === 'year' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground'
+              )}
+              onClick={() => setRange('year')}
+            >
+              This Year
+            </Button>
+            <Button
+              variant="ghost" size="sm"
+              className={cn(
+                "h-8 px-4 text-sm font-medium transition-all",
+                range === 'all' ? 'bg-card text-foreground font-bold shadow-sm' : 'text-muted-foreground'
+              )}
+              onClick={() => setRange('all')}
+            >
+              All Time
+            </Button>
+          </div>
+          
+          <Select value={range} onValueChange={(val) => { if (val) setRange(val as 'week' | 'month' | 'year' | 'all') }}>
+            <SelectTrigger
+              className="flex w-32 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[450px]/card:hidden"
+              size="sm"
+              aria-label="Select a value"
+            >
+              <SelectValue placeholder="Select range">
+                {range === 'week' ? 'This Week' : range === 'month' ? 'This Month' : range === 'year' ? 'This Year' : 'All Time'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start" sideOffset={0} className="rounded-xl">
+              <SelectItem value="week" className="rounded-lg">This Week</SelectItem>
+              <SelectItem value="month" className="rounded-lg">This Month</SelectItem>
+              <SelectItem value="year" className="rounded-lg">This Year</SelectItem>
+              <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
-        <CardContent className="h-[300px] w-full pt-4">
-          <ResponsiveContainer width="100%" height="100%">
+        
+        <CardContent className="flex-1 w-full min-h-[300px] pt-2 px-2 sm:px-6">
+          <ChartContainer config={chartConfig} className="aspect-auto h-[320px] w-full">
             <AreaChart 
-              data={monthlyCollections} 
+              data={trendData} 
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
               <defs>
                 <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="var(--color-amount)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--color-amount)" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
@@ -69,80 +166,49 @@ export function DashboardCharts({ monthlyCollections, complianceData }: Dashboar
                 dataKey="name" 
                 axisLine={false} 
                 tickLine={false} 
+                tickMargin={8}
                 tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }} 
-                dy={10}
               />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
+                tickMargin={8}
                 tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }}
                 tickFormatter={(value) => value === 0 ? '0' : `${value / 1000}k`}
-                width={60}
+                width={50}
               />
-              <RechartsTooltip 
-                contentStyle={{ 
-                  borderRadius: '8px', 
-                  border: '1px solid var(--color-border)', 
-                  backgroundColor: 'var(--color-card)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                labelStyle={{ fontWeight: 'bold', color: 'var(--color-foreground)', marginBottom: '4px' }}
-                // FIXED: Removed the explicit `: number` type so TS infers from Recharts
-                formatter={(value) => [formatCurrency(Number(value)), 'Collected']}
+              
+              <ChartTooltip 
+                cursor={false}
+                content={
+                  <ChartTooltipContent 
+                    indicator="dot"
+                    formatter={(value) => formatCurrency(Number(value))}
+                  />
+                }
               />
+              
               <Area 
-                type="monotone" 
+                type="natural" 
                 dataKey="amount" 
-                stroke="var(--color-primary)" 
+                stroke="var(--color-amount)" 
                 strokeWidth={2}
                 fillOpacity={1} 
                 fill="url(#colorAmount)" 
               />
             </AreaChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 
-      {/* Compliance Doughnut */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-heading-4 font-bold text-foreground">Compliance Breakdown</CardTitle>
-          <CardDescription>Status of all active churches.</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px] flex items-center justify-center">
-          {pieData.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No church data available.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} stroke="var(--color-card)" strokeWidth={2} />
-                  ))}
-                </Pie>
-                <RechartsTooltip 
-                  contentStyle={{ 
-                    borderRadius: '8px', 
-                    border: '1px solid var(--color-border)',
-                    backgroundColor: 'var(--color-card)',
-                    boxShadow: 'var(--shadow-md)'
-                  }}
-                  itemStyle={{ color: 'var(--color-foreground)' }}
-                />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      {/* Arrears Aging — Replaces Doughnut */}
+      <ArrearsAging 
+        aging0_30={aging0_30}
+        aging31_60={aging31_60}
+        aging61_90={aging61_90}
+        aging90_plus={aging90_plus}
+        totalActionRequired={totalActionRequired}
+      />
 
     </div>
   )

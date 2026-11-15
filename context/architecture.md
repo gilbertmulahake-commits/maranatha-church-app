@@ -88,11 +88,14 @@
 4. **Async Processing:** Sending SMS messages and calculating heavy regional scores must *never* run in the main request-response cycle. They must go to background workers.
 5. **Reconciliation Mapping:** Every KCB payment must contain a `BillRefNumber` (Church ID). If the ID does not match an active church, the payment goes to an "Unmatched" table for HQ manual review, never discarded.
 6. **Atomic Financial Mutations:** Any operation that modifies payment records, church totals, or regional scores must use database transactions (e.g., `prisma.$transaction`) to ensure data integrity. If one step fails, all steps roll back.
+7. **Arrears Aging & Schedule Adherence:** Arrears must be calculated based on the age of the debt (0-30, 31-60, 61-90, 90+ days). The Hero Card progress bar must measure against *Expected-to-Date* (what should have been collected by today based on registration date), not the absolute Year-End target.
 
 ## 6. Financial Flow Model
 - **Centralized Bank Account:** There is only ONE KCB Bank Account. The database does NOT store individual church bank accounts. 
 - **Stream Allocation:** Every payment received is treated as a "stream" that must be allocated to a `Church` record via the `church_code` (`BillRefNumber`).
 - **Unallocated Funds:** Any funds received that do not match a valid `church_code` remain in an "Unallocated/Unmatched" pool at the National HQ level until manually reconciled by an admin. 
+- **Arrears Aging:** The system must bucket unpaid balances by days overdue to prioritize collection efforts (e.g., 90+ days requires immediate escalation).
+- **Strict Bucket Isolation (V2):** KPIs must display Annual and Monthly buckets as independent entities. A combined "Total Collected" KPI hides which bucket is failing.
 
 ## 7. Financial Ledger & Strict Bucket Isolation
 - **Cumulative Ledger:** The system calculates expected amounts cumulatively from a church's `created_at` date. Year-end arrears do not vanish on Jan 1st.

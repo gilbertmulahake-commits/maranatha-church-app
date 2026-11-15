@@ -31,7 +31,8 @@ export function ExportDropdown({ onExportCsv, onExportExcel, onExportPdf, disabl
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="w-48">
+      {/* Added sideOffset={0} to make it flush with the trigger */}
+      <DropdownMenuContent align="end" sideOffset={0} className="w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Export Format</DropdownMenuLabel>
         </DropdownMenuGroup>

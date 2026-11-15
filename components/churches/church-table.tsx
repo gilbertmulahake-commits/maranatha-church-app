@@ -16,10 +16,8 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
-// Single-source-of-truth table frame + responsive print button.
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
-// Unit 15i: Replaced native <select> with shadcn <Select> (Base UI variant).
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -276,7 +274,7 @@ export function ChurchTable({
             <SelectTrigger className="h-9 w-full bg-card text-xs">
               <SelectValue placeholder="All Regions" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="start" sideOffset={0}>
               <SelectItem value="All">All Regions</SelectItem>
               {uniqueRegions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
@@ -291,7 +289,7 @@ export function ChurchTable({
             <SelectTrigger className="h-9 w-full bg-card text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="start" sideOffset={0}>
               {['All', 'Paid', 'Partial', 'Overdue', 'N/A'].map(opt => (
                 <SelectItem key={opt} value={opt}>{opt}</SelectItem>
               ))}
@@ -424,7 +422,8 @@ export function ChurchTable({
                           </Button>
                         }
                       />
-                      <DropdownMenuContent align="end" className="w-56">
+                      {/* FIXED: Added sideOffset={0} */}
+                      <DropdownMenuContent align="end" sideOffset={0} className="w-56">
                         <DropdownMenuGroup>
                           <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Actions

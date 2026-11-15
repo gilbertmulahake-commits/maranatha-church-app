@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
-// 🧩 Single-source-of-truth table frame + responsive print button.
+// Single-source-of-truth table frame + responsive print button.
 // - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
 //   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
 // - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
@@ -172,7 +172,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            {/* 📱 PrintButton: icon-only below lg, full "Print" label at lg+. */}
+            {/* PrintButton: icon-only below lg, full "Print" label at lg+. */}
             <PrintButton onClick={handleGlobalPrint} disabled={filteredData.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
@@ -203,7 +203,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         }
       />
 
-      {/* 🧱 TableShell: owns the card frame + overflow-x-auto (fixes the
+      {/* TableShell: owns the card frame + overflow-x-auto (fixes the
           column-clipping bug from the previous clipped wrapper) and renders
           the shadcn table primitive internally. TableFooter lives inside. */}
       <TableShell>
