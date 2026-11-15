@@ -3,13 +3,11 @@
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { isProtectedUser } from '@/lib/auth/protected-users'
 import { isNationalLevel } from '@/lib/auth/roles'
 
-// Validate incoming role against the Prisma Role enum.
-// Note: SYSTEM_ADMIN is intentionally excluded from this schema. 
-// Accounts with this role must be created manually via the Supabase Dashboard.
 const roleSchema = z.enum([
   'NATIONAL_TREASURER',
   'NATIONAL_OVERSEER',
@@ -33,6 +31,8 @@ export type SystemUser = {
   regionName: string | null
   churchName: string | null
   createdAt: string
+  isActive: boolean
+  requiresPasswordReset: boolean
 }
 
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
@@ -51,8 +51,12 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     })
 
     if (!dbUser) {
-      // Edge case: User is in Supabase Auth but not in Prisma DB yet
       return { email: user.email, role: 'UNASSIGNED', regionName: null, churchName: null }
+    }
+
+    // Block inactive users from accessing the app
+    if (!dbUser.is_active) {
+      return { email: user.email, role: 'INACTIVE', regionName: null, churchName: null }
     }
 
     return {
@@ -68,10 +72,6 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   }
 }
 
-/**
- * ADMIN: Fetch all users in the system.
- * Strictly restricted to National HQ roles.
- */
 export async function getSystemUsers(): Promise<SystemUser[]> {
   try {
     const supabase = await createClient()
@@ -80,7 +80,6 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     
-    // Security: Only National HQ (and System Admin) can list users
     if (!dbUser || !isNationalLevel(dbUser.role)) {
       return []
     }
@@ -93,7 +92,6 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
       orderBy: { created_at: 'desc' }
     })
 
-    // Unit 15.6: Filter out protected users if the viewer is NOT a SYSTEM_ADMIN
     const isViewerSystemAdmin = dbUser.role === 'SYSTEM_ADMIN'
     const filteredUsers = isViewerSystemAdmin 
       ? users 
@@ -105,7 +103,9 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
       role: u.role,
       regionName: u.region?.name || null,
       churchName: u.church?.church_name || null,
-      createdAt: u.created_at.toISOString()
+      createdAt: u.created_at.toISOString(),
+      isActive: u.is_active,
+      requiresPasswordReset: u.requires_password_reset,
     }))
 
   } catch (error) {
@@ -114,13 +114,8 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
   }
 }
 
-/**
- * ADMIN: Invite a new user.
- * Creates a Supabase Auth account, then links it to a Prisma User record.
- */
 export async function inviteUser(formData: FormData) {
   try {
-    // 1. Verify Caller is National HQ
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
@@ -130,13 +125,11 @@ export async function inviteUser(formData: FormData) {
       return { error: 'Unauthorized. Only National HQ can invite users.' }
     }
 
-    // 2. Extract Data
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const region_id = (formData.get('region_id') as string) || null
     const church_id = (formData.get('church_id') as string) || null
 
-    // FIX: Validate role with Zod instead of `as any`
     const roleValue = formData.get('role')
     if (typeof roleValue !== 'string') {
       return { error: 'Role is required.' }
@@ -151,7 +144,6 @@ export async function inviteUser(formData: FormData) {
       return { error: 'Email and password are required.' }
     }
 
-    // 3. Create Supabase Auth User (Requires Service Role Key)
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -165,11 +157,10 @@ export async function inviteUser(formData: FormData) {
 
     if (authError) return { error: authError.message }
 
-    // 4. Create Prisma User
     try {
       await prisma.user.create({
         data: {
-          id: authData.user.id, // Link the Supabase Auth ID
+          id: authData.user.id,
           email,
           role,
           region_id,
@@ -177,18 +168,16 @@ export async function inviteUser(formData: FormData) {
         }
       })
     } catch (dbError) {
-      // ROLLBACK: If the Prisma insert fails (e.g., region_id is invalid), 
-      // delete the newly created Supabase Auth user so we don't leave an orphaned account.
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       throw dbError
     }
 
+    revalidatePath('/dashboard/users')
     return { success: true }
 
   } catch (error) {
     console.error('Invite error:', error)
     
-    // Handle Prisma unique constraint error gracefully (P2002)
     if (
       typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
     ) {
@@ -197,5 +186,166 @@ export async function inviteUser(formData: FormData) {
     
     const message = error instanceof Error ? error.message : 'Failed to invite user'
     return { error: message }
+  }
+}
+
+export async function toggleUserStatus(targetUserId: string, isActive: boolean) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+    
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || !isNationalLevel(dbUser.role)) {
+      return { error: 'Unauthorized. Only National HQ can modify users.' }
+    }
+
+    if (isProtectedUser(targetUserId)) {
+      return { error: 'Cannot modify a protected system account.' }
+    }
+
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { is_active: isActive }
+    })
+
+    revalidatePath('/dashboard/users')
+    return { success: true }
+  } catch (error) {
+    console.error('Toggle user status error:', error)
+    return { error: 'Failed to update user status.' }
+  }
+}
+
+export async function forcePasswordReset(targetUserId: string, origin: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+    
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || !isNationalLevel(dbUser.role)) {
+      return { error: 'Unauthorized. Only National HQ can modify users.' }
+    }
+
+    if (isProtectedUser(targetUserId)) {
+      return { error: 'Cannot modify a protected system account.' }
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } })
+    if (!targetUser) return { error: 'User not found.' }
+
+    // Set the flag (this is the real safety net)
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { requires_password_reset: true }
+    })
+    revalidatePath('/dashboard/users')
+
+    // Try to email them (best-effort). Flag is what actually enforces the reset.
+    try {
+      const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { error: emailError } = await supabaseAdmin.auth.resetPasswordForEmail(targetUser.email, {
+        redirectTo: `${origin}/login/update-password`,
+      })
+      if (emailError) {
+        console.error('Password reset email failed:', emailError)
+        return {
+          success: true,
+          warning: 'Flag set, but email could not be sent. User will still be forced to reset on next login.',
+        }
+      }
+    } catch (emailErr) {
+      console.error('Password reset email exception:', emailErr)
+      return {
+        success: true,
+        warning: 'Flag set, but email could not be sent. User will still be forced to reset on next login.',
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Force password reset error:', error)
+    return { error: 'Failed to force password reset.' }
+  }
+}
+
+export async function clearPasswordResetFlag() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false }
+
+    // Idempotent: only updates if flag is currently true
+    await prisma.user.updateMany({
+      where: { id: user.id, requires_password_reset: true },
+      data: { requires_password_reset: false },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Clear reset flag error:', error)
+    return { success: false }
+  }
+}
+
+export async function updatePasswordAndClearFlag(newPassword: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    if (newPassword.length < 6) {
+      return { error: 'Password must be at least 6 characters.' }
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({ password: newPassword })
+    if (authError) return { error: authError.message }
+
+    await prisma.user.updateMany({
+      where: { id: user.id, requires_password_reset: true },
+      data: { requires_password_reset: false },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Password update error:', error)
+    return { error: 'Failed to update password.' }
+  }
+}
+
+export async function updateUserRole(targetUserId: string, newRole: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+    
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || !isNationalLevel(dbUser.role)) {
+      return { error: 'Unauthorized. Only National HQ can modify users.' }
+    }
+
+    if (isProtectedUser(targetUserId)) {
+      return { error: 'Cannot modify a protected system account.' }
+    }
+
+    const roleParsed = roleSchema.safeParse(newRole)
+    if (!roleParsed.success) {
+      return { error: 'Invalid role selected.' }
+    }
+
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { role: roleParsed.data }
+    })
+
+    revalidatePath('/dashboard/users')
+    return { success: true }
+  } catch (error) {
+    console.error('Update user role error:', error)
+    return { error: 'Failed to update user role.' }
   }
 }

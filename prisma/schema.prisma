@@ -113,6 +113,8 @@ model User {
   id             String   @id @default(uuid())
   email          String   @unique
   role           Role     @default(CHURCH_TREASURER)
+  is_active               Boolean  @default(true)
+  requires_password_reset Boolean  @default(false)
   region_id      String?
   church_id      String?
   created_at     DateTime @default(now())
