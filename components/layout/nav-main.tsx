@@ -19,6 +19,7 @@ export function NavMain({
     title: string
     url: string
     icon?: Icon
+    badge?: number
   }[]
   label?: string
 }) {
@@ -30,6 +31,8 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => {
           const isActive = pathname === item.url
+          const showBadge = item.badge !== undefined && item.badge > 0
+
           return (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
@@ -39,6 +42,11 @@ export function NavMain({
                   <Link href={item.url}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
+                    {showBadge && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground tabular-nums">
+                        {item.badge! > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
                   </Link>
                 }
               />

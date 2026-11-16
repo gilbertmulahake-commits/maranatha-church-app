@@ -1,3 +1,8 @@
+Here is the complete, comprehensive `context/code-standards.md`, updated to reflect everything we learned, built, and hardened during the Unit 17 verification phase. 
+
+I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Base UI `<SelectValue>` UUID fix**, the **Standardized Modal layout**, and the **FormData payload rule**.
+
+```markdown
 # Code Standards
 
 ## General
@@ -26,9 +31,11 @@
 - Verify webhook signatures immediately upon receiving a request.
 - Enforce auth and ownership before any mutation.
 - Return consistent, predictable response shapes.
-- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully.
+- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully. **Unit 17:** Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference` in the KCB webhook.
 - **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
 - **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
+- **Unmatched capture (Unit 17):** When a webhook cannot find its target church, do NOT return 404. Capture it in `UnmatchedPayment` with the top fuzzy suggestion, log `UNMATCHED_PAYMENT_CAPTURED`, and return HTTP 200 so the bank stops retrying.
+- **Payload Types:** Server Actions that handle forms (like `createManualEntry` or `proposeWriteOff`) MUST accept `FormData` and use `formData.get()`. Do not pass raw objects directly from the client to these specific actions.
 
 ## Data and Storage
 - Use Prisma ORM for all database queries.
@@ -40,17 +47,21 @@
 - `components/` — reusable UI components.
 - `lib/` — server helpers, data access, Prisma client, API integrations.
   - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF).
+  - `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein + pattern learning).
+  - `lib/auth/guards.ts` — Centralized RBAC verification helpers.
 - `prisma/` — schema and migrations.
 - `context/` — the six context files and specs.
 
 ## Database Migrations
 - **NEVER** run `prisma db push`. It skips the migration history and creates drift.
 - **ALWAYS** use `prisma7 migrate dev --name <descriptive-name>` for local schema changes.
+- **ALWAYS** run `npx prisma7 generate` after any migration to refresh the TypeScript client.
 - **ALWAYS** commit the generated migration folder to Git.
 - **For production:** use `prisma7 migrate deploy` (applies pending migrations without prompting).
 - **NEVER** run `prisma7 migrate reset` against any database containing real data — it drops the entire schema.
 - **Backup before migrating** any database that holds live data. Use `pg_dump` locally (Supabase Free Plan has no scheduled backups).
 - **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
+- **Backfill discipline:** When adding a new field with a default (e.g., `Payment.source`), always document the required production backfill query in the migration folder or handoff doc. Never deploy without applying it.
 
 ## Authentication & Protected Accounts
 - **SYSTEM_ADMIN role is reserved for the vendor/platform owner.** It has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation by other users.
@@ -59,10 +70,20 @@
 - **Never auto-create SYSTEM_ADMIN accounts** via inviteUser. They must be created manually via the Supabase dashboard or a one-off seed script.
 - **Client handover checklist:** Before handing credentials to the client, verify that (a) at least one SYSTEM_ADMIN account exists and is protected, (b) the client's National Treasurer account is separate, (c) the client CANNOT see the SYSTEM_ADMIN account in their Users list.
 
+## RBAC Guard Pattern (Unit 16.5)
+- **All mutations** must call the appropriate guard at the top of the `try` block:
+  - `verifyOperationsAccess()` — Church/Region/User mutations (Operations Admin or Treasurer)
+  - `verifyFinanceAccess()` — Payment mutations (Finance Admin or Treasurer)
+  - `verifyReconciliationAccess()` — Reconciliation reads/resolutions (Finance Admin, Treasurer, or System Admin)
+  - `verifyTreasurerAuthority()` — Approvals and write-offs (Treasurer or System Admin only)
+- If the caller lacks permission, the guard throws — the `catch` block converts this into a `{ error: 'Forbidden' }` return shape.
+- **Separation of Duties:** `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users. Neither can do the other's job. `SYSTEM_ADMIN` can do both.
+
 ## Known ESLint Configuration Gaps
 - **`argsIgnorePattern` is NOT set.** Underscore-prefixed parameters (e.g., `_options`) are still flagged as unused. Use `void` to mark intentionally unused parameters, or remove them entirely.
 - **`@typescript-eslint/no-explicit-any` is enforced.** Never use `any`. Use `unknown` + narrowing, or define an explicit type.
 - **`react/no-unescaped-entities` is enforced.** Quote, apostrophe, and angle-bracket characters in JSX text must be escaped (`&quot;`, `&apos;`, `&lt;`, `&gt;`) or wrapped in `{}` expressions.
+- **`react-hooks/set-state-in-effect` is enforced.** Never call `setState()` synchronously inside `useEffect`. Move state resets to event handlers. Effects should only do: `async fetch → setState in callback`.
 
 ## SMS Actions API
 - **`sendBulkReminders(recipients, senderRole)`** takes exactly **2 arguments**.
@@ -82,12 +103,31 @@
 **`<Select>` nullability:**
 - Base UI's `<Select onValueChange>` passes `string | null` (not `string`).
 - **Never cast** with `as string`. Always guard: `if (val) { ... }`, or widen the handler to accept `string | null`.
-- Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx` (all pattern `handleStatusFilterChange`).
+- Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`, `resolve-dialog.tsx`, `manual-entry-form.tsx`, `propose-writeoff-dialog.tsx` (all pattern `handleStatusFilterChange` / `handleChurchChange`).
+
+**`<SelectValue>` UUID rendering bug:**
+- When a `<Select>` holds a database ID, Base UI will display the raw UUID (e.g., `fc224644...`) instead of the human-readable name.
+- You MUST explicitly pass the display string as a child of `<SelectValue>`:
+  ```tsx
+  <SelectValue placeholder="Select a church...">
+    {selectedChurch ? `${selectedChurch.church_code} — ${selectedChurch.church_name}` : undefined}
+  </SelectValue>
+  ```
 
 **`<TooltipTrigger>` context requirement:**
 - Every `<TooltipTrigger>` MUST be a child of `<Tooltip.Root>`.
 - Never conditionally return a `<TooltipTrigger>` outside its `<Tooltip.Root>` — Base UI throws a runtime error.
 - Base tooltip styling in `components/ui/tooltip.tsx` uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]`. Never add `whitespace-nowrap` or `flex` to `TooltipPopup` — it collapses the content vertically.
+
+### Standardized Dialog Widths (Preventing Flexbox Collapse)
+- Never leave `DialogContent` without explicit width constraints, or it will collapse to a 40px vertical sliver inside a flex parent.
+- **Standard:** `w-[95vw] sm:w-full sm:max-w-[500px] p-6 max-h-[90vh] overflow-y-auto`
+- **Wide:** `w-[95vw] sm:w-full sm:max-w-[600px] p-6` (Use only for complex forms like the Resolve Unmatched dialog).
+- Always apply `flex-col-reverse sm:flex-row gap-2` to `<DialogFooter>` for responsive button stacking.
+
+### `<Textarea>` Component
+- Official shadcn `<Textarea>` from `components/ui/textarea.tsx` (added in Unit 17 via `npx shadcn@latest add textarea`).
+- Always type the change handler: `(e: ChangeEvent<HTMLTextAreaElement>) => ...` — never rely on implicit typing.
 
 ### Supabase Auth — Email Template Requirement
 - **Reset password, magic link, and invite flows MUST use `{{ .TokenHash }}`** (not the PKCE `?code=` flow).
@@ -105,6 +145,8 @@ Never re-implement these — always use the component:
 | Print button (icon-only on mobile) | `<PrintButton>` | `components/ui/print-button.tsx` |
 | Export dropdown (icon-only on mobile) | `<ExportDropdown>` | `components/ui/export-dropdown.tsx` |
 | Table toolbar (search + filters + bulk) | `<TableToolbar>` | `components/ui/table-toolbar.tsx` |
+| SLA age badge (green/yellow/red) | `<SlaBadge>` | `components/reconciliation/sla-badge.tsx` |
+| Readable Payment Methods | `getReadableMethod()` | `components/payments/payments-table.tsx` (Maps `M_Pesa` → `M-Pesa`, `Cheque` → `Cheque`) |
 
 If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
 
@@ -114,13 +156,37 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 - Africa's Talking phone format is **E.164** (`+254...`), NOT local (`0...`). `normalizeKenyanPhone()` handles conversion — never call the AT API with a raw DB phone value.
 - **Never send `from: 'sandbox'`** — AT returns `InvalidSenderId`. Omit `from` entirely.
 
-## Future Considerations (V2 Planned)
-- **Fuzzy Matching:** When implementing UnmatchedPayment suggestion logic, use `fastest-levenshtein` (not native string diff). Target: <5ms per comparison.
-- **PaymentIntent Polling:** When the user clicks "Verify Payment" in the wizard, poll every 3s for up to 2 minutes. Show progress. Auto-expire intent after 10 minutes.
-- **Audit Log Immutability:** `AuditLog` records are append-only. No updates, no deletes. Even SYSTEM_ADMIN cannot purge.
-- **React Hooks:** Use `useSyncExternalStore` for external subscriptions, never `useEffect` + `setState` for that purpose.
+## Reconciliation Patterns (Unit 17)
 
-## Protected Files
-- `components/ui/*` — generated component library; never edit manually. *(Exception: Global dialog standards are applied in `dialog.tsx` and `alert-dialog.tsx`)*.
-- `lib/prisma.ts` — managed Prisma client.
-- `lib/utils.ts` — contains the extended `twMerge` configuration for custom Figma tokens. Do not reset to default.
+### Four-Eyes Threshold
+- **KES 20,000** (`FOUR_EYES_THRESHOLD` constant in both `reconciliation-actions.ts` and `manual-entry-actions.ts`).
+- Above threshold OR 90+ day arrears → route to `PendingPayment` staging (never create `Payment` directly).
+- **Write-offs ALWAYS require Treasurer approval** regardless of amount (absolute four-eyes — prevents fraud from hiding behind "write-off" labels).
+
+### Separation of Duties (Four-Eyes Hardening)
+- **Server-Side Enforcement:** Both `approvePendingPayment` and `approveWriteOff` MUST check `if (proposerId === actorId)` and throw an error. 
+- **Never trust the UI:** Even if the UI hides the approve button, the server action must explicitly block a user from approving their own proposal.
+- **Applies to:** Unmatched resolutions (>20K), Manual Entries (>20K), and ALL Write-Offs (regardless of amount).
+
+### Solutions Bank
+- Every successful `resolveUnmatched` calls `recordResolution()` — upserts a `ResolutionPattern` row keyed by `(raw_reference_pattern, resolved_church_code)`.
+- Confidence formula: `min(100, 50 + hit_count * 10)` — 1 hit = 60%, 2 = 70%, 3 = 80%, 4 = 90%, 5+ = 100%.
+- `suggestMatches()` checks patterns BEFORE running Levenshtein.
+- **Never auto-commits a resolution** — surfaces suggestions only; human confirmation is required.
+
+### PendingPayment Staging
+- High-value manual entries / resolutions create a `PendingPayment` row — **NEVER a `Payment` directly**.
+- Only after Treasurer approval does the real `Payment` get created (inside a single `$transaction` that also updates `PendingPayment.status = 'Approved'` and links `resulting_payment_id`).
+- The immutable bank ledger never sees a "pending" state.
+
+### Hybrid Allocation
+- Server computes FIFO allocations via `computeExpectedPeriods` + `calculateAllocations` (same logic as KCB webhook Auto mode).
+- Client receives the preview and can override each row before submission.
+- Only after confirmation does a real `Payment` + `PaymentAllocation[]` get created.
+
+### Write-Off Accounting (IFRS 9 / IPSAS 29)
+- Obligation is **never reduced** from `getExpectedUpToDate()` — the debt truly existed.
+- Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()` + `getNetOutstanding()`.
+- Aging buckets reduced **LIFO** (oldest debt written off first) — so 90+ bucket shrinks before 0-30 bucket.
+- Reports must show the full reconciliation.
+```

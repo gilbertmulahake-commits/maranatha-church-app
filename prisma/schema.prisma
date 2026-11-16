@@ -59,6 +59,13 @@ model Church {
   created_at     DateTime  @default(now())
   payments       Payment[]
   users          User[]
+
+  // Unit 17: Reconciliation & Write-Offs
+  is_defunct            Boolean  @default(false)
+  unmatched_suggested   UnmatchedPayment[] @relation("UnmatchedSuggestedChurch")
+  unmatched_assigned    UnmatchedPayment[] @relation("UnmatchedAssignedChurch")
+  write_offs            WriteOff[]
+  pending_payments      PendingPayment[]
 }
 
 model Payment {
@@ -76,6 +83,10 @@ model Payment {
   created_at     DateTime @default(now())
   
   allocations    PaymentAllocation[]
+
+  // Unit 17: Source tracking and Unmatched linkage
+  source           String   @default("Webhook") // "Webhook" | "Manual" | "Resolved"
+  unmatched_origins UnmatchedPayment[] @relation("UnmatchedAssignedPayment")
 }
 
 model PaymentAllocation {
@@ -130,6 +141,99 @@ model User {
   church         Church?  @relation(fields: [church_id], references: [id])
 }
 
+// --- UNIT 17 MODELS ---
+
+model UnmatchedPayment {
+  id                    String   @id @default(uuid())
+  bank_reference        String   @unique
+  bank_name             String
+  raw_bill_ref          String
+  amount                Decimal
+  payer_phone           String?
+  raw_payload           Json
+  status                String   // "Pending" | "Resolved" | "Rejected" | "WrittenOff"
+  suggested_church_id   String?
+  confidence_score      Float?
+  assigned_church_id    String?
+  assigned_payment_id   String?
+  reviewed_by           String?
+  reviewed_at           DateTime?
+  notes                 String?
+  escalated_at          DateTime?
+  created_at            DateTime @default(now())
+
+  suggested_church     Church?  @relation("UnmatchedSuggestedChurch", fields: [suggested_church_id], references: [id])
+  assigned_church      Church?  @relation("UnmatchedAssignedChurch", fields: [assigned_church_id], references: [id])
+  assigned_payment     Payment? @relation("UnmatchedAssignedPayment", fields: [assigned_payment_id], references: [id])
+
+  @@index([status, created_at])
+  @@index([raw_bill_ref])
+  @@index([assigned_church_id])
+}
+
+model ResolutionPattern {
+  id                     String   @id @default(uuid())
+  raw_reference_pattern  String
+  normalized_reference   String
+  resolved_church_code   String
+  resolution_type        String   // "Fuzzy" | "Manual" | "Rule"
+  hit_count              Int      @default(1)
+  confidence_score       Float    @default(50)
+  is_active              Boolean  @default(true)
+  created_by             String?
+  last_used_at           DateTime @default(now())
+  created_at             DateTime @default(now())
+
+  @@unique([raw_reference_pattern, resolved_church_code])
+  @@index([normalized_reference])
+  @@index([is_active, confidence_score])
+}
+
+model WriteOff {
+  id                String   @id @default(uuid())
+  church_id         String
+  amount            Decimal
+  reason            String   // "DEFUNCT" | "DISSOLVED" | "UNCOLLECTABLE_90D" | "COURT_ORDER" | "OTHER"
+  notes             String?
+  status            String   // "Pending" | "Approved" | "Rejected"
+  proposed_by       String
+  proposed_at       DateTime @default(now())
+  approved_by       String?
+  approved_at       DateTime?
+  rejection_reason  String?
+  resulting_defunct_flag Boolean @default(false)
+  audit_log_id      String?
+
+  church            Church   @relation(fields: [church_id], references: [id])
+
+  @@index([church_id])
+  @@index([status])
+}
+
+model PendingPayment {
+  id                    String   @id @default(uuid())
+  proposed_by           String
+  proposed_at           DateTime @default(now())
+  church_id             String
+  amount                Decimal
+  payment_method        String   // "Cash" | "Cheque" | "Bank_Transfer"
+  transaction_id        String
+  payment_date          DateTime
+  allocations_json      Json     // Snapshot of proposed allocations for preview
+  attachment_url        String?
+  notes                 String?
+  status                String   // "Pending" | "Approved" | "Rejected"
+  reviewed_by           String?
+  reviewed_at           DateTime?
+  rejection_reason      String?
+  resulting_payment_id  String?
+
+  church                Church   @relation(fields: [church_id], references: [id])
+
+  @@index([status])
+  @@index([church_id])
+}
+
 // --- ENUMS ---
 
 enum PaymentType {
@@ -141,6 +245,7 @@ enum PaymentMethod {
   M_Pesa
   Bank_Transfer
   Cash
+  Cheque
 }
 
 enum PaymentStatus {

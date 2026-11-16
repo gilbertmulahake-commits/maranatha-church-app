@@ -1,3 +1,4 @@
+```markdown
 # Build Plan - Maranatha Church System
 
 This is the ordered list of units we will build. We will write a detailed spec for each unit before building it.
@@ -108,22 +109,40 @@ Not originally planned, but necessary to fix production bugs discovered after de
 
 > **Note on 15.8 and 15.9:** The original `15.8 (Dashboard Experience Polish)` and `15.9 (Dashboard Mini Tables)` units were **superseded by Unit 15.10 (V2 Dashboard)**. The V2 architecture absorbed the interactive live feed (Tier 4), replaced the doughnut chart with arrears aging (Tier 3), and added the region breakdown modal (Tier 4). Any residual sub-items (e.g., church profile modal on row select, functional "My Profile" link) can be verified during UAT and addressed as micro-fixes if needed.
 
-**Major Features — Payment Flows**
-22. **Unit 17: Unmatched Payments Queue & Manual Entry**
-    - `UnmatchedPayment` model, Levenshtein fuzzy matching, `/dashboard/payments/unmatched` review UI, manual entry form for cash/cheques.
-23. **Unit 18: Guided Payment Flow (Pay Now Wizard)**
+**Major Features — Reconciliation, Reporting & Payment Flows**
+22. **Unit 17: Reconciliation, Manual Entry & Write-Offs** ⏳ (Code Complete — Verification Pending)
+    - **Migrations:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`.
+    - **4 New Models:** `UnmatchedPayment`, `ResolutionPattern` (Solutions Bank), `WriteOff`, `PendingPayment`.
+    - **2 New Fields:** `Church.is_defunct`, `Payment.source`.
+    - **Enum Update:** `PaymentMethod` now includes `Cheque`.
+    - **Webhook:** Captures unmatched payments with fuzzy suggestions, returns 200 instead of 404.
+    - **Four-Eyes:** KES 20,000 threshold; 90+ arrears always escalate; write-offs always escalate.
+    - **Solutions Bank:** Learns from every resolution, checked before Levenshtein.
+    - **Defunct handling:** Excluded from compliance %, regional scores, SMS lists, dropdowns.
+    - **UI:** 5 pages under `/dashboard/reconciliation`, 7 components, sidebar badge.
+    - **Gate:** `tsc` + `lint` + `build` (27/27 pages) clean.
+    - **Pending:** Manual verification (8 tests), context updates, commit, PR.
+
+23. **Unit 18: Comprehensive Reporting Overhaul** (NEXT UP)
+    - 14+ reports across National/Regional/Local.
+    - YoY comparison, Allocation Breakdown, Inactive Church Report.
+    - Feeds on new write-off + unmatched data from Unit 17.
+    - Replaces the current minimal `/dashboard/reports` page.
+
+24. **Unit 19: Guided Payment Flow (Pay Now Wizard)**
     - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
 
 **Onboarding & Support**
-24. **Unit 19: In-App Help & Onboarding**
+25. **Unit 20: In-App Help & Onboarding**
     - Tooltips, contextual help cards, `react-joyride` tour, `/help` page, help drawer.
 
 **Breakthrough — Real Bank Sandbox**
-25. **Unit 20: KCB Sandbox Integration** (Blocked on client credentials)
-26. **Unit 21: Equity Sandbox Integration** (Blocked on client credentials)
+26. **Unit 21: KCB Sandbox Integration** (Blocked on client credentials)
+27. **Unit 22: Equity Sandbox Integration** (Blocked on client credentials)
 
 **Polish — As Time Allows**
-27. **Unit 22: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
-28. **Unit 23: 2FA for National HQ + SYSTEM_ADMIN**
-29. **Unit 24: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
-30. **Unit 25: Pastorate Layer Activation** (Pending Ministry decision)
+28. **Unit 23: Settings Sub-tabs** (My Profile, System Config, Users, SMS Templates)
+29. **Unit 24: 2FA for National HQ + SYSTEM_ADMIN**
+30. **Unit 25: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
+31. **Unit 26: Pastorate Layer Activation** (Pending Ministry decision)
+```

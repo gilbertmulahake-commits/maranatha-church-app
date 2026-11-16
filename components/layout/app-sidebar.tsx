@@ -12,6 +12,7 @@ import {
   IconBolt,
   IconBuildingBank,
   IconHistory,
+  IconScale,
 } from '@tabler/icons-react'
 import {
   Sidebar,
@@ -26,36 +27,55 @@ import {
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
 import { Role } from '@prisma/client'
-// Import new helpers
 import { isNationalLevel, isRegionalLevel, isFinanceAdmin, isOperationsAdmin } from '@/lib/auth/roles'
 
 type NavItem = {
   title: string
   url: string
   icon: Icon
+  badge?: number
 }
 
-export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?: string }) {
+export function AppSidebar({
+  role,
+  userEmail,
+  unresolvedCount = 0,
+}: {
+  role: Role | null
+  userEmail?: string
+  unresolvedCount?: number
+}) {
   let navMain: NavItem[] = []
   let navSecondary: NavItem[] = []
 
   if (isNationalLevel(role)) {
-    // Start with the base National items
     const nationalNav: NavItem[] = [
       { title: 'Dashboard', url: '/dashboard', icon: IconLayoutDashboard },
       { title: 'Regions', url: '/dashboard/regions', icon: IconMapPin },
       { title: 'Churches', url: '/dashboard/churches', icon: IconBuilding },
       { title: 'Payments', url: '/dashboard/payments', icon: IconCreditCard },
-      { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
-      { title: 'Audit Logs', url: '/dashboard/audit-logs', icon: IconHistory },
     ]
 
-    // Conditionally add Users (Only Operations & System Admin)
+    // Users — Operations Admin and System Admin only
     if (isOperationsAdmin(role)) {
-      nationalNav.splice(4, 0, { title: 'Users', url: '/dashboard/users', icon: IconUsers })
+      nationalNav.push({ title: 'Users', url: '/dashboard/users', icon: IconUsers })
     }
 
-    // Conditionally add Mock KCB (Only Finance & System Admin)
+    nationalNav.push({ title: 'Reports', url: '/dashboard/reports', icon: IconFileText })
+
+    // Reconciliation — Finance Admin, Treasurer, System Admin
+    if (isFinanceAdmin(role) || role === 'NATIONAL_TREASURER') {
+      nationalNav.push({
+        title: 'Reconciliation',
+        url: '/dashboard/reconciliation',
+        icon: IconScale,
+        badge: unresolvedCount,
+      })
+    }
+
+    nationalNav.push({ title: 'Audit Logs', url: '/dashboard/audit-logs', icon: IconHistory })
+
+    // Mock KCB — Finance Admin and System Admin only
     if (isFinanceAdmin(role)) {
       nationalNav.push({ title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt })
     }

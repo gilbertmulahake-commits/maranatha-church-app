@@ -10,10 +10,8 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
-// Single-source-of-truth table frame + responsive print button.
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
-// Unit 15i: Replaced native <select> with shadcn <Select> (Base UI variant).
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -32,6 +30,14 @@ function formatCurrency(amount: number) {
 
 function formatDate(dateString: string) {
   return new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateString))
+}
+
+// FIXED: Centralized the method formatting so it's consistent everywhere
+function getReadableMethod(method: string) {
+  if (method === 'M_Pesa') return 'M-Pesa'
+  if (method === 'Bank_Transfer') return 'Bank'
+  if (method === 'Cheque') return 'Cheque'
+  return 'Cash'
 }
 
 export function PaymentsTable({ data }: { data: PaymentRow[] }) {
@@ -61,10 +67,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
 
       const matchesType = typeFilter === 'All' || payment.payment_type === typeFilter
       
-      const readableMethod = 
-        payment.payment_method === 'M_Pesa' ? 'M-Pesa' :
-        payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'
-      
+      const readableMethod = getReadableMethod(payment.payment_method)
       const matchesMethod = methodFilter === 'All' || readableMethod === methodFilter
 
       return matchesSearch && matchesType && matchesMethod
@@ -122,7 +125,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
         'Church Name': p.church_name,
         'Amount (KES)': p.amount_paid,
         'Type': p.is_mixed ? 'Mixed' : p.payment_type,
-        'Method': p.payment_method === 'M_Pesa' ? 'M-Pesa' : p.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
+        'Method': getReadableMethod(p.payment_method),
         'Date & Time': formatDate(p.payment_date),
         'Status': p.status,
         'Allocations Breakdown': allocationSummary
@@ -196,6 +199,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
                 <SelectItem value="All">All Methods</SelectItem>
                 <SelectItem value="M-Pesa">M-Pesa</SelectItem>
                 <SelectItem value="Bank">Bank</SelectItem>
+                <SelectItem value="Cheque">Cheque</SelectItem>
                 <SelectItem value="Cash">Cash</SelectItem>
               </SelectContent>
             </Select>
@@ -316,7 +320,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
                     )}
                   </TableCell>
                   <TableCell className="text-center text-paragraph-small text-muted-foreground">
-                    {payment.payment_method === 'M_Pesa' ? 'M-Pesa' : payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'}
+                    {getReadableMethod(payment.payment_method)}
                   </TableCell>
                   <TableCell className="text-paragraph-small text-muted-foreground">
                     {formatDate(payment.payment_date)}
