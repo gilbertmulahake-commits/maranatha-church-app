@@ -81,12 +81,13 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Soft delete (`is_active` on User), force password reset (`requires_password_reset`), role change with audit trail.
     - Enforced in `app/dashboard/layout.tsx` (redirects inactive users and forced-reset users).
     - `UsersTable` has Status column + Lifecycle actions (Change Role, Force Reset, Deactivate/Reactivate).
-19. **Unit 16.3: Audit Log System** (⏳ **IN PROGRESS — PARTIAL**)
-    - New `AuditLog` Prisma model ✅ (migration `20261115211407_add_audit_log_system`).
-    - `logAudit()` helper in `lib/actions/audit-actions.ts` ✅ (never throws — audit failures don't roll back main transactions).
-    - Wired: User mutations (6 actions ✅) + Church mutations (3 actions ✅).
-    - **Pending:** Region mutations (`REGION_CREATED`, `REGION_UPDATED`, `REGION_DELETED`), KCB webhook (`PAYMENT_RECEIVED`), and `/dashboard/audit-logs` UI page (table + filters + CSV export + RBAC gating).
-    - **Current branch:** `feat/16.3-audit-log-system`, HEAD `66b03ef`. See `HANDOFF_UNIT_16.3.md` for resume instructions.
+19. **Unit 16.3: Audit Log System** ✅
+    - New `AuditLog` Prisma model + migration `20261115211407_add_audit_log_system`.
+    - `logAudit()` helper in `lib/actions/audit-actions.ts` (never throws — audit failures don't roll back main transactions).
+    - Wired: User mutations (6 actions) + Church mutations (3 actions) + Region mutations (2 actions: `REGION_CREATED`, `REGION_UPDATED`) + KCB webhook (`PAYMENT_RECEIVED` with allocations, called AFTER the transaction).
+    - `/dashboard/audit-logs` UI page built — search, entity/action filters, column sort, checkbox selection, bulk export, RBAC gate, Forensic Snapshot Dialog.
+    - Sidebar "Audit Logs" nav item added under `isNationalLevel` branch.
+    - Verification: `tsc` + `lint` + `build` (22/22 pages) all clean.
 
 **Client Admin Roles**
 20. **Unit 16.5: Client Admin Roles (ADMIN1/ADMIN2)** (NEXT UP)

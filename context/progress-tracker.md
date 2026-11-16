@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wired. Remaining: Region mutations, KCB webhook, and the `/dashboard/audit-logs` UI.
+Unit 16.5 — Client Admin Roles (ADMIN1/ADMIN2). All prior audit infrastructure is complete.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -143,12 +143,13 @@ Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wir
   - Updated `UsersTable` with Status column (Active/Inactive/Reset Required) and Lifecycle actions (Change Role, Force Reset, Deactivate/Reactivate).
   - Created `toggleUserStatus`, `forcePasswordReset`, `clearPasswordResetFlag`, `updatePasswordAndClearFlag`, `updateUserRole` server actions.
   - **Critical Fix:** Fixed a Next.js 16 rendering bug on the `/force-password-reset` page by using `<Suspense>` and `await connection()`.
-- **Unit 16.3: System-Wide Audit Log (Partial)**
-  - Added `AuditLog` model to Prisma (`20261115211407_add_audit_log_system`).
-  - Created `lib/actions/audit-actions.ts` with `logAudit()` helper (wrapped in try/catch so audit failures never roll back main transactions).
-  - Wired `logAudit()` into `user-actions.ts` (6 actions: `USER_INVITED`, `USER_ACTIVATED`, `USER_DEACTIVATED`, `PASSWORD_RESET_FORCED`, `USER_ROLE_CHANGED`, `PASSWORD_CHANGED`).
-  - Wired `logAudit()` into `church-actions.ts` (3 actions: `CHURCH_CREATED`, `CHURCH_UPDATED`, `CHURCH_DELETED`).
-  - **Verified:** Live test confirmed `USER_DEACTIVATED` logs correctly with `before_data`, `after_data`, `actor_email`, and `metadata`.
+- **Unit 16.3: System-Wide Audit Log (Complete)**
+  - `AuditLog` model + migration `20261115211407_add_audit_log_system`.
+  - `logAudit()` helper (never throws — audit failures don't roll back main transactions). Enforces `beforeData`/`afterData` camelCase.
+  - **All mutations wired:** User (6 events), Church (3 events), Region (2 events: `REGION_CREATED`, `REGION_UPDATED` — no `deleteRegion` function exists), KCB webhook (`PAYMENT_RECEIVED` with `allocations` array, called AFTER the Prisma transaction).
+  - **UI:** `/dashboard/audit-logs` page — Server Component with `<Suspense>` + `await connection()`, RBAC gate (`isNationalLevel`), `AuditLogTable` client component with search, entity filter, action filter, column sort, checkbox selection, bulk export, and a `Forensic Snapshot` Dialog for pretty-printed `before_data` / `after_data` / `metadata`.
+  - **Sidebar:** "Audit Logs" nav item added under `isNationalLevel` branch (`IconHistory`).
+  - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 22/22 pages (was 21, +1 for audit-logs).
 
 ## In Progress
 - **Unit 16.3: System-Wide Audit Log (Partial)**
@@ -159,7 +160,7 @@ Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wir
     4. Commit and close Unit 16.3.
 
 ## Next Up
-- **Unit 16.5: Client Admin Roles** (ADMIN1/ADMIN2) — Now safe to build because every admin action is auditable.
+- **Unit 16.5: Client Admin Roles** (ADMIN1/ADMIN2) — now safe to build because every admin action is auditable.
 - **Then:** 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
 
 ## Open Questions
@@ -195,6 +196,7 @@ Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wir
 - **Migration Baseline (`00000000000000_baseline`):** Represents the entire pre-Unit-15 schema. Any new changes must be additive migrations on top of this baseline. Do not delete or modify this folder.
 - **Audit Log System (Unit 16.3):** Append-only table. `logAudit()` must be called *after* successful mutations and must NEVER throw (wrapped in try/catch). `before_data` and `after_data` contain JSON snapshots for forensic recovery.
 - **User Lifecycle (Unit 16.2):** Soft delete via `is_active`. Forced resets via `requires_password_reset` flag + `force-password-reset` fallback page. Enforced directly in the dashboard layout.
+- **Audit Log UI (Unit 16.3):** Forensic JSON snapshots (`before_data` / `after_data` / `metadata`) are viewed via a `<Dialog>` modal, not inline. This keeps the table row height compact while providing full forensic detail on demand. Entity and Action filters are shadcn `<Select>` populated dynamically from unique values in the dataset.
 
 ## Session Notes
 - **Current HEAD:** `66b03ef` on `feat/16.3-audit-log-system`. `main` is at `54cc925`.
@@ -232,4 +234,6 @@ Unit 16.3 — System-Wide Audit Log (Partial). User and Church mutations are wir
 - **SMTP Provider:** Supabase is configured to use Resend SMTP (`smtp.resend.com`). The Free Tier built-in email service is restricted to 3 emails/hour and pre-authorized addresses only. Do not revert to the built-in service.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
+- **Current HEAD:** (will update after commit — see `git log -1 --oneline`).
+- **Vendor email confirmed:** `gilbertmulaha.ke@gmail.com` (verified via Supabase Dashboard screenshot — no typo; the previous handoff note was incorrect). UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`.
 ```
