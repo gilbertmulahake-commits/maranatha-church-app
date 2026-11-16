@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 16.5 — Client Admin Roles (ADMIN1/ADMIN2). All prior audit infrastructure is complete.
+Unit 17 — Unmatched Payments Queue & Manual Entry. Final safety net for payments that fail BillRefNumber matching (Invariant #5).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -150,18 +150,24 @@ Unit 16.5 — Client Admin Roles (ADMIN1/ADMIN2). All prior audit infrastructure
   - **UI:** `/dashboard/audit-logs` page — Server Component with `<Suspense>` + `await connection()`, RBAC gate (`isNationalLevel`), `AuditLogTable` client component with search, entity filter, action filter, column sort, checkbox selection, bulk export, and a `Forensic Snapshot` Dialog for pretty-printed `before_data` / `after_data` / `metadata`.
   - **Sidebar:** "Audit Logs" nav item added under `isNationalLevel` branch (`IconHistory`).
   - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 22/22 pages (was 21, +1 for audit-logs).
+- **Unit 16.5: Client Admin Roles (FINANCE_ADMIN / OPERATIONS_ADMIN)**
+  - **Separation of Duties enforced.** Two new National-level admin roles added to the Prisma `Role` enum.
+  - **Migration:** `20261116013856_add_finance_operations_admin_roles` applied cleanly. Zero data loss.
+  - **`FINANCE_ADMIN`:** Full access to Payments, Mock KCB, and Reconciliation. Read-only access to Regions/Churches. Cannot manage Users.
+  - **`OPERATIONS_ADMIN`:** Full CRUD on Regions, Churches, and Users. Read-only on Payments. No access to Mock KCB.
+  - **`SYSTEM_ADMIN` (Super Admin):** Retains ultimate control. Can manage all accounts, including other admins.
+  - **RBAC Helpers:** `lib/auth/roles.ts` extended with `isFinanceAdmin()` and `isOperationsAdmin()`. `isNationalLevel()` updated to include both new roles.
+  - **Server-Side Guards:** Created `lib/auth/guards.ts` with `verifyOperationsAccess()` and `verifyFinanceAccess()`. Applied to all Church mutations (`createChurch`, `updateChurch`, `deleteChurch`), Region mutations (`createRegion`, `updateRegion`), and User mutations.
+  - **Sidebar:** `app-sidebar.tsx` conditionally hides the "Users" tab for Finance Admins and "Mock KCB" for Operations Admins.
+  - **Protected Accounts:** `PROTECTED_USER_IDS` (SYSTEM_ADMIN) cannot be modified by Finance or Operations Admins. Only SYSTEM_ADMIN can modify.
+  - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 22/22 pages.
 
 ## In Progress
-- **Unit 16.3: System-Wide Audit Log (Partial)**
-  - Remaining Steps:
-    1. Wire `region-actions.ts` (`REGION_CREATED`, `REGION_UPDATED`, `REGION_DELETED`).
-    2. Wire `app/api/webhooks/kcb/route.ts` (`PAYMENT_RECEIVED` with allocation details).
-    3. Build `/dashboard/audit-logs` page (table with filters, RBAC, CSV export).
-    4. Commit and close Unit 16.3.
+- None.
 
 ## Next Up
-- **Unit 16.5: Client Admin Roles** (ADMIN1/ADMIN2) — now safe to build because every admin action is auditable.
-- **Then:** 17 (Unmatched Payments) → 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox) → polish.
+- **Unit 17: Unmatched Payments Queue & Manual Entry** — `UnmatchedPayment` model, Levenshtein fuzzy matching, `/dashboard/payments/unmatched` review UI, manual entry form for cash/cheques.
+- **Then:** 18 (Pay Now Wizard) → 19 (In-App Help) → 20/21 (Sandbox, blocked on client credentials) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -197,6 +203,9 @@ Unit 16.5 — Client Admin Roles (ADMIN1/ADMIN2). All prior audit infrastructure
 - **Audit Log System (Unit 16.3):** Append-only table. `logAudit()` must be called *after* successful mutations and must NEVER throw (wrapped in try/catch). `before_data` and `after_data` contain JSON snapshots for forensic recovery.
 - **User Lifecycle (Unit 16.2):** Soft delete via `is_active`. Forced resets via `requires_password_reset` flag + `force-password-reset` fallback page. Enforced directly in the dashboard layout.
 - **Audit Log UI (Unit 16.3):** Forensic JSON snapshots (`before_data` / `after_data` / `metadata`) are viewed via a `<Dialog>` modal, not inline. This keeps the table row height compact while providing full forensic detail on demand. Entity and Action filters are shadcn `<Select>` populated dynamically from unique values in the dataset.
+- **Separation of Duties (Unit 16.5):** The client's admin roles are split into `FINANCE_ADMIN` (money) and `OPERATIONS_ADMIN` (registry/users). Neither can do the other's job — enforced by `lib/auth/guards.ts` at the server-action boundary. `SYSTEM_ADMIN` (Super Admin) can do both. This prevents any single client admin from creating a fake church, assigning a fake user, and routing payments to it.
+- **Protected Role Hierarchy:** `PROTECTED_USER_IDS` (hardcoded vendor accounts) can ONLY be modified by another `SYSTEM_ADMIN`. Finance and Operations Admins attempting to modify a protected account receive a `403`-equivalent error returned from the server action. Enforced in `user-actions.ts` before every mutation.
+- **RBAC Guard Pattern (`lib/auth/guards.ts`):** All mutations must call `verifyOperationsAccess()` or `verifyFinanceAccess()` at the top of the `try` block. If a caller lacks permission, the guard throws — the `catch` block converts this into a user-facing `{ error: 'Forbidden' }` return shape. This centralizes authorization so each action doesn't reimplement the check.
 
 ## Session Notes
 - **Current HEAD:** `66b03ef` on `feat/16.3-audit-log-system`. `main` is at `54cc925`.
@@ -236,4 +245,6 @@ Unit 16.5 — Client Admin Roles (ADMIN1/ADMIN2). All prior audit infrastructure
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
 - **Current HEAD:** (will update after commit — see `git log -1 --oneline`).
 - **Vendor email confirmed:** `gilbertmulaha.ke@gmail.com` (verified via Supabase Dashboard screenshot — no typo; the previous handoff note was incorrect). UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`.
+- **Current HEAD:** `cea77fe` on `main` is the pre-16.5 baseline. This unit will be committed on `feat/16.5-client-admin-roles`.
+- **Vendor account confirmed:** `gilbertmulaha.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`. This is the ONLY protected SYSTEM_ADMIN account.
 ```

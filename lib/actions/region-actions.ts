@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getExpectedUpToDate, getCreditBalance, getPeriodStatus } from '@/lib/utils/financial'
 import { logAudit } from '@/lib/actions/audit-actions'
+import { verifyOperationsAccess } from '@/lib/auth/guards'
 
 const regionSchema = z.object({
   name: z.string().min(1, 'Region Name is required'),
@@ -299,6 +300,9 @@ export async function createRegion(formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
+    // RBAC GUARD
+    await verifyOperationsAccess()
+
     const newRegion = await prisma.region.create({ data: validated.data })
 
     await logAudit({
@@ -315,8 +319,9 @@ export async function createRegion(formData: FormData) {
 
     revalidatePath('/dashboard/regions')
     return { success: true }
-  } catch {
-    return { error: 'Failed to create region. Name might already exist.' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create region. Name might already exist.'
+    return { error: message }
   }
 }
 
@@ -330,6 +335,9 @@ export async function updateRegion(id: string, formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
+    // RBAC GUARD
+    await verifyOperationsAccess()
+
     const beforeRegion = await prisma.region.findUnique({ where: { id } })
     if (!beforeRegion) return { error: 'Region not found.' }
 
@@ -356,7 +364,8 @@ export async function updateRegion(id: string, formData: FormData) {
 
     revalidatePath('/dashboard/regions')
     return { success: true }
-  } catch {
-    return { error: 'Failed to update region.' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update region.'
+    return { error: message }
   }
 }
