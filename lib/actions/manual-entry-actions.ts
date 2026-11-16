@@ -11,8 +11,7 @@ import {
 } from '@/lib/auth/guards'
 import type { AllocationInput } from '@/lib/actions/reconciliation-actions'
 import { computeExpectedPeriods, calculateAllocations } from '@/lib/utils/allocation'
-
-const FOUR_EYES_THRESHOLD = 20000
+import { FOUR_EYES_THRESHOLD, PRISMA_TRANSACTION_TIMEOUT } from '@/lib/constants'
 
 const manualEntrySchema = z.object({
   church_id: z.string().min(1, 'Church is required'),
@@ -162,7 +161,7 @@ export async function createManualEntry(formData: FormData) {
 
         return payment
       },
-      { timeout: 15000 }
+      { timeout: PRISMA_TRANSACTION_TIMEOUT }
     )
 
     await logAudit({
@@ -266,6 +265,11 @@ export async function approvePendingPayment(pendingId: string) {
     if (!pending) return { error: 'Pending payment not found' }
     if (pending.status !== 'Pending') return { error: 'Already processed' }
 
+    // 🚨 FIXED: Separation of Duties (Four-Eyes Rule)
+    if (pending.proposed_by === actorId) {
+      return { error: 'You cannot approve a payment you proposed yourself. A different Treasurer must approve this.' }
+    }
+
     const allocations = pending.allocations_json as unknown as AllocationInput[]
     if (!Array.isArray(allocations) || allocations.length === 0) {
       return { error: 'Invalid allocations snapshot' }
@@ -313,7 +317,7 @@ export async function approvePendingPayment(pendingId: string) {
 
         return payment
       },
-      { timeout: 15000 }
+      { timeout: PRISMA_TRANSACTION_TIMEOUT }
     )
 
     await logAudit({
@@ -354,6 +358,11 @@ export async function rejectPendingPayment(pendingId: string, reason: string) {
     })
     if (!pending) return { error: 'Not found' }
     if (pending.status !== 'Pending') return { error: 'Already processed' }
+
+    // 🚨 FIXED: Separation of Duties (Four-Eyes Rule)
+    if (pending.proposed_by === actorId) {
+      return { error: 'You cannot reject a payment you proposed yourself. A different Treasurer must review it.' }
+    }
 
     await prisma.pendingPayment.update({
       where: { id: pendingId },

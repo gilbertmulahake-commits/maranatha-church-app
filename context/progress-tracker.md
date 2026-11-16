@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate clean, 27/27 pages). Awaiting manual live verification (8 tests) before commit and merge.
+Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, security-hardened, and ready for commit).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -161,7 +161,7 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
   - **Sidebar:** `app-sidebar.tsx` conditionally hides the "Users" tab for Finance Admins and "Mock KCB" for Operations Admins.
   - **Protected Accounts:** `PROTECTED_USER_IDS` (SYSTEM_ADMIN) cannot be modified by Finance or Operations Admins. Only SYSTEM_ADMIN can modify.
   - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 22/22 pages.
-- **Unit 17: Reconciliation, Manual Entry & Write-Offs (Code Complete, Verification Pending)**
+- **Unit 17: Reconciliation, Manual Entry & Write-Offs (Verified & Complete)**
   - **Migrations:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`. 4 new models (`UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`), 2 new fields (`Church.is_defunct`, `Payment.source`), `Cheque` added to `PaymentMethod` enum.
   - **Solutions Bank:** `lib/utils/matching.ts` learns from every resolution. Uses `fastest-levenshtein`. Confidence = `min(100, 50 + hit_count * 10)`.
   - **Webhook update:** `app/api/webhooks/kcb/route.ts` now captures unmatched into `UnmatchedPayment` with top fuzzy suggestion (returns HTTP 200 so bank stops retrying).
@@ -170,11 +170,10 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
   - **Defunct church handling:** `Church.is_defunct = true` excludes from compliance %, regional scores, SMS lists, church dropdowns.
   - **Write-off accounting:** Gross outstanding unchanged, written-off subtracted via `sumApprovedWriteOffs`. LIFO deduction from aging buckets.
   - **UI:** 5 pages under `/dashboard/reconciliation` (hub + 4 sub-pages), 7 components, badge in sidebar.
-  - **Gate:** `tsc` + `lint` + `build` (27/27 pages) all clean.
-  - **Pending:** 8 manual verification tests + context file updates + commit + PR.
+  - **Verification:** All 8 manual tests passed. Found and fixed 2 critical security vulnerabilities (self-approval bypass in manual entries and write-offs). Fixed UI bugs: modal widths, Base UI `<Select>` UUID rendering, `FormData` payload error, and missing `Cheque` method in Payments Table.
 
 ## In Progress
-- **Unit 17: Manual Live Verification** — Code is complete and gate-clean. The 8 verification tests are documented in `HANDOFF_UNIT_17.md` (Test 1 through Test 8). Do NOT commit until all tests pass.
+- None
 
 ## Next Up
 - **Unit 18: Comprehensive Reporting Overhaul** — 14+ reports across all roles, YoY comparison, Allocation Breakdown, Inactive Church Report. Feeds on the new write-off and unmatched data from Unit 17.
@@ -193,7 +192,7 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (verification pending) → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Verified ✅) → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -205,7 +204,7 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
 - **Auth Redirects — Hard Reload:** Login and Logout **must** use `window.location.replace()` instead of `router.push()`. This clears the Next.js Router Cache so stale React state (loading spinners, input values) cannot be resurrected after navigation. The `eslint-disable` for `no-location-assign-relative-destination` is unnecessary because `window.location.replace` is allowed. (Unit 15.7).
 - **Sidebar — Auto-Hide on Mobile:** `SidebarProvider` imports `usePathname` from `next/navigation` and closes `openMobile` in an effect whenever the route changes. Prevents the mobile sheet from trapping the user after clicking a nav link. (Unit 15.7).
 - **Exports:** All tables use `<ExportDropdown>`. Global Print/Export actions intercepted by `<ExportConfirmDialog>` to clarify scope.
-- **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts.
+- **Dialogs:** Base `<DialogHeader>` has `pr-12` to prevent title overlap. `<DialogTitle>` defaults to `text-heading-2` for forms, `text-heading-3` for alerts. Standard modal width is `w-[95vw] sm:w-full sm:max-w-[500px] p-6`.
 - **Next.js 16:** All auth-protected routes require the universal `<Suspense>` wrapper and `await connection()` inside an async content component.
 - **Financial Ledger:** Cumulative lifetime calculation via `getExpectedUpToDate()`. Strict Bucket Isolation applies across all tables, KPIs, and SMS messages.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Attribution handled purely via the `PaymentAllocation` table.
@@ -218,6 +217,7 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
 - **Protected Role Hierarchy:** `PROTECTED_USER_IDS` (hardcoded vendor accounts) can ONLY be modified by another `SYSTEM_ADMIN`. Finance and Operations Admins attempting to modify a protected account receive a `403`-equivalent error returned from the server action. Enforced in `user-actions.ts` before every mutation.
 - **RBAC Guard Pattern (`lib/auth/guards.ts`):** All mutations must call `verifyOperationsAccess()` or `verifyFinanceAccess()` at the top of the `try` block. If a caller lacks permission, the guard throws — the `catch` block converts this into a user-facing `{ error: 'Forbidden' }` return shape. This centralizes authorization so each action doesn't reimplement the check.
 - **Reconciliation Four-Eyes (Unit 17):** KES 20,000 threshold on unmatched resolutions and manual entries. 90+ day arrears always require Treasurer approval regardless of amount. Write-offs require Treasurer approval at ALL amounts (no exception). `FOUR_EYES_THRESHOLD` constant in both `reconciliation-actions.ts` and `manual-entry-actions.ts`. Change both if threshold changes.
+- **Four-Eyes Hardening (Unit 17 Verification):** Server actions `approvePendingPayment` and `approveWriteOff` explicitly check `if (proposerId === actorId)` and return an error. Even if the UI hides the button, the server enforces separation of duties. Never trust the client.
 - **Solutions Bank (Unit 17):** `ResolutionPattern` table stores learned patterns. Every successful `resolveUnmatched` calls `recordResolution()` which upserts a pattern keyed by `(raw_reference_pattern, resolved_church_code)`. Confidence formula: `min(100, 50 + hit_count * 10)`. Patterns checked BEFORE Levenshtein in `suggestMatches()`. Never auto-commits a resolution — only surfaces suggestions.
 - **Defunct Church Handling (Unit 17):** `Church.is_defunct = true` set automatically when a write-off covers the FULL outstanding (determined during `approveWriteOff`). Defunct churches are excluded from: compliance denominators, regional incentive scores, SMS reminder lists, church dropdowns in resolution/manual entry/write-off forms. They DO appear in financial reports (gross arrears + write-off register).
 - **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()` — the debt truly existed. Write-offs are subtracted from `outstanding` in reports via `sumApprovedWriteOffs()` + `getNetOutstanding()`. Aging buckets reduced LIFO (oldest debt written off first) so 90+ bucket shrinks before 0-30 bucket. This matches IFRS 9 / IPSAS 29.
@@ -226,8 +226,8 @@ Unit 17 — Reconciliation, Manual Entry & Write-Offs. All code complete (gate c
 - **`react-hooks/set-state-in-effect` Pattern (Unit 17):** Never call `setState` synchronously inside `useEffect`. Move state resets to event handlers (`handleOpenChange`, `handleChurchChange`). Effects should only do async fetch → setState in the async callback.
 
 ## Session Notes
-- **Current Branch:** `feat/17-reconciliation-writeoffs` (uncommitted). `main` is at `cea77fe`.
-- **Pending Verification:** 8 manual tests in `HANDOFF_UNIT_17.md` must pass before commit.
+- **Current Branch:** `feat/17-reconciliation-writeoffs` (ready to commit).
+- **Verification Complete:** All 8 manual tests passed. Two critical security vulnerabilities found and fixed.
 - **Migration Head:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method` (both applied locally, NOT yet on production).
 - **`fastest-levenshtein`** added. **`Cheque`** added to PaymentMethod enum.
 - **NOT YET DONE in production:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` — must run before prod deploy.

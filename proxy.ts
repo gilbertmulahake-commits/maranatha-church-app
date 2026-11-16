@@ -38,6 +38,7 @@ export async function proxy(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/_next') &&
+    !request.nextUrl.pathname.startsWith('/api/webhooks') && // 👈 ADDED THIS LINE
     !request.nextUrl.pathname.includes('.')
   ) {
     const url = request.nextUrl.clone()

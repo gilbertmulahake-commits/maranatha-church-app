@@ -205,6 +205,11 @@ export async function approveWriteOff(writeOffId: string) {
     if (!writeOff) return { error: 'Write-off not found' }
     if (writeOff.status !== 'Pending') return { error: 'Already processed' }
 
+    // 🚨 FIXED: Separation of Duties (Four-Eyes Rule)
+    if (writeOff.proposed_by === actorId) {
+      return { error: 'You cannot approve a write-off you proposed yourself. A different Treasurer must approve this.' }
+    }
+
     // Re-verify outstanding hasn't changed (payments may have arrived while pending)
     const outstanding = await computeChurchOutstanding(writeOff.church_id)
     const writeOffAmount = Number(writeOff.amount)
@@ -272,6 +277,11 @@ export async function rejectWriteOff(writeOffId: string, reason: string) {
     })
     if (!writeOff) return { error: 'Not found' }
     if (writeOff.status !== 'Pending') return { error: 'Already processed' }
+
+    // 🚨 FIXED: Separation of Duties (Four-Eyes Rule)
+    if (writeOff.proposed_by === actorId) {
+      return { error: 'You cannot reject a write-off you proposed yourself. A different Treasurer must review it.' }
+    }
 
     await prisma.writeOff.update({
       where: { id: writeOffId },

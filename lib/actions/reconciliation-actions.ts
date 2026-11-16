@@ -8,6 +8,13 @@ import { recordResolution } from '@/lib/utils/matching'
 import { verifyReconciliationAccess } from '@/lib/auth/guards'
 import { getExpectedUpToDate } from '@/lib/utils/financial'
 import { computeExpectedPeriods, calculateAllocations } from '@/lib/utils/allocation'
+import { 
+  FOUR_EYES_THRESHOLD, 
+  PRISMA_TRANSACTION_TIMEOUT, 
+  ARREARS_CRITICAL_DAYS,
+  SLA_YELLOW_DAYS,
+  SLA_RED_DAYS
+} from '@/lib/constants'
 
 export type UnmatchedQueueRow = {
   id: string
@@ -33,14 +40,12 @@ export type AllocationInput = {
   amount: number
 }
 
-const FOUR_EYES_THRESHOLD = 20000
-
 export async function getUnmatchedQueue(): Promise<UnmatchedQueueRow[]> {
   try {
     await verifyReconciliationAccess()
 
     const items = await prisma.unmatchedPayment.findMany({
-      where: { status: 'Pending' },
+      where: { status: 'Pending', assigned_church_id: null },
       include: {
         suggested_church: { select: { church_code: true, church_name: true } },
       },
@@ -53,9 +58,10 @@ export async function getUnmatchedQueue(): Promise<UnmatchedQueueRow[]> {
       const ageDays = Math.floor(
         (now.getTime() - item.created_at.getTime()) / (1000 * 60 * 60 * 24)
       )
+      
       let slaStatus: 'green' | 'yellow' | 'red' = 'green'
-      if (ageDays >= 30) slaStatus = 'red'
-      else if (ageDays >= 7) slaStatus = 'yellow'
+      if (ageDays >= SLA_RED_DAYS) slaStatus = 'red'
+      else if (ageDays >= SLA_YELLOW_DAYS) slaStatus = 'yellow'
 
       return {
         id: item.id,
@@ -81,8 +87,8 @@ export async function getUnmatchedQueue(): Promise<UnmatchedQueueRow[]> {
 }
 
 async function compute90PlusArrears(churchId: string): Promise<number> {
-  const ninetyDaysAgo = new Date()
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+  const criticalDate = new Date()
+  criticalDate.setDate(criticalDate.getDate() - ARREARS_CRITICAL_DAYS)
 
   const church = await prisma.church.findUnique({
     where: { id: churchId },
@@ -92,22 +98,22 @@ async function compute90PlusArrears(churchId: string): Promise<number> {
   })
   if (!church) return 0
 
-  let paidBefore90 = 0
+  let paidBeforeCritical = 0
   church.payments.forEach((p) => {
-    if (new Date(p.payment_date) <= ninetyDaysAgo) {
+    if (new Date(p.payment_date) <= criticalDate) {
       const amount =
         p.allocations.length === 0
           ? Number(p.amount_paid)
           : p.allocations.reduce((s, a) => s + Number(a.amount), 0)
-      paidBefore90 += amount
+      paidBeforeCritical += amount
     }
   })
 
-  const { totalExpected: expected90 } = getExpectedUpToDate(
+  const { totalExpected: expectedCritical } = getExpectedUpToDate(
     church.created_at,
-    ninetyDaysAgo
+    criticalDate
   )
-  return Math.max(0, expected90 - paidBefore90)
+  return Math.max(0, expectedCritical - paidBeforeCritical)
 }
 
 async function requiresTreasurerApproval(
@@ -115,8 +121,8 @@ async function requiresTreasurerApproval(
   amount: number
 ): Promise<boolean> {
   if (amount >= FOUR_EYES_THRESHOLD) return true
-  const arrears90 = await compute90PlusArrears(churchId)
-  return arrears90 > 0
+  const arrearsCritical = await compute90PlusArrears(churchId)
+  return arrearsCritical > 0
 }
 
 export async function resolveUnmatched(params: {
@@ -131,7 +137,10 @@ export async function resolveUnmatched(params: {
       where: { id: params.unmatchedId },
     })
     if (!unmatched) return { error: 'Unmatched payment not found' }
-    if (unmatched.status !== 'Pending') return { error: 'Already processed' }
+    
+    if (unmatched.status !== 'Pending' || unmatched.assigned_church_id !== null) {
+      return { error: 'Already processed or pending approval' }
+    }
 
     const church = await prisma.church.findUnique({
       where: { id: params.churchId },
@@ -163,6 +172,7 @@ export async function resolveUnmatched(params: {
           reviewed_by: actorEmail,
           reviewed_at: new Date(),
           notes: `Submitted for Treasurer approval (pending payment ${pending.id})`,
+          assigned_church_id: params.churchId,
         },
       })
 
@@ -179,7 +189,7 @@ export async function resolveUnmatched(params: {
           amount,
           church_code: church.church_code,
           reason:
-            amount >= FOUR_EYES_THRESHOLD ? 'amount_threshold' : '90plus_arrears',
+            amount >= FOUR_EYES_THRESHOLD ? 'amount_threshold' : 'critical_arrears',
         },
       })
 
@@ -235,7 +245,7 @@ export async function resolveUnmatched(params: {
 
         return payment
       },
-      { timeout: 15000 }
+      { timeout: PRISMA_TRANSACTION_TIMEOUT }
     )
 
     await recordResolution({
@@ -338,7 +348,7 @@ export async function escalateUnmatched(unmatchedId: string) {
 export async function getUnresolvedCounts() {
   try {
     const [unmatchedCount, pendingCount, writeOffCount] = await Promise.all([
-      prisma.unmatchedPayment.count({ where: { status: 'Pending' } }),
+      prisma.unmatchedPayment.count({ where: { status: 'Pending', assigned_church_id: null } }),
       prisma.pendingPayment.count({ where: { status: 'Pending' } }),
       prisma.writeOff.count({ where: { status: 'Pending' } }),
     ])
@@ -358,25 +368,26 @@ export async function getReconciliationHubStats() {
     await verifyReconciliationAccess()
 
     const now = new Date()
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const yellowDaysAgo = new Date(now.getTime() - SLA_YELLOW_DAYS * 24 * 60 * 60 * 1000)
+    const redDaysAgo = new Date(now.getTime() - SLA_RED_DAYS * 24 * 60 * 60 * 1000)
 
     const [unmatchedTotal, pendingPayments, pendingWriteOffs, green, yellow, red] =
       await Promise.all([
-        prisma.unmatchedPayment.count({ where: { status: 'Pending' } }),
+        prisma.unmatchedPayment.count({ where: { status: 'Pending', assigned_church_id: null } }),
         prisma.pendingPayment.count({ where: { status: 'Pending' } }),
         prisma.writeOff.count({ where: { status: 'Pending' } }),
         prisma.unmatchedPayment.count({
-          where: { status: 'Pending', created_at: { gt: sevenDaysAgo } },
+          where: { status: 'Pending', assigned_church_id: null, created_at: { gt: yellowDaysAgo } },
         }),
         prisma.unmatchedPayment.count({
           where: {
             status: 'Pending',
-            created_at: { lte: sevenDaysAgo, gt: thirtyDaysAgo },
+            assigned_church_id: null,
+            created_at: { lte: yellowDaysAgo, gt: redDaysAgo },
           },
         }),
         prisma.unmatchedPayment.count({
-          where: { status: 'Pending', created_at: { lte: thirtyDaysAgo } },
+          where: { status: 'Pending', assigned_church_id: null, created_at: { lte: redDaysAgo } },
         }),
       ])
 

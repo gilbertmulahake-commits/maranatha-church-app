@@ -32,14 +32,15 @@ async function ManualEntryContent() {
 
 export default function ManualEntryPage() {
   return (
-    <div className="space-y-xl">
-      <div>
+    // FIXED: Using flex-col and min-w-0 to completely prevent layout crushing
+    <div className="flex flex-col w-full min-w-0 space-y-xl">
+      <div className="w-full">
         <h1 className="text-heading-2 font-bold text-foreground">Manual Entry</h1>
         <p className="mt-xs text-paragraph-small text-muted-foreground">
           Record a cash, cheque, or direct bank transfer payment.
         </p>
       </div>
-      <Suspense fallback={<Skeleton className="h-[600px] rounded-xl" />}>
+      <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
         <ManualEntryContent />
       </Suspense>
     </div>

@@ -1,3 +1,8 @@
+Here is the complete, comprehensive `context/code-standards.md`, updated to reflect everything we learned, built, and hardened during the Unit 17 verification phase. 
+
+I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Base UI `<SelectValue>` UUID fix**, the **Standardized Modal layout**, and the **FormData payload rule**.
+
+```markdown
 # Code Standards
 
 ## General
@@ -30,6 +35,7 @@
 - **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
 - **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
 - **Unmatched capture (Unit 17):** When a webhook cannot find its target church, do NOT return 404. Capture it in `UnmatchedPayment` with the top fuzzy suggestion, log `UNMATCHED_PAYMENT_CAPTURED`, and return HTTP 200 so the bank stops retrying.
+- **Payload Types:** Server Actions that handle forms (like `createManualEntry` or `proposeWriteOff`) MUST accept `FormData` and use `formData.get()`. Do not pass raw objects directly from the client to these specific actions.
 
 ## Data and Storage
 - Use Prisma ORM for all database queries.
@@ -99,10 +105,25 @@
 - **Never cast** with `as string`. Always guard: `if (val) { ... }`, or widen the handler to accept `string | null`.
 - Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`, `resolve-dialog.tsx`, `manual-entry-form.tsx`, `propose-writeoff-dialog.tsx` (all pattern `handleStatusFilterChange` / `handleChurchChange`).
 
+**`<SelectValue>` UUID rendering bug:**
+- When a `<Select>` holds a database ID, Base UI will display the raw UUID (e.g., `fc224644...`) instead of the human-readable name.
+- You MUST explicitly pass the display string as a child of `<SelectValue>`:
+  ```tsx
+  <SelectValue placeholder="Select a church...">
+    {selectedChurch ? `${selectedChurch.church_code} — ${selectedChurch.church_name}` : undefined}
+  </SelectValue>
+  ```
+
 **`<TooltipTrigger>` context requirement:**
 - Every `<TooltipTrigger>` MUST be a child of `<Tooltip.Root>`.
 - Never conditionally return a `<TooltipTrigger>` outside its `<Tooltip.Root>` — Base UI throws a runtime error.
 - Base tooltip styling in `components/ui/tooltip.tsx` uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]`. Never add `whitespace-nowrap` or `flex` to `TooltipPopup` — it collapses the content vertically.
+
+### Standardized Dialog Widths (Preventing Flexbox Collapse)
+- Never leave `DialogContent` without explicit width constraints, or it will collapse to a 40px vertical sliver inside a flex parent.
+- **Standard:** `w-[95vw] sm:w-full sm:max-w-[500px] p-6 max-h-[90vh] overflow-y-auto`
+- **Wide:** `w-[95vw] sm:w-full sm:max-w-[600px] p-6` (Use only for complex forms like the Resolve Unmatched dialog).
+- Always apply `flex-col-reverse sm:flex-row gap-2` to `<DialogFooter>` for responsive button stacking.
 
 ### `<Textarea>` Component
 - Official shadcn `<Textarea>` from `components/ui/textarea.tsx` (added in Unit 17 via `npx shadcn@latest add textarea`).
@@ -125,6 +146,7 @@ Never re-implement these — always use the component:
 | Export dropdown (icon-only on mobile) | `<ExportDropdown>` | `components/ui/export-dropdown.tsx` |
 | Table toolbar (search + filters + bulk) | `<TableToolbar>` | `components/ui/table-toolbar.tsx` |
 | SLA age badge (green/yellow/red) | `<SlaBadge>` | `components/reconciliation/sla-badge.tsx` |
+| Readable Payment Methods | `getReadableMethod()` | `components/payments/payments-table.tsx` (Maps `M_Pesa` → `M-Pesa`, `Cheque` → `Cheque`) |
 
 If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
 
@@ -140,13 +162,17 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 - **KES 20,000** (`FOUR_EYES_THRESHOLD` constant in both `reconciliation-actions.ts` and `manual-entry-actions.ts`).
 - Above threshold OR 90+ day arrears → route to `PendingPayment` staging (never create `Payment` directly).
 - **Write-offs ALWAYS require Treasurer approval** regardless of amount (absolute four-eyes — prevents fraud from hiding behind "write-off" labels).
-- **National Treasurer and SYSTEM_ADMIN can approve any amount** — the threshold limits the *Finance Admin*, not the Treasurer. The Treasurer has full visibility and full authority at all times.
+
+### Separation of Duties (Four-Eyes Hardening)
+- **Server-Side Enforcement:** Both `approvePendingPayment` and `approveWriteOff` MUST check `if (proposerId === actorId)` and throw an error. 
+- **Never trust the UI:** Even if the UI hides the approve button, the server action must explicitly block a user from approving their own proposal.
+- **Applies to:** Unmatched resolutions (>20K), Manual Entries (>20K), and ALL Write-Offs (regardless of amount).
 
 ### Solutions Bank
 - Every successful `resolveUnmatched` calls `recordResolution()` — upserts a `ResolutionPattern` row keyed by `(raw_reference_pattern, resolved_church_code)`.
 - Confidence formula: `min(100, 50 + hit_count * 10)` — 1 hit = 60%, 2 = 70%, 3 = 80%, 4 = 90%, 5+ = 100%.
 - `suggestMatches()` checks patterns BEFORE running Levenshtein.
-- **Never auto-commits a resolution** — surfaces suggestions only; human confirmation is required (auditor requirement, per SAC-1 / IFRS / IFAC).
+- **Never auto-commits a resolution** — surfaces suggestions only; human confirmation is required.
 
 ### PendingPayment Staging
 - High-value manual entries / resolutions create a `PendingPayment` row — **NEVER a `Payment` directly**.
@@ -162,4 +188,5 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 - Obligation is **never reduced** from `getExpectedUpToDate()` — the debt truly existed.
 - Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()` + `getNetOutstanding()`.
 - Aging buckets reduced **LIFO** (oldest debt written off first) — so 90+ bucket shrinks before 0-30 bucket.
-- Reports must show the full reconciliation:
+- Reports must show the full reconciliation.
+```
