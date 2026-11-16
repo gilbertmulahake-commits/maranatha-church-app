@@ -53,3 +53,14 @@ export async function logAudit(payload: AuditPayload) {
     console.error('Failed to write audit log:', error)
   }
 }
+
+export async function getAuditLogs() {
+  try {
+    return await prisma.auditLog.findMany({
+      orderBy: { created_at: 'desc' }
+    })
+  } catch (error) {
+    console.error('Failed to fetch audit logs:', error)
+    return []
+  }
+}

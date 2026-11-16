@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { computeExpectedPeriods, calculateAllocations } from '@/lib/utils/allocation'
+import { logAudit } from '@/lib/actions/audit-actions'
 
 const kcbWebhookSchema = z.object({
   TransID: z.string(),
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     const { TransID, TransAmount, BillRefNumber, MSISDN, TransTime, payment_type, billing_year } =
       validatedData.data
 
-    // 1. Idempotency — reject duplicate webhook retries
+    // 1. Idempotency - reject duplicate webhook retries
     const existingPayment = await prisma.payment.findUnique({
       where: { transaction_id: TransID },
     })
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     // 3. Parse transaction date ONCE
     const transDate = new Date(TransTime)
 
-    // 4. Flatten existing allocations — convert Prisma.Decimal → number for the helper
+    // 4. Flatten existing allocations - convert Prisma.Decimal to number for the helper
     const existingAllocations = church.payments.flatMap((p) =>
       p.allocations.map((a) => ({
         allocation_type: a.allocation_type,
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
       ]
     }
 
-    // 6. For Auto mode, Payment.payment_type needs a stored value — default to Annual.
+    // 6. For Auto mode, Payment.payment_type needs a stored value - default to Annual.
     const storedPaymentType = payment_type === 'Auto' ? 'Annual' : payment_type
 
     // 7. Create Payment + all Allocations in ONE atomic transaction
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
           },
         })
 
-        // Bulk insert — one DB round-trip regardless of allocation count
+        // Bulk insert - one DB round-trip regardless of allocation count
         if (allocations.length > 0) {
           await tx.paymentAllocation.createMany({
             data: allocations.map((alloc) => ({
@@ -135,11 +136,32 @@ export async function POST(request: Request) {
       { timeout: 15000 }
     )
 
-    // 8. Automated SMS receipt
+    // 8. Audit Log (Called AFTER transaction succeeds, never inside)
+    await logAudit({
+      action: 'PAYMENT_RECEIVED',
+      entity: 'Payment',
+      entityId: newPayment.id,
+      beforeData: null,
+      afterData: {
+        transaction_id: TransID,
+        church_code: BillRefNumber,
+        amount: TransAmount,
+        payment_method: 'M_Pesa',
+        payment_type: storedPaymentType,
+        allocations: allocations.map((a) => ({
+          allocation_type: a.allocation_type,
+          amount: a.amount,
+          billing_year: a.billing_year,
+          billing_month: a.billing_month,
+        })),
+      },
+    })
+
+    // 9. Automated SMS receipt
     const smsMessage = `Payment of KES ${TransAmount.toLocaleString()} for ${church.church_name} (${BillRefNumber}) received. Ref: ${TransID}. Thank you. - Maranatha`
     await sendSms(MSISDN, smsMessage, 'Receipt')
 
-    // 9. Return success
+    // 10. Return success
     return NextResponse.json(
       {
         message: 'Payment successfully reconciled',
