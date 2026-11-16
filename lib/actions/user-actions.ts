@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { isProtectedUser } from '@/lib/auth/protected-users'
 import { isNationalLevel } from '@/lib/auth/roles'
+import { logAudit } from '@/lib/actions/audit-actions'
 
 const roleSchema = z.enum([
   'NATIONAL_TREASURER',
@@ -54,7 +55,6 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
       return { email: user.email, role: 'UNASSIGNED', regionName: null, churchName: null }
     }
 
-    // Block inactive users from accessing the app
     if (!dbUser.is_active) {
       return { email: user.email, role: 'INACTIVE', regionName: null, churchName: null }
     }
@@ -172,6 +172,16 @@ export async function inviteUser(formData: FormData) {
       throw dbError
     }
 
+    // Audit: only written after successful Auth + Prisma creation
+    await logAudit({
+      action: 'USER_INVITED',
+      entity: 'User',
+      entityId: authData.user.id,
+      beforeData: null,
+      afterData: { email, role, region_id, church_id },
+      metadata: { invited_by_role: dbUser.role },
+    })
+
     revalidatePath('/dashboard/users')
     return { success: true }
 
@@ -204,9 +214,25 @@ export async function toggleUserStatus(targetUserId: string, isActive: boolean) 
       return { error: 'Cannot modify a protected system account.' }
     }
 
+    const beforeUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { is_active: true, email: true, role: true }
+    })
+
+    if (!beforeUser) return { error: 'User not found.' }
+
     await prisma.user.update({
       where: { id: targetUserId },
       data: { is_active: isActive }
+    })
+
+    await logAudit({
+      action: isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+      entity: 'User',
+      entityId: targetUserId,
+      beforeData: { is_active: beforeUser.is_active },
+      afterData: { is_active: isActive },
+      metadata: { target_email: beforeUser.email, target_role: beforeUser.role },
     })
 
     revalidatePath('/dashboard/users')
@@ -232,34 +258,53 @@ export async function forcePasswordReset(targetUserId: string, origin: string) {
       return { error: 'Cannot modify a protected system account.' }
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } })
-    if (!targetUser) return { error: 'User not found.' }
+    const beforeUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { requires_password_reset: true, email: true, role: true }
+    })
+    if (!beforeUser) return { error: 'User not found.' }
 
     // Set the flag (this is the real safety net)
     await prisma.user.update({
       where: { id: targetUserId },
       data: { requires_password_reset: true }
     })
-    revalidatePath('/dashboard/users')
 
     // Try to email them (best-effort). Flag is what actually enforces the reset.
+    let emailSent = false
     try {
       const supabaseAdmin = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
-      const { error: emailError } = await supabaseAdmin.auth.resetPasswordForEmail(targetUser.email, {
+      const { error: emailError } = await supabaseAdmin.auth.resetPasswordForEmail(beforeUser.email, {
         redirectTo: `${origin}/login/update-password`,
       })
       if (emailError) {
         console.error('Password reset email failed:', emailError)
-        return {
-          success: true,
-          warning: 'Flag set, but email could not be sent. User will still be forced to reset on next login.',
-        }
+      } else {
+        emailSent = true
       }
     } catch (emailErr) {
       console.error('Password reset email exception:', emailErr)
+    }
+
+    await logAudit({
+      action: 'PASSWORD_RESET_FORCED',
+      entity: 'User',
+      entityId: targetUserId,
+      beforeData: { requires_password_reset: beforeUser.requires_password_reset },
+      afterData: { requires_password_reset: true },
+      metadata: {
+        target_email: beforeUser.email,
+        target_role: beforeUser.role,
+        email_sent: emailSent,
+      },
+    })
+
+    revalidatePath('/dashboard/users')
+
+    if (!emailSent) {
       return {
         success: true,
         warning: 'Flag set, but email could not be sent. User will still be forced to reset on next login.',
@@ -279,10 +324,21 @@ export async function clearPasswordResetFlag() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false }
 
-    // Idempotent: only updates if flag is currently true
-    await prisma.user.updateMany({
+    const result = await prisma.user.updateMany({
       where: { id: user.id, requires_password_reset: true },
       data: { requires_password_reset: false },
+    })
+
+    await logAudit({
+      action: 'PASSWORD_CHANGED',
+      entity: 'User',
+      entityId: user.id,
+      beforeData: null,
+      afterData: null,
+      metadata: {
+        method: 'recovery-email',
+        was_forced: result.count > 0,
+      },
     })
 
     return { success: true }
@@ -308,6 +364,15 @@ export async function updatePasswordAndClearFlag(newPassword: string) {
     await prisma.user.updateMany({
       where: { id: user.id, requires_password_reset: true },
       data: { requires_password_reset: false },
+    })
+
+    await logAudit({
+      action: 'PASSWORD_CHANGED',
+      entity: 'User',
+      entityId: user.id,
+      beforeData: null,
+      afterData: null,
+      metadata: { method: 'forced-reset-page' },
     })
 
     return { success: true }
@@ -337,9 +402,24 @@ export async function updateUserRole(targetUserId: string, newRole: string) {
       return { error: 'Invalid role selected.' }
     }
 
+    const beforeUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { role: true, email: true }
+    })
+    if (!beforeUser) return { error: 'User not found.' }
+
     await prisma.user.update({
       where: { id: targetUserId },
       data: { role: roleParsed.data }
+    })
+
+    await logAudit({
+      action: 'USER_ROLE_CHANGED',
+      entity: 'User',
+      entityId: targetUserId,
+      beforeData: { role: beforeUser.role },
+      afterData: { role: roleParsed.data },
+      metadata: { target_email: beforeUser.email },
     })
 
     revalidatePath('/dashboard/users')

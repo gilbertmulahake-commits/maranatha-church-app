@@ -11,6 +11,7 @@ import {
   IconSettings,
   IconBolt,
   IconBuildingBank,
+  IconHistory, // Add this
 } from '@tabler/icons-react'
 import {
   Sidebar,
@@ -27,7 +28,6 @@ import { NavUser } from './nav-user'
 import { Role } from '@prisma/client'
 import { isNationalLevel, isRegionalLevel } from '@/lib/auth/roles'
 
-// FIXED: Use Tabler's `Icon` type (matches NavMain's expected prop)
 type NavItem = {
   title: string
   url: string
@@ -38,8 +38,6 @@ export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?:
   let navMain: NavItem[] = []
   let navSecondary: NavItem[] = []
 
-  // 🛡️ Using centralized RBAC helpers instead of hardcoded string arrays.
-  // SYSTEM_ADMIN is included in NATIONAL_ROLES, so it inherits full access.
   if (isNationalLevel(role)) {
     navMain = [
       { title: 'Dashboard', url: '/dashboard', icon: IconLayoutDashboard },
@@ -49,6 +47,7 @@ export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?:
       { title: 'Users', url: '/dashboard/users', icon: IconUsers },
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
       { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt },
+      { title: 'Audit Logs', url: '/dashboard/audit-logs', icon: IconHistory }, // Added here
     ]
   } else if (isRegionalLevel(role)) {
     navMain = [
@@ -57,7 +56,6 @@ export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?:
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
     ]
   } else {
-    // Local Church (Pastors & Treasurers)
     navMain = [
       { title: 'Church Dashboard', url: '/dashboard/local', icon: IconLayoutDashboard },
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
@@ -66,7 +64,6 @@ export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?:
 
   navSecondary = [{ title: 'Settings', url: '/dashboard/settings', icon: IconSettings }]
 
-  // The NavUser component now requires a role. Default to CHURCH_TREASURER if null.
   const user = {
     name: userEmail?.split('@')[0] || 'User',
     email: userEmail || 'user@maranatha.org',

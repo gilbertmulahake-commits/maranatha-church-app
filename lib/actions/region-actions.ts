@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getExpectedUpToDate, getCreditBalance, getPeriodStatus } from '@/lib/utils/financial'
+import { logAudit } from '@/lib/actions/audit-actions'
 
 const regionSchema = z.object({
   name: z.string().min(1, 'Region Name is required'),
@@ -298,7 +299,20 @@ export async function createRegion(formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
-    await prisma.region.create({ data: validated.data })
+    const newRegion = await prisma.region.create({ data: validated.data })
+
+    await logAudit({
+      action: 'REGION_CREATED',
+      entity: 'Region',
+      entityId: newRegion.id,
+      beforeData: null,
+      afterData: { 
+        name: newRegion.name, 
+        chairman_name: newRegion.chairman_name, 
+        contact_phone: newRegion.contact_phone 
+      },
+    })
+
     revalidatePath('/dashboard/regions')
     return { success: true }
   } catch {
@@ -316,10 +330,33 @@ export async function updateRegion(id: string, formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
-    await prisma.region.update({ where: { id }, data: validated.data })
+    const beforeRegion = await prisma.region.findUnique({ where: { id } })
+    if (!beforeRegion) return { error: 'Region not found.' }
+
+    const updatedRegion = await prisma.region.update({ 
+      where: { id }, 
+      data: validated.data 
+    })
+
+    await logAudit({
+      action: 'REGION_UPDATED',
+      entity: 'Region',
+      entityId: id,
+      beforeData: { 
+        name: beforeRegion.name, 
+        chairman_name: beforeRegion.chairman_name, 
+        contact_phone: beforeRegion.contact_phone 
+      },
+      afterData: { 
+        name: updatedRegion.name, 
+        chairman_name: updatedRegion.chairman_name, 
+        contact_phone: updatedRegion.contact_phone 
+      },
+    })
+
     revalidatePath('/dashboard/regions')
     return { success: true }
-    } catch {
+  } catch {
     return { error: 'Failed to update region.' }
   }
 }

@@ -70,6 +70,50 @@
   - `senderRole` — `'NATIONAL' | 'REGIONAL'`.
 - **Do NOT reintroduce a third `periodView` argument.** The previous signature was simplified during Phase 1 lint cleanup because `periodView` was unused. If a future feature genuinely needs period context, add it explicitly in a new spec and update this rule.
 
+## Frontend Behavior Rules
+
+### Auth Redirects — Always Hard Reload
+- **Login and Logout MUST use `window.location.replace()`**, never `router.push()`.
+- Reason: `router.push()` retains the Next.js Router Cache, which can resurrect stale React state (spinners, form values) and cause "ghost signing-in" bugs.
+- Files affected: `login/page.tsx`, `components/layout/nav-user.tsx`, `components/layout/topbar.tsx`.
+
+### Base UI Primitives — Critical Rules
+
+**`<Select>` nullability:**
+- Base UI's `<Select onValueChange>` passes `string | null` (not `string`).
+- **Never cast** with `as string`. Always guard: `if (val) { ... }`, or widen the handler to accept `string | null`.
+- Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx` (all pattern `handleStatusFilterChange`).
+
+**`<TooltipTrigger>` context requirement:**
+- Every `<TooltipTrigger>` MUST be a child of `<Tooltip.Root>`.
+- Never conditionally return a `<TooltipTrigger>` outside its `<Tooltip.Root>` — Base UI throws a runtime error.
+- Base tooltip styling in `components/ui/tooltip.tsx` uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]`. Never add `whitespace-nowrap` or `flex` to `TooltipPopup` — it collapses the content vertically.
+
+### Supabase Auth — Email Template Requirement
+- **Reset password, magic link, and invite flows MUST use `{{ .TokenHash }}`** (not the PKCE `?code=` flow).
+- Use `supabase.auth.verifyOtp({ type: 'recovery', token_hash })` on the landing page.
+- Reason: `@supabase/ssr` auto-exchanges PKCE codes in the middleware, racing with manual exchange and causing intermittent auth failures.
+- Update Supabase Dashboard → Auth → Email Templates accordingly.
+
+### Component Reuse (Single Source of Truth)
+Never re-implement these — always use the component:
+| Pattern | Component | Location |
+| :--- | :--- | :--- |
+| KPI grid layout | `<KpiGrid>` | `components/ui/kpi-grid.tsx` |
+| KPI number typography | `<KpiValue>` | `components/ui/kpi-value.tsx` |
+| Table wrapper (with `overflow-x-auto`) | `<TableShell>` | `components/ui/table-shell.tsx` |
+| Print button (icon-only on mobile) | `<PrintButton>` | `components/ui/print-button.tsx` |
+| Export dropdown (icon-only on mobile) | `<ExportDropdown>` | `components/ui/export-dropdown.tsx` |
+| Table toolbar (search + filters + bulk) | `<TableToolbar>` | `components/ui/table-toolbar.tsx` |
+
+If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
+
+## SMS Safety Invariant (Preserve During Refactors)
+- `safeLogSms()` in `lib/actions/sms-actions.ts` swallows `SmsLog` DB write failures so that a **successful Africa's Talking send always returns `{ success: true }`**.
+- Never change this: **DB log failure must not surface as SMS-send failure**. If it does, the UI retries and sends duplicate messages to the pastor.
+- Africa's Talking phone format is **E.164** (`+254...`), NOT local (`0...`). `normalizeKenyanPhone()` handles conversion — never call the AT API with a raw DB phone value.
+- **Never send `from: 'sandbox'`** — AT returns `InvalidSenderId`. Omit `from` entirely.
+
 ## Future Considerations (V2 Planned)
 - **Fuzzy Matching:** When implementing UnmatchedPayment suggestion logic, use `fastest-levenshtein` (not native string diff). Target: <5ms per comparison.
 - **PaymentIntent Polling:** When the user clicks "Verify Payment" in the wizard, poll every 3s for up to 2 minutes. Show progress. Auto-expire intent after 10 minutes.

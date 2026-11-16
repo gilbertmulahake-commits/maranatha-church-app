@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
+import { logAudit } from '@/lib/actions/audit-actions'
 
 const churchSchema = z.object({
   church_code: z.string().min(1, 'Church Code is required'),
@@ -31,13 +32,11 @@ export async function getChurches() {
     const now = new Date()
 
     return churches.map((church) => {
-      // Split by allocation_type (authoritative for Annual vs Monthly)
       let annualPaid = 0
       let monthlyPaid = 0
 
       church.payments.forEach((p) => {
         if (p.allocations.length === 0) {
-          // Defensive fallback for pre-backfill data
           const amount = Number(p.amount_paid)
           if (p.payment_type === 'Annual') annualPaid += amount
           else monthlyPaid += amount
@@ -63,9 +62,6 @@ export async function getChurches() {
       const annualCredit = Math.max(0, annualPaid - expectedAnnual)
       const monthlyCredit = Math.max(0, monthlyPaid - expectedMonthly)
 
-      // FIX: Removed the unnecessary `as any` cast.
-      // getPeriodStatus returns 'Paid' | 'Partial' | 'Overdue', which is
-      // already assignable to 'Paid' | 'Partial' | 'Overdue' | 'N/A'.
       let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(
         annualPaid,
         expectedAnnual
@@ -186,7 +182,7 @@ export async function createChurch(formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
-    await prisma.church.create({
+    const created = await prisma.church.create({
       data: {
         church_code: validated.data.church_code,
         church_name: validated.data.church_name,
@@ -197,6 +193,23 @@ export async function createChurch(formData: FormData) {
         contact_phone: validated.data.contact_phone,
       },
     })
+
+    await logAudit({
+      action: 'CHURCH_CREATED',
+      entity: 'Church',
+      entityId: created.id,
+      beforeData: null,
+      afterData: {
+        church_code: created.church_code,
+        church_name: created.church_name,
+        region_id: created.region_id,
+        pastor_name: created.pastor_name,
+        pastor_phone: created.pastor_phone,
+        treasurer_name: created.treasurer_name,
+        contact_phone: created.contact_phone,
+      },
+    })
+
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {
@@ -215,7 +228,20 @@ export async function updateChurch(id: string, formData: FormData) {
   }
 
   try {
-    await prisma.church.update({
+    const beforeChurch = await prisma.church.findUnique({
+      where: { id },
+      select: {
+        church_name: true,
+        pastor_name: true,
+        pastor_phone: true,
+        treasurer_name: true,
+        contact_phone: true,
+        church_code: true,
+      },
+    })
+    if (!beforeChurch) return { error: 'Church not found.' }
+
+    const updated = await prisma.church.update({
       where: { id },
       data: {
         church_name: rawData.church_name,
@@ -225,6 +251,28 @@ export async function updateChurch(id: string, formData: FormData) {
         contact_phone: rawData.contact_phone,
       },
     })
+
+    await logAudit({
+      action: 'CHURCH_UPDATED',
+      entity: 'Church',
+      entityId: id,
+      beforeData: {
+        church_name: beforeChurch.church_name,
+        pastor_name: beforeChurch.pastor_name,
+        pastor_phone: beforeChurch.pastor_phone,
+        treasurer_name: beforeChurch.treasurer_name,
+        contact_phone: beforeChurch.contact_phone,
+      },
+      afterData: {
+        church_name: updated.church_name,
+        pastor_name: updated.pastor_name,
+        pastor_phone: updated.pastor_phone,
+        treasurer_name: updated.treasurer_name,
+        contact_phone: updated.contact_phone,
+      },
+      metadata: { church_code: beforeChurch.church_code },
+    })
+
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {
@@ -235,7 +283,35 @@ export async function updateChurch(id: string, formData: FormData) {
 
 export async function deleteChurch(id: string) {
   try {
+    // Snapshot the full church before deletion for forensic recovery
+    const beforeChurch = await prisma.church.findUnique({
+      where: { id },
+    })
+    if (!beforeChurch) return { error: 'Church not found.' }
+
     await prisma.church.delete({ where: { id } })
+
+    await logAudit({
+      action: 'CHURCH_DELETED',
+      entity: 'Church',
+      entityId: id,
+      beforeData: {
+        church_code: beforeChurch.church_code,
+        church_name: beforeChurch.church_name,
+        region_id: beforeChurch.region_id,
+        pastor_name: beforeChurch.pastor_name,
+        pastor_phone: beforeChurch.pastor_phone,
+        treasurer_name: beforeChurch.treasurer_name,
+        contact_phone: beforeChurch.contact_phone,
+        created_at: beforeChurch.created_at.toISOString(),
+      },
+      afterData: null,
+      metadata: {
+        church_code: beforeChurch.church_code,
+        church_name: beforeChurch.church_name,
+      },
+    })
+
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {

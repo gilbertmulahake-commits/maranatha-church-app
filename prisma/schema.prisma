@@ -170,3 +170,22 @@ model SmsLog {
   type       String   // 'Receipt', 'Reminder'
   created_at DateTime @default(now())
 }
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actor_id     String
+  actor_email  String
+  actor_role   String
+  action       String   // e.g., 'USER_DEACTIVATED', 'CHURCH_UPDATED', 'PAYMENT_MANUAL_ENTRY'
+  entity       String   // e.g., 'User', 'Church', 'Payment'
+  entity_id    String
+  before_data  Json?    // Snapshot before the change (null for CREATE)
+  after_data   Json?    // Snapshot after the change (null for DELETE)
+  metadata     Json?    // Any extra context (e.g., IP, reason)
+  created_at   DateTime @default(now())
+
+  @@index([created_at])
+  @@index([actor_id])
+  @@index([entity])
+  @@index([action])
+}
