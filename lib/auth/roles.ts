@@ -1,10 +1,12 @@
 import { Role } from '@prisma/client'
 
-// 🛡️ Centralized role groupings. 
+// Centralized role groupings. 
 // Use these arrays instead of hardcoded string checks (e.g., role === 'NATIONAL_TREASURER').
 
 export const NATIONAL_ROLES: Role[] = [
   'SYSTEM_ADMIN',
+  'FINANCE_ADMIN',
+  'OPERATIONS_ADMIN',
   'NATIONAL_TREASURER',
   'NATIONAL_OVERSEER'
 ]
@@ -34,4 +36,13 @@ export function isRegionalLevel(role: Role | string | null | undefined): boolean
 
 export function isLocalLevel(role: Role | string | null | undefined): boolean {
   return !!role && LOCAL_ROLES.includes(role as Role)
+}
+
+// New Separation of Duties Helpers
+export function isFinanceAdmin(role: Role | string | null | undefined): boolean {
+  return role === 'FINANCE_ADMIN' || role === 'SYSTEM_ADMIN'
+}
+
+export function isOperationsAdmin(role: Role | string | null | undefined): boolean {
+  return role === 'OPERATIONS_ADMIN' || role === 'SYSTEM_ADMIN'
 }

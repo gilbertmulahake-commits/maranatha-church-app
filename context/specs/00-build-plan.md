@@ -90,10 +90,13 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Verification: `tsc` + `lint` + `build` (22/22 pages) all clean.
 
 **Client Admin Roles**
-20. **Unit 16.5: Client Admin Roles (ADMIN1/ADMIN2)** (NEXT UP)
-    - Add two client-facing admin roles that sit below SYSTEM_ADMIN but above NATIONAL_TREASURER.
-    - Now safe to build because every admin action is auditable (Unit 16.3).
-    - Scope TBD — draft spec required before implementation.
+20. **Unit 16.5: Client Admin Roles (FINANCE_ADMIN / OPERATIONS_ADMIN)** ✅
+    - Separation of Duties enforced. `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users.
+    - Migration `20261116013856_add_finance_operations_admin_roles` applied cleanly.
+    - RBAC helpers added to `lib/auth/roles.ts`. Server-side guards in `lib/auth/guards.ts`. Applied to all Church, Region, and User mutations.
+    - Sidebar conditionally renders "Users" (Operations only) and "Mock KCB" (Finance only).
+    - SYSTEM_ADMIN remains the Super Admin. Protected accounts can only be modified by SYSTEM_ADMIN.
+    - Verification: `tsc` + `lint` + `build` (22/22 pages) all clean.
 
 **Enhancement — Dashboard Polish**
 21. **Unit 15.10: Executive Command Center (Dashboard V2)** ✅ (this session)

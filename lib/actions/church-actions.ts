@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
 import { logAudit } from '@/lib/actions/audit-actions'
+import { verifyOperationsAccess } from '@/lib/auth/guards'
 
 const churchSchema = z.object({
   church_code: z.string().min(1, 'Church Code is required'),
@@ -182,6 +183,9 @@ export async function createChurch(formData: FormData) {
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   try {
+    // RBAC GUARD
+    await verifyOperationsAccess()
+
     const created = await prisma.church.create({
       data: {
         church_code: validated.data.church_code,
@@ -213,8 +217,8 @@ export async function createChurch(formData: FormData) {
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {
-    console.error('Failed to create church:', error)
-    return { error: 'Failed to create church. Code might already exist.' }
+    const message = error instanceof Error ? error.message : 'Failed to create church. Code might already exist.'
+    return { error: message }
   }
 }
 
@@ -228,6 +232,9 @@ export async function updateChurch(id: string, formData: FormData) {
   }
 
   try {
+    // RBAC GUARD
+    await verifyOperationsAccess()
+
     const beforeChurch = await prisma.church.findUnique({
       where: { id },
       select: {
@@ -276,14 +283,16 @@ export async function updateChurch(id: string, formData: FormData) {
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {
-    console.error('Failed to update church:', error)
-    return { error: 'Failed to update church details.' }
+    const message = error instanceof Error ? error.message : 'Failed to update church details.'
+    return { error: message }
   }
 }
 
 export async function deleteChurch(id: string) {
   try {
-    // Snapshot the full church before deletion for forensic recovery
+    // RBAC GUARD
+    await verifyOperationsAccess()
+
     const beforeChurch = await prisma.church.findUnique({
       where: { id },
     })
@@ -315,7 +324,7 @@ export async function deleteChurch(id: string) {
     revalidatePath('/dashboard/churches')
     return { success: true }
   } catch (error) {
-    console.error('Failed to delete church:', error)
-    return { error: 'Failed to delete church. They may have linked payments.' }
+    const message = error instanceof Error ? error.message : 'Failed to delete church. They may have linked payments.'
+    return { error: message }
   }
 }

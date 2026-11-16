@@ -11,7 +11,7 @@ import {
   IconSettings,
   IconBolt,
   IconBuildingBank,
-  IconHistory, // Add this
+  IconHistory,
 } from '@tabler/icons-react'
 import {
   Sidebar,
@@ -26,7 +26,8 @@ import {
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
 import { Role } from '@prisma/client'
-import { isNationalLevel, isRegionalLevel } from '@/lib/auth/roles'
+// Import new helpers
+import { isNationalLevel, isRegionalLevel, isFinanceAdmin, isOperationsAdmin } from '@/lib/auth/roles'
 
 type NavItem = {
   title: string
@@ -39,16 +40,27 @@ export function AppSidebar({ role, userEmail }: { role: Role | null; userEmail?:
   let navSecondary: NavItem[] = []
 
   if (isNationalLevel(role)) {
-    navMain = [
+    // Start with the base National items
+    const nationalNav: NavItem[] = [
       { title: 'Dashboard', url: '/dashboard', icon: IconLayoutDashboard },
       { title: 'Regions', url: '/dashboard/regions', icon: IconMapPin },
       { title: 'Churches', url: '/dashboard/churches', icon: IconBuilding },
       { title: 'Payments', url: '/dashboard/payments', icon: IconCreditCard },
-      { title: 'Users', url: '/dashboard/users', icon: IconUsers },
       { title: 'Reports', url: '/dashboard/reports', icon: IconFileText },
-      { title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt },
-      { title: 'Audit Logs', url: '/dashboard/audit-logs', icon: IconHistory }, // Added here
+      { title: 'Audit Logs', url: '/dashboard/audit-logs', icon: IconHistory },
     ]
+
+    // Conditionally add Users (Only Operations & System Admin)
+    if (isOperationsAdmin(role)) {
+      nationalNav.splice(4, 0, { title: 'Users', url: '/dashboard/users', icon: IconUsers })
+    }
+
+    // Conditionally add Mock KCB (Only Finance & System Admin)
+    if (isFinanceAdmin(role)) {
+      nationalNav.push({ title: 'Mock KCB', url: '/dashboard/mock-kcb', icon: IconBolt })
+    }
+
+    navMain = nationalNav
   } else if (isRegionalLevel(role)) {
     navMain = [
       { title: 'Regional Dashboard', url: '/dashboard/regional', icon: IconLayoutDashboard },
