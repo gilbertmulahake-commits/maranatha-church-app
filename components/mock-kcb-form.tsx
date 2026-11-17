@@ -18,6 +18,14 @@ export function MockKcbForm() {
   const [paymentType, setPaymentType] = useState('Auto')
   const [billingYear, setBillingYear] = useState(new Date().getFullYear().toString())
 
+  const resetForm = () => {
+    setChurchId('')
+    setAmount('')
+    setPhone('')
+    setPaymentType('Auto')
+    setBillingYear(new Date().getFullYear().toString())
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -44,6 +52,7 @@ export function MockKcbForm() {
       }
 
       toast.success('Payment simulated successfully')
+      resetForm()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'An unexpected error occurred'
       toast.error(message)
