@@ -1,4 +1,3 @@
-```markdown
 # Progress Tracker
 
 Update this file after every meaningful implementation change.
@@ -7,7 +6,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, security-hardened, and ready for commit).
+Unit 17.5 — System UI Wiring & Polish. (Unit 17 merged via PR #44 + verification round 2; queued for UI wiring audit before Unit 18.)
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -161,7 +160,7 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
   - **Sidebar:** `app-sidebar.tsx` conditionally hides the "Users" tab for Finance Admins and "Mock KCB" for Operations Admins.
   - **Protected Accounts:** `PROTECTED_USER_IDS` (SYSTEM_ADMIN) cannot be modified by Finance or Operations Admins. Only SYSTEM_ADMIN can modify.
   - **Verification:** `tsc --noEmit` clean, `lint` 0 problems, `build` 22/22 pages.
-- **Unit 17: Reconciliation, Manual Entry & Write-Offs (Verified & Complete)**
+- **Unit 17: Reconciliation, Manual Entry & Write-Offs (Merged PR #44 + verification round 2)**
   - **Migrations:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`. 4 new models (`UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`), 2 new fields (`Church.is_defunct`, `Payment.source`), `Cheque` added to `PaymentMethod` enum.
   - **Solutions Bank:** `lib/utils/matching.ts` learns from every resolution. Uses `fastest-levenshtein`. Confidence = `min(100, 50 + hit_count * 10)`.
   - **Webhook update:** `app/api/webhooks/kcb/route.ts` now captures unmatched into `UnmatchedPayment` with top fuzzy suggestion (returns HTTP 200 so bank stops retrying).
@@ -171,11 +170,15 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
   - **Write-off accounting:** Gross outstanding unchanged, written-off subtracted via `sumApprovedWriteOffs`. LIFO deduction from aging buckets.
   - **UI:** 5 pages under `/dashboard/reconciliation` (hub + 4 sub-pages), 7 components, badge in sidebar.
   - **Verification:** All 8 manual tests passed. Found and fixed 2 critical security vulnerabilities (self-approval bypass in manual entries and write-offs). Fixed UI bugs: modal widths, Base UI `<Select>` UUID rendering, `FormData` payload error, and missing `Cheque` method in Payments Table.
+  - **Local Church dashboard write-off awareness (added post-handoff):** `lib/actions/local-actions.ts` now returns `grossOutstanding`, `totalWrittenOff`, `netOutstanding` (querying `write_offs` where `status='Approved'`). `local-kpi-cards.tsx` and `churches/[code]/page.tsx` consume the new fields. Caught in verification round 2.
+  - **Verification Round 2 (`test/17-reconciliation-verification` branch):** Fresh 8-step re-run discovered 3 more issues. (a) **Solutions Bank precedence flaw** — fuzzy matcher outvoted human-taught patterns in `suggestMatches()`. Fixed: short-circuit to pattern results before fuzzy loop. (b) **`recordResolution()` silent persistence failure** — rewrite now logs `🚨 FAILED TO RECORD RESOLUTION PATTERN:` instead of swallowing. (c) **`?tab=pending` hub card duplicated Pending Approvals** — commented out, tracked in Unit 17.5. Test 8 re-run confirmed passing.
+  - **Post-merge hardening confirmed in `main`:** Four-eyes self-approval guards (`proposed_by === actorId`) present on all four approve/reject paths; `FOUR_EYES_THRESHOLD` single-sourced from `lib/constants.ts`.
 
 ## In Progress
 - None
 
 ## Next Up
+- **Unit 17.5: System UI Wiring & Polish** — Hub card audit (commented-out Pending Payments card; re-enable only with a real `?tab=pending` destination), layout-collapse sweep (`min-w-0` audit across remaining KPI cards / detail pages), unused-component wiring, label/route consistency. Feeds into Unit 18 on clean UI ground.
 - **Unit 18: Comprehensive Reporting Overhaul** — 14+ reports across all roles, YoY comparison, Allocation Breakdown, Inactive Church Report. Feeds on the new write-off and unmatched data from Unit 17.
 - **Then:** 19 (Pay Now Wizard) → 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
 
@@ -192,7 +195,7 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Verified ✅) → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (UI wiring) → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -216,18 +219,23 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
 - **Separation of Duties (Unit 16.5):** The client's admin roles are split into `FINANCE_ADMIN` (money) and `OPERATIONS_ADMIN` (registry/users). Neither can do the other's job — enforced by `lib/auth/guards.ts` at the server-action boundary. `SYSTEM_ADMIN` (Super Admin) can do both. This prevents any single client admin from creating a fake church, assigning a fake user, and routing payments to it.
 - **Protected Role Hierarchy:** `PROTECTED_USER_IDS` (hardcoded vendor accounts) can ONLY be modified by another `SYSTEM_ADMIN`. Finance and Operations Admins attempting to modify a protected account receive a `403`-equivalent error returned from the server action. Enforced in `user-actions.ts` before every mutation.
 - **RBAC Guard Pattern (`lib/auth/guards.ts`):** All mutations must call `verifyOperationsAccess()` or `verifyFinanceAccess()` at the top of the `try` block. If a caller lacks permission, the guard throws — the `catch` block converts this into a user-facing `{ error: 'Forbidden' }` return shape. This centralizes authorization so each action doesn't reimplement the check.
-- **Reconciliation Four-Eyes (Unit 17):** KES 20,000 threshold on unmatched resolutions and manual entries. 90+ day arrears always require Treasurer approval regardless of amount. Write-offs require Treasurer approval at ALL amounts (no exception). `FOUR_EYES_THRESHOLD` constant in both `reconciliation-actions.ts` and `manual-entry-actions.ts`. Change both if threshold changes.
-- **Four-Eyes Hardening (Unit 17 Verification):** Server actions `approvePendingPayment` and `approveWriteOff` explicitly check `if (proposerId === actorId)` and return an error. Even if the UI hides the button, the server enforces separation of duties. Never trust the client.
+- **Reconciliation Four-Eyes (Unit 17):** KES 20,000 threshold on unmatched resolutions and manual entries. 90+ day arrears always require Treasurer approval regardless of amount. Write-offs require Treasurer approval at ALL amounts (no exception). `FOUR_EYES_THRESHOLD` exported from `lib/constants.ts` — single source of truth. Changing it here updates all four-eyes gates project-wide.
+- **Four-Eyes Hardening (Unit 17 Verification):** Server actions `approvePendingPayment`, `rejectPendingPayment`, `approveWriteOff`, and `rejectWriteOff` all check `if (proposed_by === actorId)` and return an error. Four guards — approve AND reject on both entities. Never trust the client.
 - **Solutions Bank (Unit 17):** `ResolutionPattern` table stores learned patterns. Every successful `resolveUnmatched` calls `recordResolution()` which upserts a pattern keyed by `(raw_reference_pattern, resolved_church_code)`. Confidence formula: `min(100, 50 + hit_count * 10)`. Patterns checked BEFORE Levenshtein in `suggestMatches()`. Never auto-commits a resolution — only surfaces suggestions.
 - **Defunct Church Handling (Unit 17):** `Church.is_defunct = true` set automatically when a write-off covers the FULL outstanding (determined during `approveWriteOff`). Defunct churches are excluded from: compliance denominators, regional incentive scores, SMS reminder lists, church dropdowns in resolution/manual entry/write-off forms. They DO appear in financial reports (gross arrears + write-off register).
 - **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()` — the debt truly existed. Write-offs are subtracted from `outstanding` in reports via `sumApprovedWriteOffs()` + `getNetOutstanding()`. Aging buckets reduced LIFO (oldest debt written off first) so 90+ bucket shrinks before 0-30 bucket. This matches IFRS 9 / IPSAS 29.
 - **Hybrid Allocation (Unit 17):** For unmatched resolutions and manual entries, server computes FIFO allocations via `computeExpectedPeriods` + `calculateAllocations` (same logic as KCB webhook Auto mode). Client receives the preview and can override each row before submission. Only after confirmation does a real `Payment` + `PaymentAllocation[]` get created.
 - **PendingPayment Staging (Unit 17):** High-value manual entries / resolutions create a `PendingPayment` row — NEVER a `Payment`. Only after Treasurer approval does the real `Payment` get created (inside a single `$transaction` that also updates `PendingPayment.status = 'Approved'` and links `resulting_payment_id`).
 - **`react-hooks/set-state-in-effect` Pattern (Unit 17):** Never call `setState` synchronously inside `useEffect`. Move state resets to event handlers (`handleOpenChange`, `handleChurchChange`). Effects should only do async fetch → setState in the async callback.
+- **Solutions Bank Precedence (Unit 17 Verification Round 2):** `suggestMatches()` short-circuits to pattern results if *any* `ResolutionPattern` row matches — fuzzy matching is skipped entirely, not merely de-prioritized. A human-taught pattern can never be outvoted by Levenshtein distance. Fixed in `lib/utils/matching.ts` (returns `Array.from(suggestionMap.values())` before the fuzzy loop).
+- **`recordResolution()` Error Logging (Unit 17 Verification Round 2):** `recordResolution()` swallows write failures to avoid breaking the outer `resolveUnmatched` transaction — but now logs `🚨 FAILED TO RECORD RESOLUTION PATTERN:` with the full Prisma error. Silent persistence failures surface in dev logs. Test 8 re-run confirmed pattern persistence works end-to-end.
+- **Next.js 16.4.6 (verified):** `package.json` bumped `16.4.3` (pinned) → `^16.4.6` (caret) + npm audit sweep. Verified via `tsc --noEmit` + `lint` + `build` 27/27 pages clean. **Trade-off flagged:** the caret range now permits silent minor upgrades on `npm install` without a lockfile refresh — consider re-pinning to `16.4.6` if strict stable-stack discipline is desired.
+- **Unit 17.5 — System UI Wiring & Polish:** Inserted between Unit 17 and Unit 18. Scope: hub card audit (the `?tab=pending` Pending Payments card is commented out — duplicate of Pending Approvals), layout-collapse sweep across remaining KPI cards / detail pages, unused-component wiring, label/route consistency. Deliberately separate from Unit 18 so reporting work starts on clean UI ground.
 
 ## Session Notes
-- **Current Branch:** `feat/17-reconciliation-writeoffs` (ready to commit).
-- **Verification Complete:** All 8 manual tests passed. Two critical security vulnerabilities found and fixed.
+- **Current Branch:** `test/17-reconciliation-verification` — 6 commits ahead of `main` (fix-reconciliation / feat-local / chore-deps / docs-build-plan / docs-code-standards / docs-progress-tracker [this commit]). PR → squash-merge → delete branch → return to `main`.
+- **Verification Complete (Round 1 — pre-PR #44 merge):** All 8 manual tests passed. Two critical security vulnerabilities found and fixed (four-eyes self-approval bypass in manual entries + write-offs).
+- **Verification Round 2 (post-merge, `test/17-reconciliation-verification` branch):** Three additional issues discovered and fixed — Solutions Bank precedence flaw, `recordResolution()` silent persistence failure, `?tab=pending` duplicate hub card. Test 8 re-run confirmed passing.
 - **Migration Head:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method` (both applied locally, NOT yet on production).
 - **`fastest-levenshtein`** added. **`Cheque`** added to PaymentMethod enum.
 - **NOT YET DONE in production:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` — must run before prod deploy.
@@ -237,7 +245,7 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase.
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
-- **Stable Stack (Do Not Blindly Upgrade):** Next.js 16, Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
+- **Stable Stack (Do Not Blindly Upgrade):** Next.js 16.4.6 (caret range — see Architecture Decisions, re-pinning decision pending), Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
 - **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper.
 - **Tailwind Merge Quirk:** `tailwind-merge` will silently drop custom classes (like `text-heading-1`) if they conflict with standard classes (like `text-foreground`). We extended `twMerge` in `lib/utils.ts` to register all our custom Figma typography and spacing tokens. Do not remove this configuration.
 - **Supabase Free Plan Backups:** No scheduled backups available. Use `pg_dump` locally before any destructive operation:
@@ -265,4 +273,3 @@ Unit 18 — Comprehensive Reporting Overhaul. (Unit 17 is fully verified, securi
 - **SMTP Provider:** Supabase is configured to use Resend SMTP (`smtp.resend.com`). The Free Tier built-in email service is restricted to 3 emails/hour and pre-authorized addresses only. Do not revert to the built-in service.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
-```

@@ -3,11 +3,11 @@
 ## 1. Stack
 | Layer | Technology | Role |
 |-------|------------|------|
-| Framework | Next.js 16 (App Router) + TypeScript | Full-stack web framework |
+| Framework | Next.js 16.4.6 (App Router) + TypeScript | Full-stack web framework |
 | UI | Tailwind CSS + shadcn/ui (Base UI) | Styling and component library |
 | UI Components | Recharts | Financial charts and data visualizations |
 | Auth | Supabase Auth | Role-based authentication (Church, Region, National HQ, System Admin) |
-| Database | Supabase (PostgreSQL) | Relational data for Churches, Payments, Scores |
+| Database | Supabase (PostgreSQL) | Relational data for Churches, Payments, Scores, Reconciliation, Audit |
 | ORM | Prisma v7 (via `@prisma/prisma7`) | Type-safe database queries and schema management |
 | Validation | Zod | Schema validation for forms, API inputs, and webhook payloads |
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic |
@@ -37,24 +37,34 @@
 - **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
 - **Dynamic Fund & Channel Architecture (Future):** The current `PaymentType` and `PaymentMethod` enums will be migrated to `Fund` and `PaymentChannel` tables in V2. This enables admin-created payment categories without code changes.
 - **Payment Source Backfill (Unit 17):** Production DB requires `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` before deployment. This preserves existing payments as webhook-originated.
+- **`FOUR_EYES_THRESHOLD` (Unit 17):** Defined once in `lib/constants.ts` and imported by `reconciliation-actions.ts` and `manual-entry-actions.ts`. Single source of truth — change it in one place to update every four-eyes gate project-wide. Do not reintroduce local copies.
+- **Next.js Version (16.4.6):** `package.json` uses `"next": "^16.4.6"` (caret range) plus an npm-audit sweep. Verified clean via `tsc --noEmit` + `lint` + full `build` (27/27 pages). The caret range permits silent minor upgrades on `npm install` without a lockfile refresh — re-pinning to `"16.4.6"` is an open decision if strict stable-stack discipline is required.
+- **Unit 17.5 — System UI Wiring & Polish (Deferred, No Schema Impact):** Inserted between Unit 17 and Unit 18. Scope: hub card wiring (the `?tab=pending` Pending Payments card is currently commented out as a duplicate of Pending Approvals), layout-collapse sweep (`min-w-0` / grid-wrapper audit across KPI cards and detail pages), unused-component wiring, and label/route consistency. This unit adds no models, fields, or migrations.
 
 ## 2. System Boundaries
 - `app/` — Next.js routes, layouts, and page composition. Contains dashboards for Church, Region, and National HQ.
-- `app/api/webhooks/kcb/` — Endpoint to receive POST requests from the Mock KCB API.
+- `app/api/webhooks/kcb/` — Endpoint to receive POST requests from the Mock KCB API. Unmatched payloads are captured into `UnmatchedPayment` and returned HTTP 200.
+- `app/dashboard/reconciliation/` — Five reconciliation pages (hub, unmatched, manual-entry, pending-approvals, write-offs). Server Components with `<Suspense>` + `await connection()`; RBAC gated via `verifyReconciliationAccess()`.
+- `app/dashboard/audit-logs/` — National-level audit viewer with forensic snapshots.
 - `components/` — Reusable UI components (tables, charts, KPI cards).
+- `components/reconciliation/` — Unmatched table, resolve dialog, manual entry form, pending approvals table, write-off table, propose-write-off dialog, reject dialog, SLA badge.
 - `lib/` — Server helpers, Prisma client, and API clients (KCB/SMS).
+- `lib/actions/` — Server Actions grouped by domain (`reconciliation-actions.ts`, `manual-entry-actions.ts`, `writeoff-actions.ts`, `audit-actions.ts`, `dashboard-actions.ts`, `scoring-actions.ts`, `local-actions.ts`, `user-actions.ts`, `sms-actions.ts`).
+- `lib/auth/` — Centralized authorization: `roles.ts` (role predicates), `guards.ts` (mutation gates: `verifyOperationsAccess`, `verifyFinanceAccess`, `verifyReconciliationAccess`, `verifyTreasurerAuthority`), `protected-users.ts` (vendor account allowlist).
+- `lib/constants.ts` — Project-wide constants including `FOUR_EYES_THRESHOLD` (KES 20,000) and `PRISMA_TRANSACTION_TIMEOUT`.
 - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF, Print).
-- `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein fuzzy matching + pattern learning).
+- `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein fuzzy matching + pattern learning). Patterns short-circuit fuzzy matching when present.
+- `lib/utils/financial.ts` — Cumulative ledger, `getExpectedUpToDate`, `getNetOutstanding`, `sumApprovedWriteOffs`, `isActiveChurch`, `filterActiveChurches`.
 - `prisma/` — Database schema and migrations.
 - `jobs/` — Background worker functions (SMS reminders, score calculations).
 
 ## 3. Storage Model
-- **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, and Regional Scores.
+- **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, Regional Scores, `PaymentAllocation`, `UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`, and `AuditLog`.
 - **No Blob Storage Needed:** All data is structured and relational. (Manual entry attachments via URL field only — blob upload deferred).
 
 ## 4. Auth and Access Model
-*Strict Hierarchical Access: National HQ \(\rightarrow\) Region \(\rightarrow\) Church*
-*(Enforced via Supabase Row Level Security - RLS at the database level)*
+*Strict Hierarchical Access: National HQ → Region → Church*
+*(Enforced via Supabase Row Level Security - RLS at the database level, plus server-action guards in `lib/auth/guards.ts`)*
 
 ### Role-Based Access Control (RBAC) Matrix
 | Role(s) | Sidebar Tabs | Core Focus |
@@ -74,6 +84,15 @@
 - Any attempt to manage a protected account returns a 403 in the server action.
 - Manual intervention is only possible via direct Supabase dashboard access.
 
+### Separation of Duties (FINANCE_ADMIN vs OPERATIONS_ADMIN)
+- `FINANCE_ADMIN` controls money; `OPERATIONS_ADMIN` controls registry and users. Neither can perform the other's function.
+- Enforced at the server-action boundary by `verifyFinanceAccess()` and `verifyOperationsAccess()`, not merely by hiding UI elements.
+- `SYSTEM_ADMIN` may perform both. `NATIONAL_TREASURER` has the finance authority plus approval rights.
+
+### Four-Eyes Principle (Reconciliation)
+- The proposer of a financial item can never approve it. Enforced in `approvePendingPayment`, `rejectPendingPayment`, `approveWriteOff`, and `rejectWriteOff` via `if (proposed_by === actorId)`.
+- `FOUR_EYES_THRESHOLD = 20000` (from `lib/constants.ts`) governs when Treasurer approval is required. Write-offs always require Treasurer approval regardless of amount. Any item touching 90+ day arrears also requires Treasurer approval.
+
 ### Communication Identity (SMS)
 - **Universal Capability, Contextual Identity:** All authorized roles (National, Regional) can send SMS reminders. However, the SMS message body must reflect the sender's role.
 - **Implementation:** The `sendBulkReminders(recipients, senderRole)` function accepts exactly two arguments — `recipients` and `senderRole: 'NATIONAL' | 'REGIONAL'`.
@@ -81,17 +100,17 @@
 ## 5. Invariants (Rules the code must NEVER violate)
 1. **Webhook Security:** Every incoming payment webhook from KCB must be verified using a secure secret/signature before processing.
 2. **Data Isolation (RLS):** A Regional Chairman must *never* be able to query or view data belonging to a church outside their assigned region. Enforced at the database level via RLS policies.
-3. **Idempotency:** If a KCB payment webhook is received twice, the system must not double-count the payment.
+3. **Idempotency:** If a KCB payment webhook is received twice, the system must not double-count the payment. Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference`.
 4. **Async Processing:** Sending SMS messages and calculating heavy regional scores must *never* run in the main request-response cycle.
-5. **Reconciliation Mapping:** Every KCB payment must contain a `BillRefNumber` (Church ID). If the ID does not match an active church, the payment goes to the `UnmatchedPayment` table for HQ manual review, never discarded.
+5. **Reconciliation Mapping:** Every KCB payment must contain a `BillRefNumber` (Church ID). If the ID does not match an active church, the payment goes to the `UnmatchedPayment` table for HQ manual review, never discarded. The webhook returns HTTP 200 so the bank stops retrying.
 6. **Atomic Financial Mutations:** Any operation that modifies payment records, church totals, or regional scores must use database transactions (`prisma.$transaction`). If one step fails, all steps roll back.
 7. **Arrears Aging & Schedule Adherence:** Arrears must be calculated based on the age of the debt (0-30, 31-60, 61-90, 90+ days). The Hero Card progress bar must measure against *Expected-to-Date*, not the absolute Year-End target.
-8. **Four-Eyes & Write-Offs:** Resolutions ≥ KES 20,000 and all write-offs require National Treasurer approval. Write-offs are absolute (no threshold). Defunct churches are excluded from compliance percentages and regional scores.
+8. **Four-Eyes & Write-Offs:** Resolutions ≥ KES 20,000 and all write-offs require National Treasurer approval. Write-offs are absolute (no threshold). Defunct churches are excluded from compliance percentages and regional scores. The proposer of an item may never approve it — enforced server-side.
 
 ## 6. Financial Flow Model
-- **Centralized Bank Account:** There is only ONE KCB Bank Account. The database does NOT store individual church bank accounts. 
+- **Centralized Bank Account:** There is only ONE KCB Bank Account. The database does NOT store individual church bank accounts.
 - **Stream Allocation:** Every payment received is treated as a "stream" that must be allocated to a `Church` record via the `church_code` (`BillRefNumber`).
-- **Unallocated Funds:** Any funds received that do not match a valid `church_code` remain in the `UnmatchedPayment` pool at the National HQ level until manually reconciled by an admin. 
+- **Unallocated Funds:** Any funds received that do not match a valid `church_code` remain in the `UnmatchedPayment` pool at the National HQ level until manually reconciled by an admin.
 - **Arrears Aging:** The system must bucket unpaid balances by days overdue to prioritize collection efforts.
 - **Strict Bucket Isolation:** KPIs must display Annual and Monthly buckets as independent entities. A combined "Total Collected" KPI hides which bucket is failing.
 
@@ -121,7 +140,7 @@ Migration: `20261115211407_add_audit_log_system`.
 
 **Wired mutations:** User (6 events), Church (3 events), Region (2 events), KCB webhook (`PAYMENT_RECEIVED` with allocations), and all Unit 17 reconciliation events (`UNMATCHED_CAPTURED`, `UNMATCHED_RESOLVED`, `PENDING_PAYMENT_APPROVED`, `WRITEOFF_PROPOSED`, etc.).
 
-### Reconciliation Models (Unit 17) — ✅ IMPLEMENTED
+### Reconciliation Models (Unit 17) — ✅ IMPLEMENTED (Merged PR #44)
 
 Migrations: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`.
 
@@ -131,8 +150,9 @@ Migrations: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_paym
 
 **`ResolutionPattern`** (Solutions Bank) — Learned patterns from every successful resolution.
 - Fields: `id, raw_reference_pattern, normalized_reference, resolved_church_code, resolution_type ('Fuzzy'|'Manual'|'Rule'), hit_count, confidence_score, is_active, created_by, last_used_at, created_at`
-- Unique constraint: `(raw_reference_pattern, resolved_church_code)`
+- Unique constraint: `@@unique([raw_reference_pattern, resolved_church_code])` (Prisma auto-name: `raw_reference_pattern_resolved_church_code`)
 - Confidence formula: `min(100, 50 + hit_count * 10)`
+- Precedence: patterns short-circuit `suggestMatches()` before any Levenshtein scoring runs.
 
 **`WriteOff`** — Formal bad-debt write-offs per IFRS 9 / IPSAS 29.
 - Fields: `id, church_id, amount, reason ('DEFUNCT'|'DISSOLVED'|'UNCOLLECTABLE_90D'|'COURT_ORDER'|'OTHER'), notes, status ('Pending'|'Approved'|'Rejected'), proposed_by, proposed_at, approved_by, approved_at, rejection_reason, resulting_defunct_flag, audit_log_id`
@@ -147,9 +167,13 @@ Migrations: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_paym
 - `Payment.source (String, default 'Webhook')` — 'Webhook' | 'Manual' | 'Resolved'.
 - `PaymentMethod` enum now includes `Cheque`.
 
-### PaymentIntent (Unit 18 — Planned)
+### PaymentIntent (Unit 19 — Planned)
 
 For the guided payment wizard to track in-progress payments and match them to incoming webhooks within a time window. Fields: `id`, `church_id`, `amount`, `payment_type`, `phone`, `status`, `matched_payment_id`, `created_by`, `expires_at`, `created_at`.
+
+### Unit 17.5 — System UI Wiring & Polish (Planned, No Schema)
+
+No models, fields, or migrations. Scope is confined to component wiring, layout fixes (`min-w-0`, grid wrappers), the commented-out `?tab=pending` hub card, and label/route consistency. Will not alter the financial or authorization model.
 
 ### LoginHistory (Unit 16.4 — Optional, Not Yet Scheduled)
 
