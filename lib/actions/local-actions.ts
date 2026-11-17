@@ -11,8 +11,14 @@ export type LocalChurchStats = {
   totalPaid: number
   annualPaid: number
   monthlyPaid: number
+  
+  // 🚨 NEW: Write-off and net fields
+  grossOutstanding: number
+  totalWrittenOff: number
+  netOutstanding: number
   annualOutstanding: number
   monthlyOutstanding: number
+  
   annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A'
   monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
   overallStatus: 'Paid' | 'Partial' | 'Overdue'
@@ -51,6 +57,9 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
               where: { status: 'Paid' }, 
               orderBy: { payment_date: 'desc' },
               include: { allocations: true }
+            },
+            write_offs: {
+              where: { status: 'Approved' }
             }
           }
         }
@@ -67,7 +76,6 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
     let annualPaid = 0
     let monthlyPaid = 0
 
-    // READ FROM ALLOCATIONS
     church.payments.forEach((p) => {
       if (p.allocations.length === 0) {
         const amount = Number(p.amount_paid)
@@ -87,6 +95,11 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
 
     const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
     const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
+    
+    // 🚨 NEW: Calculate Gross, Write-offs, and Net
+    const grossOutstanding = annualOutstanding + monthlyOutstanding
+    const totalWrittenOff = church.write_offs.reduce((sum, w) => sum + Number(w.amount), 0)
+    const netOutstanding = Math.max(0, grossOutstanding - totalWrittenOff)
 
     let annualStatus: LocalChurchStats['annualStatus'] = getPeriodStatus(annualPaid, expectedAnnual)
     if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'
@@ -104,6 +117,9 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
       totalPaid,
       annualPaid,
       monthlyPaid,
+      grossOutstanding,
+      totalWrittenOff,
+      netOutstanding,
       annualOutstanding,
       monthlyOutstanding,
       annualStatus,

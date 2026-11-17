@@ -46,29 +46,36 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
   return (
     <KpiGrid>
       
+      {/* 🚨 NEW: Primary Focus is Total Net Arrears */}
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
         <CardHeader className="p-4 pb-2">
-          <CardDescription className="text-xs font-medium text-muted-foreground">Total Contributions</CardDescription>
-          <KpiValue className="text-emerald-600">
-            {formatCurrency(stats.totalPaid)}
+          <CardDescription className="text-xs font-medium text-muted-foreground">Total Arrears</CardDescription>
+          <KpiValue className={stats.netOutstanding > 0 ? 'text-destructive' : 'text-emerald-600'}>
+            {formatCurrency(stats.netOutstanding)}
           </KpiValue>
           <CardAction className="shrink-0">
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
-              <Banknote className="h-3 w-3 mr-1" /> Lifetime
+            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
+              <ShieldCheck className="h-3 w-3 mr-1" /> Net Recoverable
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-          <StackedBar
-            segments={[
-              { label: `Annual ${formatCurrency(stats.annualPaid)}`, value: stats.annualPaid, color: 'bg-blue-500' },
-              { label: `Monthly ${formatCurrency(stats.monthlyPaid)}`, value: stats.monthlyPaid, color: 'bg-emerald-500' },
-            ]}
-            total={stats.totalPaid || 1}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Click to view all transactions
-          </p>
+        <CardFooter className="flex-col items-start gap-1.5 text-xs p-4 pt-2">
+          <div className="flex w-full justify-between">
+            <span className="text-muted-foreground">Gross Arrears:</span>
+            <span className="font-medium text-foreground">{formatCurrency(stats.grossOutstanding)}</span>
+          </div>
+          {stats.totalWrittenOff > 0 && (
+            <div className="flex w-full justify-between">
+              <span className="text-muted-foreground">Less Written Off:</span>
+              <span className="font-medium text-primary">-{formatCurrency(stats.totalWrittenOff)}</span>
+            </div>
+          )}
+          <div className="flex w-full justify-between pt-1 border-t border-border mt-1">
+            <span className="text-muted-foreground font-semibold">Net Due:</span>
+            <span className={`font-bold ${stats.netOutstanding > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+              {formatCurrency(stats.netOutstanding)}
+            </span>
+          </div>
         </CardFooter>
       </Card>
 
@@ -120,27 +127,27 @@ export function LocalKpiCards({ stats, activeFilter, onFilterChange }: Props) {
         </CardFooter>
       </Card>
 
+      {/* Moved from first to last: Positive Reinforcement */}
       <Card className={`${cardClasses} ${activeFilter === 'All' ? activeClass : ''}`} onClick={() => onFilterChange?.('All')}>
         <CardHeader className="p-4 pb-2">
-          <CardDescription className="text-xs font-medium text-muted-foreground">Overall Compliance</CardDescription>
-          <KpiValue>
-            {stats.overallStatus}
+          <CardDescription className="text-xs font-medium text-muted-foreground">Lifetime Contributions</CardDescription>
+          <KpiValue className="text-emerald-600">
+            {formatCurrency(stats.totalPaid)}
           </KpiValue>
           <CardAction className="shrink-0">
-            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px] px-2 py-0.5">
-              <ShieldCheck className="h-3 w-3 mr-1" /> Status
+            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] px-2 py-0.5">
+              <Banknote className="h-3 w-3 mr-1" /> Total Paid
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-xs p-4 pt-2">
-          <p className="text-xs font-medium text-foreground">
-            {stats.overallStatus === 'Paid' ? 'Fully compliant. Thank you!' : 
-             stats.overallStatus === 'Partial' ? 'Action required on one bucket.' : 
-             'Please remit outstanding fees.'}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            Based on strict annual and monthly isolation.
-          </p>
+          <StackedBar
+            segments={[
+              { label: `Annual ${formatCurrency(stats.annualPaid)}`, value: stats.annualPaid, color: 'bg-blue-500' },
+              { label: `Monthly ${formatCurrency(stats.monthlyPaid)}`, value: stats.monthlyPaid, color: 'bg-emerald-500' },
+            ]}
+            total={stats.totalPaid || 1}
+          />
         </CardFooter>
       </Card>
 
