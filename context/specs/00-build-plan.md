@@ -1,4 +1,3 @@
-```markdown
 # Build Plan - Maranatha Church System
 
 This is the ordered list of units we will build. We will write a detailed spec for each unit before building it.
@@ -110,7 +109,7 @@ Not originally planned, but necessary to fix production bugs discovered after de
 > **Note on 15.8 and 15.9:** The original `15.8 (Dashboard Experience Polish)` and `15.9 (Dashboard Mini Tables)` units were **superseded by Unit 15.10 (V2 Dashboard)**. The V2 architecture absorbed the interactive live feed (Tier 4), replaced the doughnut chart with arrears aging (Tier 3), and added the region breakdown modal (Tier 4). Any residual sub-items (e.g., church profile modal on row select, functional "My Profile" link) can be verified during UAT and addressed as micro-fixes if needed.
 
 **Major Features — Reconciliation, Reporting & Payment Flows**
-22. **Unit 17: Reconciliation, Manual Entry & Write-Offs** ⏳ (Code Complete — Verification Pending)
+22. **Unit 17: Reconciliation, Manual Entry & Write-Offs** ✅ (Merged — PR #44 + verification fixes)
     - **Migrations:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`.
     - **4 New Models:** `UnmatchedPayment`, `ResolutionPattern` (Solutions Bank), `WriteOff`, `PendingPayment`.
     - **2 New Fields:** `Church.is_defunct`, `Payment.source`.
@@ -121,9 +120,16 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - **Defunct handling:** Excluded from compliance %, regional scores, SMS lists, dropdowns.
     - **UI:** 5 pages under `/dashboard/reconciliation`, 7 components, sidebar badge.
     - **Gate:** `tsc` + `lint` + `build` (27/27 pages) clean.
-    - **Pending:** Manual verification (8 tests), context updates, commit, PR.
+    - **Verification:** All 8 manual tests passed (Test 8 re-run after Solutions Bank precedence fix). Two security issues hardened (four-eyes self-approval). Local Church dashboard write-off awareness added post-handoff.
+    - **Deferred:** `?tab=pending` hub card commented out (duplicate of Pending Approvals) — tracked in Unit 17.5.
 
-23. **Unit 18: Comprehensive Reporting Overhaul** (NEXT UP)
+22.5. **Unit 17.5: System UI Wiring & Polish** (Post-Unit-17 cleanup, pre-Unit-18)
+    - Audit and wire any un-wired components from Unit 17 (e.g., `Pending Payments` hub card — currently commented out pending a real `?tab=pending` destination).
+    - Layout-collapse sweep: `min-w-0` and grid-wrapper audit across KPI cards and detail pages (some fixed in Local Church dashboard during Unit 17 verification).
+    - Label/route mismatches, unused-component wiring, dialog-width consistency.
+    - Feeds into Unit 18 so the Reporting Overhaul starts on clean UI ground.
+
+23. **Unit 18: Comprehensive Reporting Overhaul** (NEXT after 17.5)
     - 14+ reports across National/Regional/Local.
     - YoY comparison, Allocation Breakdown, Inactive Church Report.
     - Feeds on new write-off + unmatched data from Unit 17.
@@ -145,4 +151,3 @@ Not originally planned, but necessary to fix production bugs discovered after de
 29. **Unit 24: 2FA for National HQ + SYSTEM_ADMIN**
 30. **Unit 25: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
 31. **Unit 26: Pastorate Layer Activation** (Pending Ministry decision)
-```
