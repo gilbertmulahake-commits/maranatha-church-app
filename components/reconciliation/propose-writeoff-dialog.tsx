@@ -21,9 +21,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { proposeWriteOff } from '@/lib/actions/writeoff-actions'
+import { proposeWriteOff, getChurchOutstandingForWriteOff } from '@/lib/actions/writeoff-actions'
 
 type ChurchOption = { id: string; church_code: string; church_name: string }
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency', currency: 'KES', maximumFractionDigits: 0,
+  }).format(amount)
+}
 
 export function ProposeWriteOffDialog({
   churches,
@@ -39,18 +45,36 @@ export function ProposeWriteOffDialog({
   const [reason, setReason] = useState<string>('UNCOLLECTABLE_90D')
   const [notes, setNotes] = useState<string>('')
   const [isSubmitting, startSubmitTransition] = useTransition()
+  
+  // 🚨 NEW: State for the outstanding balance breakdown
+  const [outstanding, setOutstanding] = useState<{ total: number; annual: number; monthly: number } | null>(null)
+  const [isFetchingOutstanding, setIsFetchingOutstanding] = useState(false)
 
-  // Find the selected church to display its name in the dropdown
   const selectedChurch = churches.find((c) => c.id === selectedChurchId)
+  const amountError = outstanding !== null && Number(amount) > outstanding.total
+
+  const handleChurchChange = async (val: string | null) => {
+    if (!val) return
+    setSelectedChurchId(val)
+    setAmount('')
+    setOutstanding(null)
+    setIsFetchingOutstanding(true)
+    
+    const res = await getChurchOutstandingForWriteOff(val)
+    if (res.outstanding !== undefined) {
+      setOutstanding(res.outstanding)
+    }
+    setIsFetchingOutstanding(false)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedChurchId) return toast.error('Please select a church')
     if (!amount || Number(amount) <= 0) return toast.error('Amount must be greater than zero')
+    if (amountError) return toast.error('Amount exceeds current outstanding balance')
     if (!notes.trim()) return toast.error('Justification notes are required for the audit trail')
 
     startSubmitTransition(async () => {
-      // FIXED: Using FormData as expected by the server action
       const formData = new FormData()
       formData.append('church_id', selectedChurchId)
       formData.append('amount', amount)
@@ -64,11 +88,11 @@ export function ProposeWriteOffDialog({
       } else {
         toast.success('Write-off proposed successfully. Pending Treasurer approval.')
         onOpenChange(false)
-        // Reset form
         setSelectedChurchId('')
         setAmount('')
         setReason('UNCOLLECTABLE_90D')
         setNotes('')
+        setOutstanding(null)
       }
     })
   }
@@ -90,7 +114,7 @@ export function ProposeWriteOffDialog({
             <Label htmlFor="church">Church</Label>
             <Select 
               value={selectedChurchId} 
-              onValueChange={(val) => { if (val) setSelectedChurchId(val) }}
+              onValueChange={handleChurchChange}
             >
               <SelectTrigger id="church" className="h-10 bg-background">
                 <SelectValue placeholder="Select a church...">
@@ -110,7 +134,24 @@ export function ProposeWriteOffDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount to Write Off (KES)</Label>
+            <div className="flex items-start justify-between">
+              <Label htmlFor="amount" className="pt-1">Amount to Write Off (KES)</Label>
+              
+              {/* 🚨 NEW: Bucket Breakdown Display */}
+              {isFetchingOutstanding ? (
+                <span className="text-xs text-muted-foreground animate-pulse">Fetching balance...</span>
+              ) : outstanding !== null ? (
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className={`text-xs font-semibold ${outstanding.total > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+                    Outstanding: {formatCurrency(outstanding.total)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    Annual: {formatCurrency(outstanding.annual)} &middot; Monthly: {formatCurrency(outstanding.monthly)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+            
             <Input
               id="amount"
               type="number"
@@ -118,9 +159,21 @@ export function ProposeWriteOffDialog({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g. 5000"
-              className="h-10"
+              className={`h-10 ${amountError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              disabled={!selectedChurchId || isFetchingOutstanding || outstanding?.total === 0}
               required
             />
+            
+            {amountError && (
+              <p className="text-xs text-destructive font-medium">
+                Amount cannot exceed the current outstanding balance.
+              </p>
+            )}
+            {outstanding?.total === 0 && !isFetchingOutstanding && (
+              <p className="text-xs text-amber-600 font-medium">
+                This church has no outstanding balance to write off.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -163,7 +216,7 @@ export function ProposeWriteOffDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting}
+              disabled={isSubmitting || amountError || outstanding?.total === 0}
               className="w-full sm:w-auto"
             >
               {isSubmitting ? 'Proposing...' : 'Propose Write-Off'}

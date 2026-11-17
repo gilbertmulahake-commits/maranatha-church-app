@@ -193,8 +193,18 @@ export async function resolveUnmatched(params: {
         },
       })
 
+      // Teach the Solutions Bank even though it requires approval
+      await recordResolution({
+        rawReference: unmatched.raw_bill_ref,
+        resolvedChurchCode: church.church_code,
+        resolutionType: 'Manual',
+        actorId,
+      })
+
+      revalidatePath('/dashboard')
       revalidatePath('/dashboard/reconciliation')
       revalidatePath('/dashboard/reconciliation/unmatched')
+      revalidatePath('/dashboard/reconciliation/pending-approvals')
       return { success: true, requiresApproval: true, pendingPaymentId: pending.id }
     }
 
@@ -273,8 +283,10 @@ export async function resolveUnmatched(params: {
       await sendSms(unmatched.payer_phone, smsMsg, 'Receipt')
     }
 
+    revalidatePath('/dashboard')
     revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/unmatched')
+    revalidatePath('/dashboard/payments')
     return { success: true, requiresApproval: false, paymentId: newPayment.id }
   } catch (error) {
     const message =
@@ -311,6 +323,7 @@ export async function rejectUnmatched(unmatchedId: string, reason: string) {
       afterData: { status: 'Rejected', reason },
     })
 
+    revalidatePath('/dashboard')
     revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/unmatched')
     return { success: true }
@@ -337,6 +350,7 @@ export async function escalateUnmatched(unmatchedId: string) {
       afterData: { escalated_at: new Date().toISOString() },
     })
 
+    revalidatePath('/dashboard')
     revalidatePath('/dashboard/reconciliation')
     return { success: true }
   } catch (error) {
@@ -347,11 +361,17 @@ export async function escalateUnmatched(unmatchedId: string) {
 
 export async function getUnresolvedCounts() {
   try {
-    const [unmatchedCount, pendingCount, writeOffCount] = await Promise.all([
-      prisma.unmatchedPayment.count({ where: { status: 'Pending', assigned_church_id: null } }),
-      prisma.pendingPayment.count({ where: { status: 'Pending' } }),
-      prisma.writeOff.count({ where: { status: 'Pending' } }),
-    ])
+    // 🚨 FIX: Run sequentially to prevent Supabase connection pool drops
+    const unmatchedCount = await prisma.unmatchedPayment.count({ 
+      where: { status: 'Pending', assigned_church_id: null } 
+    })
+    const pendingCount = await prisma.pendingPayment.count({ 
+      where: { status: 'Pending' } 
+    })
+    const writeOffCount = await prisma.writeOff.count({ 
+      where: { status: 'Pending' } 
+    })
+    
     return {
       unmatched: unmatchedCount,
       pendingPayments: pendingCount,
@@ -371,25 +391,29 @@ export async function getReconciliationHubStats() {
     const yellowDaysAgo = new Date(now.getTime() - SLA_YELLOW_DAYS * 24 * 60 * 60 * 1000)
     const redDaysAgo = new Date(now.getTime() - SLA_RED_DAYS * 24 * 60 * 60 * 1000)
 
-    const [unmatchedTotal, pendingPayments, pendingWriteOffs, green, yellow, red] =
-      await Promise.all([
-        prisma.unmatchedPayment.count({ where: { status: 'Pending', assigned_church_id: null } }),
-        prisma.pendingPayment.count({ where: { status: 'Pending' } }),
-        prisma.writeOff.count({ where: { status: 'Pending' } }),
-        prisma.unmatchedPayment.count({
-          where: { status: 'Pending', assigned_church_id: null, created_at: { gt: yellowDaysAgo } },
-        }),
-        prisma.unmatchedPayment.count({
-          where: {
-            status: 'Pending',
-            assigned_church_id: null,
-            created_at: { lte: yellowDaysAgo, gt: redDaysAgo },
-          },
-        }),
-        prisma.unmatchedPayment.count({
-          where: { status: 'Pending', assigned_church_id: null, created_at: { lte: redDaysAgo } },
-        }),
-      ])
+    // 🚨 FIX: Run sequentially to prevent Supabase connection pool drops
+    const unmatchedTotal = await prisma.unmatchedPayment.count({ 
+      where: { status: 'Pending', assigned_church_id: null } 
+    })
+    const pendingPayments = await prisma.pendingPayment.count({ 
+      where: { status: 'Pending' } 
+    })
+    const pendingWriteOffs = await prisma.writeOff.count({ 
+      where: { status: 'Pending' } 
+    })
+    const green = await prisma.unmatchedPayment.count({
+      where: { status: 'Pending', assigned_church_id: null, created_at: { gt: yellowDaysAgo } },
+    })
+    const yellow = await prisma.unmatchedPayment.count({
+      where: {
+        status: 'Pending',
+        assigned_church_id: null,
+        created_at: { lte: yellowDaysAgo, gt: redDaysAgo },
+      },
+    })
+    const red = await prisma.unmatchedPayment.count({
+      where: { status: 'Pending', assigned_church_id: null, created_at: { lte: redDaysAgo } },
+    })
 
     return {
       unmatched: unmatchedTotal,

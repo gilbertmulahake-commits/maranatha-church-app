@@ -24,7 +24,7 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-export function PendingApprovalsTable({ items }: { items: PendingApprovalRow[] }) {
+export function PendingApprovalsTable({ items = [] }: { items: PendingApprovalRow[] }) {
   const [isPending, startTransition] = useTransition()
   const [rejectItem, setRejectItem] = useState<PendingApprovalRow | null>(null)
   const [rejectReason, setRejectReason] = useState('')

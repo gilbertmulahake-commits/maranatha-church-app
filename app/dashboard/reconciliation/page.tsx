@@ -27,6 +27,9 @@ async function ReconciliationContent() {
 
   const stats = await getReconciliationHubStats()
 
+  // 🚨 FIX: Combine both pending payments and pending write-offs
+  const totalPendingApprovals = stats.pendingPayments + stats.pendingWriteOffs
+
   return (
     <div className="space-y-xl">
       <div className="grid grid-cols-1 gap-md md:grid-cols-3">
@@ -71,10 +74,10 @@ async function ReconciliationContent() {
             </CardHeader>
             <CardContent>
               <div className="text-heading-2 font-bold tabular-nums text-foreground">
-                {stats.pendingPayments}
+                {totalPendingApprovals}
               </div>
               <div className="mt-2 text-paragraph-small text-muted-foreground">
-                High-value payments and corrections
+                High-value payments and write-offs
               </div>
             </CardContent>
           </Card>
@@ -111,6 +114,8 @@ async function ReconciliationContent() {
             </CardHeader>
           </Card>
         </Link>
+        {/* Pending Payments card disabled — duplicate of "Pending Approvals" (line 66).
+        Re-enable only if manual-entry gains a real ?tab=pending destination.
         <Link href="/dashboard/reconciliation/manual-entry?tab=pending">
           <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
             <CardHeader>
@@ -119,6 +124,7 @@ async function ReconciliationContent() {
             </CardHeader>
           </Card>
         </Link>
+        */}
       </div>
     </div>
   )

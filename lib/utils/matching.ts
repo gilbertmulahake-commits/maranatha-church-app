@@ -9,17 +9,6 @@ export interface MatchSuggestion {
   source: 'pattern' | 'fuzzy' | 'manual'
 }
 
-/**
- * Normalize a raw reference string for comparison.
- * - Uppercase
- * - Trim
- * - Strip all separators (spaces, dashes, underscores, dots, slashes)
- * 
- * Examples:
- *   "CH 001"   -> "CH001"
- *   " ch-001 " -> "CH001"
- *   "CH/001"   -> "CH001"
- */
 export function normalizeReference(ref: string): string {
   if (!ref) return ''
   return ref
@@ -28,10 +17,6 @@ export function normalizeReference(ref: string): string {
     .replace(/[\s\-_./\\]/g, '')
 }
 
-/**
- * Compute confidence score for a given Levenshtein distance.
- * Only distances 0-4 yield a valid score; anything above is discarded.
- */
 function fuzzyConfidence(distance: number): number {
   if (distance === 0) return 100
   if (distance === 1) return 90
@@ -41,15 +26,6 @@ function fuzzyConfidence(distance: number): number {
   return 0
 }
 
-/**
- * Suggest the top N church matches for a raw reference.
- * 
- * Precedence (highest confidence wins):
- *   1. ResolutionPattern (learned from past resolutions) — used as-is
- *   2. Levenshtein fuzzy match against active church codes
- * 
- * Only active (non-defunct) churches are considered.
- */
 export async function suggestMatches(
   rawRef: string,
   limit = 3
@@ -59,7 +35,7 @@ export async function suggestMatches(
   const normalized = normalizeReference(rawRef)
   if (normalized.length === 0) return []
 
-  // 1. Look up learned patterns (exact raw match OR normalized match)
+  // 1. Look up learned patterns
   const patterns = await prisma.resolutionPattern.findMany({
     where: {
       is_active: true,
@@ -72,7 +48,7 @@ export async function suggestMatches(
     take: 10,
   })
 
-  // 2. Load all active churches for fuzzy matching
+  // 2. Load all active churches
   const churches = await prisma.church.findMany({
     where: { is_defunct: false },
     select: { id: true, church_code: true, church_name: true },
@@ -80,60 +56,53 @@ export async function suggestMatches(
 
   const suggestionMap = new Map<string, MatchSuggestion>()
 
-  // 3a. Apply pattern matches first (highest trust)
+  // 3a. Apply pattern matches first (HIGHEST TRUST)
   for (const pattern of patterns) {
     const church = churches.find(
       (c) => c.church_code === pattern.resolved_church_code
     )
     if (!church) continue
 
-    const existing = suggestionMap.get(church.church_code)
-    if (!existing || existing.confidence < pattern.confidence_score) {
-      suggestionMap.set(church.church_code, {
-        church_id: church.id,
-        church_code: church.church_code,
-        church_name: church.church_name,
-        confidence: pattern.confidence_score,
-        source: 'pattern',
-      })
-    }
+    suggestionMap.set(church.church_code, {
+      church_id: church.id,
+      church_code: church.church_code,
+      church_name: church.church_name,
+      confidence: pattern.confidence_score,
+      source: 'pattern',
+    })
   }
 
-  // 3b. Apply fuzzy matches (only override if higher confidence)
+  // 🚨 CRITICAL FIX: If the Solutions Bank has a pattern for this exact reference,
+  // return it immediately. Do NOT let fuzzy matches for OTHER churches override it.
+  if (suggestionMap.size > 0) {
+    return Array.from(suggestionMap.values())
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, limit)
+  }
+
+  // 3b. Apply fuzzy matches ONLY if no patterns exist
   for (const church of churches) {
     const normCode = normalizeReference(church.church_code)
-
-    // Performance filter: only compare codes within ±4 chars length
     if (Math.abs(normCode.length - normalized.length) > 4) continue
 
     const d = distance(normalized, normCode)
     const conf = fuzzyConfidence(d)
     if (conf === 0) continue
 
-    const existing = suggestionMap.get(church.church_code)
-    if (!existing || existing.confidence < conf) {
-      suggestionMap.set(church.church_code, {
-        church_id: church.id,
-        church_code: church.church_code,
-        church_name: church.church_name,
-        confidence: conf,
-        source: 'fuzzy',
-      })
-    }
+    suggestionMap.set(church.church_code, {
+      church_id: church.id,
+      church_code: church.church_code,
+      church_name: church.church_name,
+      confidence: conf,
+      source: 'fuzzy',
+    })
   }
 
-  // 4. Return top N sorted by confidence
   return Array.from(suggestionMap.values())
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, limit)
 }
 
-/**
- * Record a successful resolution into the Solutions Bank.
- * Increments hit_count and recomputes confidence on repeat resolutions.
- * 
- * IMPORTANT: Never throws. A failure here must not break the main mutation.
- */
 export async function recordResolution(params: {
   rawReference: string
   resolvedChurchCode: string
@@ -177,7 +146,7 @@ export async function recordResolution(params: {
       })
     }
   } catch (error) {
-    // Swallow error — the payment was already created successfully.
-    console.error('Failed to record resolution pattern:', error)
+    // We still don't want to break the payment, but we MUST log the exact Prisma error for debugging.
+    console.error('🚨 FAILED TO RECORD RESOLUTION PATTERN:', error)
   }
 }
