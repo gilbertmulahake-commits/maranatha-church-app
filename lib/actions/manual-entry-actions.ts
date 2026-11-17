@@ -119,6 +119,8 @@ export async function createManualEntry(formData: FormData) {
         metadata: { reason: 'amount_threshold', actor_email: actorEmail },
       })
 
+      revalidatePath('/dashboard')
+      revalidatePath('/dashboard/reconciliation')
       revalidatePath('/dashboard/reconciliation/manual-entry')
       revalidatePath('/dashboard/reconciliation/pending-approvals')
       return {
@@ -183,6 +185,8 @@ export async function createManualEntry(formData: FormData) {
       await sendSms(church.contact_phone, smsMsg, 'Receipt')
     }
 
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/manual-entry')
     revalidatePath('/dashboard/payments')
     return { success: true, requiresApproval: false, paymentId: newPayment.id }
@@ -348,6 +352,8 @@ export async function approvePendingPayment(pendingId: string) {
       await sendSms(pending.church.contact_phone, smsMsg, 'Receipt')
     }
 
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/pending-approvals')
     revalidatePath('/dashboard/reconciliation/manual-entry')
     revalidatePath('/dashboard/payments')
@@ -396,6 +402,8 @@ export async function rejectPendingPayment(pendingId: string, reason: string) {
       afterData: { status: 'Rejected', reason, church_code: pending.church.church_code },
     })
 
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/pending-approvals')
     return { success: true }
   } catch (error) {

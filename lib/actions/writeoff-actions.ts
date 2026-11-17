@@ -329,6 +329,9 @@ export async function rejectWriteOff(writeOffId: string, reason: string) {
       },
     })
 
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/churches')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/write-offs')
     revalidatePath('/dashboard/reconciliation/pending-approvals')
     return { success: true }
