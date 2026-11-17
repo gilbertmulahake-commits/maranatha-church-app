@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChurchProfileClient } from '@/components/churches/church-profile-client'
 import { getExpectedUpToDate, getPeriodStatus, getCreditBalance } from '@/lib/utils/financial'
-
 import { KpiGrid } from '@/components/ui/kpi-grid'
 
 async function ChurchProfileContent({ params }: { params: Promise<{ code: string }> }) {
@@ -25,6 +24,10 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
         include: { allocations: true },
         orderBy: { payment_date: 'desc' },
       },
+      // 🚨 FIX: Include approved write-offs
+      write_offs: {
+        where: { status: 'Approved' }
+      }
     },
   })
 
@@ -51,8 +54,13 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   const totalPaid = annualPaid + monthlyPaid
   const { expectedAnnual, expectedMonthly, totalExpected } = getExpectedUpToDate(church.created_at, now)
 
-  const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
-  const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
+  const grossAnnualOutstanding = Math.max(0, expectedAnnual - annualPaid)
+  const grossMonthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
+  const grossOutstanding = grossAnnualOutstanding + grossMonthlyOutstanding
+
+  // 🚨 FIX: Calculate write-offs and net outstanding
+  const totalWrittenOff = church.write_offs.reduce((sum, w) => sum + Number(w.amount), 0)
+  const netOutstanding = Math.max(0, grossOutstanding - totalWrittenOff)
 
   let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
   const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
@@ -62,7 +70,6 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
   else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
 
-  // Map payments to match the exact LocalChurchStats shape
   const formattedPayments = church.payments.map((p) => {
     let hasAnnual = false
     let hasMonthly = false
@@ -85,7 +92,6 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
       has_annual: hasAnnual,
       has_monthly: hasMonthly,
       is_mixed: hasAnnual && hasMonthly,
-      // ADDED: Map the allocations for the breakdown dialog
       allocations: p.allocations.map(a => ({
         allocation_type: a.allocation_type,
         billing_year: a.billing_year,
@@ -105,9 +111,14 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
     expectedAnnual,
     expectedMonthly,
     totalExpected,
-    annualOutstanding,
-    monthlyOutstanding,
-    totalOutstanding: annualOutstanding + monthlyOutstanding,
+    
+    // 🚨 FIX: Pass the new gross/net values
+    annualOutstanding: grossAnnualOutstanding,
+    monthlyOutstanding: grossMonthlyOutstanding,
+    grossOutstanding: grossOutstanding,
+    totalWrittenOff: totalWrittenOff,
+    netOutstanding: netOutstanding,
+    
     annualCredit: getCreditBalance(annualPaid, expectedAnnual),
     monthlyCredit: getCreditBalance(monthlyPaid, expectedMonthly),
     annualStatus,
@@ -118,7 +129,6 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
 
   return (
     <div className="space-y-xl">
-      {/* Contextual Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-sm">
           <Link href="/dashboard/churches">
@@ -148,7 +158,6 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
         </Badge>
       </div>
 
-      {/* Render the interactive client wrapper */}
       <ChurchProfileClient stats={stats} />
     </div>
   )

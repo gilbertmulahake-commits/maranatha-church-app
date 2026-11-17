@@ -136,7 +136,8 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
   const [isLoadingPreview, startPreviewTransition] = useTransition()
   const [isSubmitting, startSubmitTransition] = useTransition()
 
-  // FIXED: Removed synchronous setState from the effect body
+  const selectedChurch = churches.find((c) => c.id === selectedChurchId)
+
   useEffect(() => {
     const numericAmount = Number(amount)
     if (!selectedChurchId || !numericAmount || numericAmount <= 0) {
@@ -158,7 +159,6 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
     return () => clearTimeout(timer)
   }, [selectedChurchId, amount])
 
-  // FIXED: Moved the clearing logic to the event handlers
   const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setAmount(val)
@@ -171,7 +171,7 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
   const handleChurchChange = (val: string | null) => {
     if (val) {
       setSelectedChurchId(val)
-      setAllocations([]) // Clear old allocations immediately when church changes
+      setAllocations([])
     }
   }
 
@@ -242,7 +242,6 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
   }
 
   return (
-    // Same structure as MockKcbForm (which we know works) — no max-width constraint
     <div className="grid grid-cols-1 w-full items-start">
       <Card className="w-full">
         <CardHeader>
@@ -258,15 +257,26 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
               <Label htmlFor="church">Church</Label>
               <Select 
                 value={selectedChurchId} 
-                onValueChange={handleChurchChange} // FIXED: Using the new handler
+                onValueChange={handleChurchChange}
               >
-                <SelectTrigger id="church" className="h-10 bg-background">
-                  <SelectValue placeholder="Select a church..." />
+                {/* 🚨 FIX: Changed h-10 to h-auto min-h-10 py-2 to fit two lines */}
+                <SelectTrigger id="church" className="h-auto min-h-10 py-2 bg-background">
+                  <SelectValue placeholder="Select a church...">
+                    {selectedChurch ? (
+                      <div className="flex flex-col text-left">
+                        <span className="font-medium">{selectedChurch.church_code} — {selectedChurch.church_name}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{selectedChurch.id}</span>
+                      </div>
+                    ) : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {churches.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.church_code} — {c.church_name}
+                    <SelectItem key={c.id} value={c.id} className="py-2">
+                      <div className="flex flex-col text-left">
+                        <span className="font-medium">{c.church_code} — {c.church_name}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{c.id}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -281,7 +291,7 @@ export function ManualEntryForm({ churches }: { churches: ChurchOption[] }) {
                   type="number"
                   min="1"
                   value={amount}
-                  onChange={handleAmountChange} // FIXED: Using the new handler
+                  onChange={handleAmountChange}
                   className="h-10"
                   placeholder="e.g. 5000"
                   required

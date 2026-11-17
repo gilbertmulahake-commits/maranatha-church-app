@@ -39,7 +39,7 @@ export type WriteOffRow = {
   days_old: number
 }
 
-async function computeChurchOutstanding(churchId: string): Promise<number> {
+async function computeChurchOutstanding(churchId: string): Promise<{ total: number; annual: number; monthly: number }> {
   const church = await prisma.church.findUnique({
     where: { id: churchId },
     include: {
@@ -47,7 +47,7 @@ async function computeChurchOutstanding(churchId: string): Promise<number> {
       write_offs: { where: { status: 'Approved' } },
     },
   })
-  if (!church) return 0
+  if (!church) return { total: 0, annual: 0, monthly: 0 }
 
   let annualPaid = 0
   let monthlyPaid = 0
@@ -69,16 +69,21 @@ async function computeChurchOutstanding(churchId: string): Promise<number> {
     church.created_at,
     new Date()
   )
-  const grossOutstanding =
-    Math.max(0, expectedAnnual - annualPaid) +
-    Math.max(0, expectedMonthly - monthlyPaid)
+  
+  const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
+  const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
+  const grossOutstanding = annualOutstanding + monthlyOutstanding
 
   const alreadyWritten = church.write_offs.reduce(
     (s, w) => s + Number(w.amount),
     0
   )
 
-  return Math.max(0, grossOutstanding - alreadyWritten)
+  return {
+    total: Math.max(0, grossOutstanding - alreadyWritten),
+    annual: annualOutstanding,
+    monthly: monthlyOutstanding,
+  }
 }
 
 export async function getWriteOffs(): Promise<WriteOffRow[]> {
@@ -149,12 +154,13 @@ export async function proposeWriteOff(formData: FormData) {
     if (church.is_defunct) return { error: 'Church is already marked defunct' }
 
     const outstanding = await computeChurchOutstanding(data.church_id)
-    if (outstanding === 0) {
+    
+    if (outstanding.total === 0) {
       return { error: 'This church has no outstanding balance to write off' }
     }
-    if (data.amount > outstanding) {
+    if (data.amount > outstanding.total) {
       return {
-        error: `Amount exceeds outstanding balance (KES ${outstanding.toLocaleString()})`,
+        error: `Amount exceeds outstanding balance (KES ${outstanding.total.toLocaleString()})`,
       }
     }
 
@@ -180,11 +186,14 @@ export async function proposeWriteOff(formData: FormData) {
         amount: data.amount,
         reason: data.reason,
         notes: data.notes,
-        outstanding_before: outstanding,
+        outstanding_before: outstanding.total,
       },
       metadata: { actor_email: actorEmail },
     })
 
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/churches')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/write-offs')
     revalidatePath('/dashboard/reconciliation/pending-approvals')
     return { success: true, writeOffId: writeOff.id }
@@ -213,18 +222,20 @@ export async function approveWriteOff(writeOffId: string) {
     // Re-verify outstanding hasn't changed (payments may have arrived while pending)
     const outstanding = await computeChurchOutstanding(writeOff.church_id)
     const writeOffAmount = Number(writeOff.amount)
-    if (writeOffAmount > outstanding + 0.01) {
+    
+    if (writeOffAmount > outstanding.total + 0.01) {
       return {
-        error: `Cannot approve: current outstanding is KES ${outstanding.toLocaleString()}, but write-off is KES ${writeOffAmount.toLocaleString()}. Reject and re-propose.`,
+        error: `Cannot approve: current outstanding is KES ${outstanding.total.toLocaleString()}, but write-off is KES ${writeOffAmount.toLocaleString()}. Reject and re-propose.`,
       }
     }
 
     // Determine if this covers the FULL outstanding (triggers is_defunct)
-    const resultingDefunctFlag = outstanding - writeOffAmount < 1
+    const resultingDefunctFlag = outstanding.total - writeOffAmount < 1
 
     await prisma.$transaction(async (tx) => {
-      await tx.writeOff.update({
-        where: { id: writeOffId },
+      // 🚨 FIX: Claim the write-off atomically to prevent double-clicks
+      const claimed = await tx.writeOff.updateMany({
+        where: { id: writeOffId, status: 'Pending' },
         data: {
           status: 'Approved',
           approved_by: actorId,
@@ -232,6 +243,10 @@ export async function approveWriteOff(writeOffId: string) {
           resulting_defunct_flag: resultingDefunctFlag,
         },
       })
+
+      if (claimed.count === 0) {
+        throw new Error('This write-off has already been processed.')
+      }
 
       if (resultingDefunctFlag) {
         await tx.church.update({
@@ -252,14 +267,18 @@ export async function approveWriteOff(writeOffId: string) {
         amount: writeOffAmount,
         reason: writeOff.reason,
         marked_defunct: resultingDefunctFlag,
-        outstanding_after: outstanding - writeOffAmount,
+        outstanding_after: outstanding.total - writeOffAmount,
         approved_by_email: actorEmail,
       },
     })
 
+    // 🚨 FIX: Revalidate ALL affected paths
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/churches')
+    revalidatePath('/dashboard/reconciliation')
     revalidatePath('/dashboard/reconciliation/write-offs')
     revalidatePath('/dashboard/reconciliation/pending-approvals')
-    revalidatePath('/dashboard/churches')
+    
     return { success: true, markedDefunct: resultingDefunctFlag }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to approve'
@@ -283,8 +302,8 @@ export async function rejectWriteOff(writeOffId: string, reason: string) {
       return { error: 'You cannot reject a write-off you proposed yourself. A different Treasurer must review it.' }
     }
 
-    await prisma.writeOff.update({
-      where: { id: writeOffId },
+    const claimed = await prisma.writeOff.updateMany({
+      where: { id: writeOffId, status: 'Pending' },
       data: {
         status: 'Rejected',
         approved_by: actorId,
@@ -292,6 +311,10 @@ export async function rejectWriteOff(writeOffId: string, reason: string) {
         rejection_reason: reason,
       },
     })
+
+    if (claimed.count === 0) {
+      return { error: 'This write-off has already been processed.' }
+    }
 
     await logAudit({
       action: 'WRITEOFF_REJECTED',

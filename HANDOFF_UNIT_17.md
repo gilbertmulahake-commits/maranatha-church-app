@@ -1,3 +1,4 @@
+```markdown
 # HANDOFF — Unit 17: Reconciliation, Manual Entry & Write-Offs
 
 ## Repo State (Snapshot at Handoff)
@@ -124,3 +125,88 @@ Run these 8 tests to verify nothing is silently broken:
 git add .
 git commit -m "feat(reconciliation): unmatched payments, manual entry, and write-offs (Unit 17)"
 git push -u origin feat/17-reconciliation-writeoffs
+```
+
+### STEP 4: PR & Merge
+Open PR → manual review (no CodeRabbit) → squash merge → local sync → checkout main.
+
+## Key Patterns to Remember
+
+1. **`logAudit()` NEVER throws** — always called AFTER successful mutation, never inside `prisma.$transaction`
+2. **Four-Eyes threshold = KES 20,000** (constant `FOUR_EYES_THRESHOLD` in both action files)
+3. **90+ day arrears = always requires Treasurer approval** regardless of amount
+4. **Write-offs are absolute four-eyes** — Treasurer approval required at ANY amount
+5. **Defunct churches excluded from**: Compliance denominators, Regional scores, SMS lists, church dropdowns
+6. **Hybrid Allocation**: Server computes FIFO preview via `computeExpectedPeriods` + `calculateAllocations`, client can override before submit
+7. **`react-hooks/set-state-in-effect`**: Never call `setState` synchronously in `useEffect`. Move resets to event handlers (`handleOpenChange`, `handleChurchChange`).
+8. **Base UI `<Select onValueChange>`**: Always guard with `if (val)` — passes `string | null`
+9. **Next.js 16 pages**: `<Suspense>` + `await connection()` inside async content component
+10. **RBAC gates**: `verifyReconciliationAccess()` = Finance/Treasurer/SystemAdmin; `verifyTreasurerAuthority()` = Treasurer/SystemAdmin only
+
+## Deferred to Later Units (Explicitly Out of Scope for Unit 17)
+- Attachment uploads for manual entries (currently only URL field accepted, no UI to upload — deferred)
+- Solutions Bank rule creation UI (patterns only learn automatically from resolutions — admin rule creation deferred)
+- Daily digest emails / cron escalation (deferred to Inngest background jobs)
+- Aging bucket reduction LIFO logic affects dashboard's aging chart — verify visually in Test 7
+
+## File Reference — All Unit 17 Touched Files
+
+**New:**
+- `lib/utils/matching.ts`
+- `lib/actions/reconciliation-actions.ts`
+- `lib/actions/manual-entry-actions.ts`
+- `lib/actions/writeoff-actions.ts`
+- `app/dashboard/reconciliation/page.tsx`
+- `app/dashboard/reconciliation/unmatched/page.tsx`
+- `app/dashboard/reconciliation/manual-entry/page.tsx`
+- `app/dashboard/reconciliation/pending-approvals/page.tsx`
+- `app/dashboard/reconciliation/write-offs/page.tsx`
+- `components/reconciliation/sla-badge.tsx`
+- `components/reconciliation/unmatched-table.tsx`
+- `components/reconciliation/resolve-dialog.tsx`
+- `components/reconciliation/reject-dialog.tsx`
+- `components/reconciliation/manual-entry-form.tsx`
+- `components/reconciliation/pending-approvals-table.tsx`
+- `components/reconciliation/writeoff-table.tsx`
+- `components/reconciliation/propose-writeoff-dialog.tsx`
+- `components/ui/textarea.tsx`
+
+**Modified:**
+- `prisma/schema.prisma`
+- `lib/utils/financial.ts`
+- `lib/auth/guards.ts`
+- `lib/actions/dashboard-actions.ts`
+- `lib/actions/scoring-actions.ts`
+- `app/api/webhooks/kcb/route.ts`
+- `components/layout/nav-main.tsx`
+- `components/layout/app-sidebar.tsx`
+- `app/dashboard/layout.tsx`
+- `package.json`
+
+## Opening Message for New Chat
+
+```
+I'm continuing the Maranatha Church System mid-Unit 17. Read these 
+files in order before doing anything:
+
+1. Spec Driven Ai Guide.md
+2. context/progress-tracker.md
+3. context/specs/00-build-plan.md
+4. context/specs/17-reconciliation-writeoffs.md
+5. context/project-overview.md
+6. context/architecture.md
+7. context/ui-context.md
+8. context/code-standards.md
+9. context/ai-workflow-rules.md
+10. HANDOFF_UNIT_17.md
+
+Then run:
+  git branch --show-current
+  git status
+  git log -1 --oneline
+
+Reply with those 3 outputs, confirm you've read everything, and 
+state which of the 8 manual verification tests I should start with. 
+Wait for my go-ahead before doing anything.
+```
+```

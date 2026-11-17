@@ -159,7 +159,7 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 ## Reconciliation Patterns (Unit 17)
 
 ### Four-Eyes Threshold
-- **KES 20,000** (`FOUR_EYES_THRESHOLD` constant in both `reconciliation-actions.ts` and `manual-entry-actions.ts`).
+- **KES 20,000** (`FOUR_EYES_THRESHOLD` exported from `lib/constants.ts` — single source of truth).
 - Above threshold OR 90+ day arrears → route to `PendingPayment` staging (never create `Payment` directly).
 - **Write-offs ALWAYS require Treasurer approval** regardless of amount (absolute four-eyes — prevents fraud from hiding behind "write-off" labels).
 

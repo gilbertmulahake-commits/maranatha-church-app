@@ -196,18 +196,18 @@ export async function getPendingApprovals(): Promise<PendingApprovalRow[]> {
   try {
     await verifyTreasurerAuthority()
 
-    const [payments, writeoffs] = await Promise.all([
-      prisma.pendingPayment.findMany({
-        where: { status: 'Pending' },
-        include: { church: { select: { church_code: true, church_name: true } } },
-        orderBy: { proposed_at: 'asc' },
-      }),
-      prisma.writeOff.findMany({
-        where: { status: 'Pending' },
-        include: { church: { select: { church_code: true, church_name: true } } },
-        orderBy: { proposed_at: 'asc' },
-      }),
-    ])
+    // 🚨 FIX: Run sequentially to prevent Supabase connection pool drops
+    const payments = await prisma.pendingPayment.findMany({
+      where: { status: 'Pending' },
+      include: { church: { select: { church_code: true, church_name: true } } },
+      orderBy: { proposed_at: 'asc' },
+    })
+    
+    const writeoffs = await prisma.writeOff.findMany({
+      where: { status: 'Pending' },
+      include: { church: { select: { church_code: true, church_name: true } } },
+      orderBy: { proposed_at: 'asc' },
+    })
 
     const now = new Date()
     const dayDiff = (d: Date) =>
@@ -226,7 +226,8 @@ export async function getPendingApprovals(): Promise<PendingApprovalRow[]> {
         payment_method: p.payment_method,
         transaction_id: p.transaction_id,
         notes: p.notes,
-        allocations: p.allocations_json,
+        // 🚨 FIX: Force plain JSON object to prevent hydration crash
+        allocations: JSON.parse(JSON.stringify(p.allocations_json)),
       },
     }))
 
@@ -277,6 +278,20 @@ export async function approvePendingPayment(pendingId: string) {
 
     const newPayment = await prisma.$transaction(
       async (tx) => {
+        // 🚨 FIX: Claim the pending payment atomically to prevent double-clicks
+        const claimed = await tx.pendingPayment.updateMany({
+          where: { id: pendingId, status: 'Pending' },
+          data: {
+            status: 'Approved',
+            reviewed_by: actorId,
+            reviewed_at: new Date(),
+          },
+        })
+
+        if (claimed.count === 0) {
+          throw new Error('This payment has already been approved by another user.')
+        }
+
         const payment = await tx.payment.create({
           data: {
             church_id: pending.church_id,
@@ -307,12 +322,7 @@ export async function approvePendingPayment(pendingId: string) {
 
         await tx.pendingPayment.update({
           where: { id: pendingId },
-          data: {
-            status: 'Approved',
-            reviewed_by: actorId,
-            reviewed_at: new Date(),
-            resulting_payment_id: payment.id,
-          },
+          data: { resulting_payment_id: payment.id },
         })
 
         return payment
@@ -364,8 +374,8 @@ export async function rejectPendingPayment(pendingId: string, reason: string) {
       return { error: 'You cannot reject a payment you proposed yourself. A different Treasurer must review it.' }
     }
 
-    await prisma.pendingPayment.update({
-      where: { id: pendingId },
+    const claimed = await prisma.pendingPayment.updateMany({
+      where: { id: pendingId, status: 'Pending' },
       data: {
         status: 'Rejected',
         reviewed_by: actorId,
@@ -373,6 +383,10 @@ export async function rejectPendingPayment(pendingId: string, reason: string) {
         rejection_reason: reason,
       },
     })
+
+    if (claimed.count === 0) {
+      return { error: 'This payment has already been processed.' }
+    }
 
     await logAudit({
       action: 'PENDING_PAYMENT_REJECTED',

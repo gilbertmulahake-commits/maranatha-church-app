@@ -293,7 +293,7 @@ export function ResolveUnmatchedDialog({
             </Select>
             {item.suggested_church_code && item.confidence_score !== null && (
               <p className="text-[11px] text-muted-foreground pt-0.5">
-                Suggested by Solutions Bank: {item.suggested_church_code} (
+                Suggested Match: {item.suggested_church_code} (
                 {item.confidence_score.toFixed(0)}% confidence)
               </p>
             )}

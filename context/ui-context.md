@@ -1,14 +1,13 @@
-```markdown
 # UI Context & Design System (Enterprise Grade)
 
 ## 1. Design Philosophy
-We are building a **modern, data-dense enterprise financial dashboard**. The UI must inspire institutional trust, optimize for rapid decision-making, and remain highly legible during long working hours. 
+We are building a **modern, data-dense enterprise financial dashboard**. The UI must inspire institutional trust, optimize for rapid decision-making, and remain highly legible during long working hours.
 - **Aesthetic:** Clean, high-contrast, light-mode by default (Dark mode fully supported via CSS variables).
 - **Density:** Optimize space for data, but never at the cost of readability (use generous padding).
 - **Consistency:** Every component must look and feel like it belongs to the same family.
 
 ## 2. Tailwind v4 & Semantic Color Tokens (STRICT RULES)
-**NO HARDCODED HEX VALUES (e.g., `#0F172A`) OR ARBITRARY SPACING VALUES (e.g., `p-[17px]`) ARE ALLOWED IN COMPONENTS.** 
+**NO HARDCODED HEX VALUES (e.g., `#0F172A`) OR ARBITRARY SPACING VALUES (e.g., `p-[17px]`) ARE ALLOWED IN COMPONENTS.**
 All styling must use the semantic variables defined in `app/globals.css` via Tailwind v4's `@theme` block. This ensures the entire application can be re-themed instantly (e.g., for Dark Mode).
 
 | Role | Tailwind Class | Usage |
@@ -37,7 +36,7 @@ All styling must use the semantic variables defined in `app/globals.css` via Tai
 | **UI Text** | Inter (Geist Sans) | Clean, highly legible. |
 | **Mono** | Geist Mono | For transaction refs (e.g., M-Pesa codes) and Church IDs. |
 
-**Crucial Rule for Financials:** 
+**Crucial Rule for Financials:**
 Every number representing currency, percentages, or counts must use the `tabular-nums` class. This aligns digits vertically.
 
 ### Standard Formatters (Use these exact JS snippets)
@@ -120,6 +119,7 @@ Every KPI row across the system (National, Regional, Local, Payments, Churches) 
    - If using a `StackedBar`, **do not** repeat the "Annual X · Monthly Y" text below it. The StackedBar already has a legend.
    - The footer should only contain the actionable context (e.g., "Target Exceeded", "All-Time Net Credit", or the percentage) in `text-[11px] text-muted-foreground`.
    - *Never leave empty space or inconsistent margins.*
+
 ## 5.3 Executive Dashboard Layout (V2 Blueprint)
 The National Dashboard must follow a strict 4-tier architectural hierarchy to ensure the Treasurer can make decisions in under 30 seconds. Never revert to the generic KPI row layout.
 
@@ -134,7 +134,7 @@ The National Dashboard must follow a strict 4-tier architectural hierarchy to en
 
 ### Tier 3: The Analytics Row (2 Charts)
 - **Collection Trend (7 cols):** Area chart with a global header toggle.
-- **Arrears Aging (5 cols):** Replaces the Doughnut chart. Stacked bar chart showing 0-30 / 31-60 / 61-90 / 90+ day buckets. This replaces the "Type" and "Channel" doughnut toggles.
+- **Arrears Aging (5 cols):** Replaces the Doughnut chart on the National dashboard. Stacked bar chart showing 0-30 / 31-60 / 61-90 / 90+ day buckets. This replaces the "Type" and "Channel" doughnut toggles on this page.
 
 ### Tier 4: Accountability & Activity (Bottom)
 - **Live Feed (Left):** Moved down to make room for the Action Center.
@@ -181,11 +181,11 @@ No table should ever be rendered without the `<TableToolbar>` component.
 - **Financial Cells:** Must use `text-right font-medium tabular-nums`.
 
 ## 7. Component Standards (shadcn/ui & Tailwind)
-We strictly use shadcn/ui (Base UI variant). 
+We strictly use shadcn/ui (Base UI variant).
 
 ### Dialogs & Modals
 - **Global Close Safety:** The base `<DialogHeader>` and `<AlertDialogHeader>` have `pr-12` applied globally to ensure long titles never overlap the absolute close (`X`) button.
-- **Padding:** `<DialogContent>` and `<AlertDialogContent>` handle the standard `p-6`. 
+- **Padding:** `<DialogContent>` and `<AlertDialogContent>` handle the standard `p-6`.
 - **Large Dialogs (Forms/Views):** Default `<DialogTitle>` is `text-heading-2 font-bold tracking-tight`.
 - **Small Dialogs (Alerts/Confirmations):** Override `<DialogTitle>` with `className="text-heading-3 font-bold"`.
 - **Footers:** Use `<DialogFooter className="pt-4 gap-2">` to separate buttons from form fields. Cancel buttons are `variant="outline"`. Primary buttons use `bg-primary` and include a `<Loader2 className="mr-2 h-4 w-4 animate-spin" />` when loading.
@@ -198,7 +198,8 @@ We strictly use shadcn/ui (Base UI variant).
 - **Alignment & Positioning:** All dropdowns must be explicitly aligned to their trigger button. Use `align="end"` for right-aligned actions (e.g., table row menus, profile menus). Use `align="start"` for left-aligned actions. Use `side="bottom"` and `sideOffset={4}` to ensure the dropdown sits perfectly top-aligned with the button's bottom edge without awkward floating gaps.
 
 ## 8. Data Visualization (Recharts)
-- **Compliance Doughnut:** The main dashboard doughnut chart displays Church Compliance (Paid, Partial, Overdue, N/A), NOT Payment Methods.
+- **Compliance Charts:** Where a compliance breakdown chart is used (Regional and Local dashboards), it displays Church Compliance (Paid, Partial, Overdue, N/A) as a Doughnut, NOT Payment Methods. **On the National dashboard, this chart has been replaced by Arrears Aging — see Section 5.3, Tier 3.** Do not reintroduce a Doughnut into the National Tier 3 slot.
+- **Arrears Aging:** A stacked bar chart with four buckets (0-30, 31-60, 61-90, 90+ days). The 90+ bucket carries an escalation warning badge when its share exceeds 25%.
 - **Color Palette:** Use the CSS variables defined in `globals.css` (`--color-emerald-500`, `--color-amber-500`, `--color-rose-500`, `--color-slate-300`). Never hardcode chart colors.
 - **Tooltips:** Use the custom shadcn `<ChartTooltip>` with a border radius of `rounded-lg` and a subtle shadow.
 - **Axes:** Hide the vertical grid lines (`vertical={false}` on `<CartesianGrid>`). Keep axis text muted (`text-muted-foreground`) and font size `12px`.
@@ -208,6 +209,8 @@ We strictly use shadcn/ui (Base UI variant).
 - **KPI Cards:** Always wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. See Section 5.1. Never re-implement the grid class inline. Never apply `text-heading-*` to KPI numbers inline — use `<KpiValue>`.
 - **Charts:** `grid grid-cols-1 gap-md lg:grid-cols-3` (Area Chart takes 2 cols, Doughnut takes 1).
 - **Data Tables:** Always use `<TableShell>` (which provides `overflow-x-auto`). Never use `overflow-hidden` on a table wrapper — it clips columns on narrow screens. Hide non-essential columns on smaller screens.
+- **Layout Collapse (Flexbox):** Flex parents can crush children below their intrinsic width unless the child has `min-w-0`. Any page wrapper placed beside the sidebar must carry `flex-1 min-w-0`. When a component collapses to a vertical sliver, suspect a missing `min-w-0` on an ancestor before adjusting the component itself.
+- **Page-Level Grids:** Prefer `grid grid-cols-1 w-full` over `flex` for page and dialog bodies. Grid tracks are rigid and predictable; flex is not.
 
 ## 10. Interaction, Animations & UX Rules
 - **Transitions:** All interactive elements must have `transition-colors` or `transition-all duration-200`.
@@ -225,15 +228,14 @@ We strictly use shadcn/ui (Base UI variant).
 - **Validation:** Errors directly below the input using `text-paragraph-small text-destructive`.
 
 ### Feedback (Toasts)
-We use `Sonner` for all user feedback. Never use `alert()`. 
+We use `Sonner` for all user feedback. Never use `alert()`.
 - **Position:** Bottom-right corner.
 
 ### Destructive Actions (Deleting Data)
-- **Pattern:** Always use a shadcn `<AlertDialog>` for confirmation. 
-- **Confirm Button:** Must be `bg-destructive hover:bg-destructive/90`. 
+- **Pattern:** Always use a shadcn `<AlertDialog>` for confirmation.
+- **Confirm Button:** Must be `bg-destructive hover:bg-destructive/90`.
 
 ## 12. Accessibility (a11y)
 - **Contrast:** Text must meet WCAG AA ratios.
 - **Labels:** Every input must have an associated `<label>`.
 - **Semantic HTML:** Use `<button>` for buttons, `<a>` for links.
-```
