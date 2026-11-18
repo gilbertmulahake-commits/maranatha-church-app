@@ -6,7 +6,12 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-- None (Ready for Unit 18.2)
+- **Unit 18.2: Reporting Analytics & Breakdowns** — six read-only reports
+  (Collections Summary, Compliance, Regional Scores, YoY Comparison,
+  Allocation Breakdown, Source/Method Breakdown) under `/dashboard/reports/[report]`.
+  Stage A = Collections Summary, Compliance, Regional Scores. Stage B = YoY Comparison,
+  Allocation Breakdown, Source/Method Breakdown. Page count stays 28/28.
+  **Prerequisite:** Unit 18.2-pre (payment_date index) merges before 18.2 opens.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -188,17 +193,35 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages.
 
 ## In Progress
-- - None
+- **Unit 18.2 — Spec finalized.** Not started. First implementation step is
+  `lib/utils/report-registry.ts` (shared infrastructure; must be verified against all
+  three consumers — hub page, `[report]` page, `<ReportShell>` — before Stage A
+  continues). See `context/specs/18.2-reporting-analytics.md`. Prerequisite:
+  Unit 18.2-pre (payment_date index).
 
 ## Next Up
-- **Unit 18.2: Reporting Analytics & Breakdowns** — YoY Comparison, Allocation Breakdown, Source/Method Breakdown, Collections Summary, Compliance, Regional Scores.
-- **Then:** 18.3 (Reconciliation Reporting) → 19 (Pay Now Wizard) → 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
+- **Unit 18.2-pre: Add `@@index([payment_date])` on `Payment`.** One migration
+  (`prisma7 migrate dev --name add_payment_date_index`), one PR. Prerequisite to
+  Unit 18.2 — reports filter on `payment_date` across an ever-growing payment table
+  and the previous deferral rationale ("not needed for 11 churches") is stale at
+  current scale (1,600+ churches, growing). Merges before 18.2 opens.
+- **Unit 18.2: Reporting Analytics & Breakdowns** — IN PROGRESS (spec finalized;
+  implementation pending). See `context/specs/18.2-reporting-analytics.md`.
+- **Unit 18.2.1 (follow-up, scheduled): Instrument Timeliness / Accuracy / Engagement
+  score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
+  40/30/20/10 formula is real but 60% of its input is synthetic. Requires a product
+  definition of each axis, a data source for each, and possibly a schema addition.
+  Blocking clean Regional Scores reporting at full fidelity. Not in 18.2 scope.
+- **Then:** 18.3 (Reconciliation Reporting) → 19 (Pay Now Wizard) → 20 (In-App Help)
+  → 21/22 (Bank Sandbox, blocked on credentials) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
 - **Bank Preference:** The Ministry prefers Equity Bank over KCB. The V2 roadmap includes dual-bank support so either (or both) can be active.
 - **Equity Jenga API:** The exact API credentials and payload format for Equity's IPN webhook are TBD.
 - **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the webhook. Requires a manual entry UI for National HQ. (Addressed in Unit 17).
+- **Score axis instrumentation:** Defining real formulas for `timelinessPct`, `reportingAccuracy`, and `leadershipEngagement` requires product input. What constitutes "on-time" contribution? What constitutes "reporting accuracy"? What constitutes "leadership engagement"? These are the questions Unit 18.2.1 must answer before the 40/30/20/10 formula can be fully honest.
+- **Scale monitoring tooling:** Which observation tooling will be used to track the Scale Watch metrics in production? Candidates: Vercel Analytics (built-in), Sentry performance, or a lightweight custom logger. Decision needed before church count grows further — not blocking 18.2.
 
 ## Architecture Decisions
 - **KPI Grid — `<KpiGrid>`:** All KPI rows wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. Never inline `grid grid-cols-*` for a KPI row. 3-tier: 1 col < 600px container, 2 cols 600–1100px, 4 cols > 1100px. To change the standard, edit the component — one file, not 15.
@@ -207,7 +230,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (✅) → 18.1 → 18.2 → 18.3 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (✅) → 18.1 → 18.2 → 18.2.1 → 18.3 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -248,13 +271,39 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Reporting Navigation (Unit 18.1):** The Reports section uses a Hub (`/dashboard/reports`) + Sub-route (`/dashboard/reports/[report]`) pattern. This replaces the old single-page two-tab client view. Page count is expected to be 28/28.
 - **Reporting Guards (Unit 18.1):** Report reads use `verifyReportsAccess()` (authenticated + known role), relying on `buildReportWhere()` and RLS for strict scoping (Invariant 2). Reconciliation reports use `verifyReconciliationAccess()`.
 - **Inactive Church Definition (Unit 18.1):** Defined as no paid payment in the last 6 months, excluding defunct churches and churches created < 6 months ago.
+- **Reporting Reuse Principle (Unit 18.2):** Reports consume existing financial and scoring logic — never re-derive. The 40/30/20/10 formula and Strict Bucket Isolation compliance rule have exactly one implementation (`lib/actions/scoring-actions.ts`); reports call it and render the result. Compliance rule additionally extracted to `lib/utils/financial.ts` → `isChurchCompliant(church, now)` so the compliance report and the engine share it. Drift between a report and the corresponding dashboard KPI is a defect, not a design choice.
+- **Single Report Registry (Unit 18.2):** Slug → label → description → role visibility lives in `lib/utils/report-registry.ts` and serves three consumers: hub card grid, `[report]` page resolution, `<ReportShell>` nav. Before 18.2, the mapping was duplicated across the hub and `[report]` page.
+- **YoY Basis (Unit 18.2):** Year-over-year comparison uses **cash received — calendar year of `payment_date`**, not `billing_year` attribution. Prepayments counted in the year cash arrived. Subtitle on the page states this so readers do not mistake it for obligation satisfaction.
+- **Allocation Reconciliation Column (Unit 18.2):** Allocation Breakdown carries a mandatory discrepancy column: Σ `PaymentAllocation.amount` must equal Σ `Payment.amount` in scope. Nonzero rows flag in `text-destructive`. Purpose: surface silent allocation defects at report time, not in a later audit.
+- **Scoring Placeholder Disclosure (Unit 18.2):** Regional Incentive Score is currently computed from one real axis (`compliancePct`) and three hardcoded constants (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`). The Regional Scores report renders only the real components; the dashboard leaderboard Score column gains a matching info tooltip. Instrumenting the three axes is Unit 18.2.1 — not deferred indefinitely.
+- **Engine Guard Boundary (Unit 18.2, observation):** `getRegionalScores()` has no caller guard; it relies on RLS at the DB layer. The report wrapper (`getRegionalScoresReport`) adds `verifyReportsAccess()` + `scopeByRole`. Adding a guard inside the engine is avoided because the engine cannot know the caller's render context. If a future audit finds RLS is not filtering `region.findMany()` as expected, harden at the caller of every engine invocation — do not add the guard inside the engine itself.
+- **Server Action Error Shape (Unit 18.2, matches 18.1):** Report actions return `Promise<TypedRow[]>` and swallow errors as `catch → console.error → return []`. Empty array means either "no data" or "query failed"; the two are indistinguishable in the UI. Accepted for 18.2 for consistency. A discriminated `{ data } | { error }` result is a candidate for a later reporting-hardening unit.
+- **Growth posture — no count assumptions (established pre-18.2):** The system currently holds ~60 regions and ~1,600+ churches, both growing. **No decision boundary in code, spec, or architecture may be anchored to those specific counts.** Performance thresholds use measured latency or measured payload size; UI counts are always derived from data, never literals. This applies project-wide. Tracked under `## Scale Watch`.
+
+## Scale Watch
+
+Tracked metrics and their triggers. **No report, action, or query may hardcode a
+region count, church count, payment count, or any other growth metric.** Thresholds
+below are expressed as measurements (latency, payload size), not counts, so they
+remain valid as the system grows.
+
+| Metric | Current target | Trigger | Action when triggered |
+|---|---|---|---|
+| Report p95 response time | < 2s | > 3s | Apply the report's mitigation from `18.2-reporting-analytics.md` → Scale Considerations |
+| Compliance payload size | < 5,000 rows | > 5,000 rows | Switch from `findMany with includes` to per-church `aggregate` |
+| Regional scoring p95 | < 2s | > 2s | Migrate score computation to background job |
+| `Payment` table scans | 0 | Any observed via `EXPLAIN` | Ensure `@@index([payment_date])` is in place (Unit 18.2-pre) |
+| Compliance per-church payment history load | per-request | TTFB > 3s | Switch to aggregate query pattern |
+
+Update this table whenever a measurement changes — it is the living record of what
+"scales" means for this system right now.
 
 ## Session Notes
 - **Current Branch:** `feat/18.1-reporting-foundation` (Cut from `main` after `feat/17.5-ui-polish` was merged).
 - **Migration Head:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method` (both applied locally and on production).
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
-- **Deferred Pre-Launch Index:** A `@@index([payment_date])` on the `Payment` model is required before onboarding 1,600 churches to prevent table scans. Deferred until just before launch (not needed for 11 churches).
+- **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. See Next Up.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor account confirmed:** `gilbertmulaha.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`. This is the ONLY protected SYSTEM_ADMIN account.
@@ -289,3 +338,20 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **SMTP Provider:** Supabase is configured to use Resend SMTP (`smtp.resend.com`). The Free Tier built-in email service is restricted to 3 emails/hour and pre-authorized addresses only. Do not revert to the built-in service.
 - **One File at a Time:** When migrating shared components, migrate one consumer per message, verify per file (findstr + build), then proceed. Prevents "15-file sweep" debt.
 - **Verification Gate (Pre-Commit):** Always run `npx tsc --noEmit`, `npm run lint`, `npm run build` before committing. Never commit with failing tests. Zero exceptions.
+- **Unit 18.2 entry (new session):** Branch off `main`. Spec at
+  `context/specs/18.2-reporting-analytics.md`. Build stays **28/28** — six new slugs on
+  the existing `[report]` dynamic route, not six new page files.
+- **Deferred items tracked after 18.2:**
+  - Arbitrary as-of date on Compliance (today-only for 18.2).
+  - Background score computation (request-cycle for 18.2; documented in architecture).
+  - Error-vs-empty discrimination on report actions.
+  - **Instrument Timeliness / Accuracy / Engagement axes** (Unit 18.2.1 — the most
+    consequential deferred item; see Architecture Decisions).
+- **Growth posture (established this session):** The system currently holds ~60
+  regions and ~1,600+ churches, both growing. **No decision boundary in code or in a
+  spec may be anchored to those specific counts.** Performance thresholds use measured
+  latency or measured payload size; UI counts are always derived from data, never
+  from a literal. This applies project-wide, tracked under `## Scale Watch`.
+- **`@@index([payment_date])` promoted:** From pre-launch deferral to **Unit 18.2-pre**
+  — the old rationale referenced 11 churches, which is stale. Merges as one small PR
+  before 18.2 opens.
