@@ -87,6 +87,8 @@ model Payment {
   // Unit 17: Source tracking and Unmatched linkage
   source           String   @default("Webhook") // "Webhook" | "Manual" | "Resolved"
   unmatched_origins UnmatchedPayment[] @relation("UnmatchedAssignedPayment")
+
+  @@index([payment_date])
 }
 
 model PaymentAllocation {
