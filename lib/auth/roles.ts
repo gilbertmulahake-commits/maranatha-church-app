@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client'
+import type { Role } from '@prisma/client'
 
 // Centralized role groupings. 
 // Use these arrays instead of hardcoded string checks (e.g., role === 'NATIONAL_TREASURER').
