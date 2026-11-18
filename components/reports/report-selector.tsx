@@ -4,44 +4,37 @@ import { useRouter } from 'next/navigation'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel
 } from '@/components/ui/select'
+import { getReportsForRole } from '@/lib/utils/report-registry'
 
-const REPORTS = [
-  {
-    group: 'Financial',
-    items: [
-      { value: 'arrears', label: 'Arrears Report' },
-      { value: 'cashbook', label: 'Daily Cashbook' },
-    ]
-  },
-  {
-    group: 'Registry',
-    items: [
-      { value: 'defunct', label: 'Defunct Churches' },
-      { value: 'inactive', label: 'Inactive Churches' },
-    ]
-  },
-  {
-    group: 'Reconciliation',
-    items: [
-      { value: 'write-offs', label: 'Write-Off Register' },
-    ]
-  }
-]
+const GROUP_ORDER = ['Financial', 'Analytics', 'Registry', 'Reconciliation']
 
-export function ReportSelector({ current }: { current?: string }) {
+export function ReportSelector({ current, role }: { current?: string; role: string }) {
   const router = useRouter()
 
+  const visible = getReportsForRole(role)
+
+  // Group visible reports by `group`, preserving GROUP_ORDER; empty groups omitted.
+  const groups = GROUP_ORDER
+    .map((group) => ({
+      group,
+      items: visible.filter((r) => r.group === group),
+    }))
+    .filter((g) => g.items.length > 0)
+
   return (
-    <Select value={current || ''} onValueChange={(val) => { if (val) router.push(`/dashboard/reports/${val}`) }}>
+    <Select
+      value={current || ''}
+      onValueChange={(val) => { if (val) router.push(`/dashboard/reports/${val}`) }}
+    >
       <SelectTrigger className="w-full sm:w-[260px] h-9 bg-card text-xs">
         <SelectValue placeholder="Select a report..." />
       </SelectTrigger>
       <SelectContent align="end" sideOffset={4}>
-        {REPORTS.map(g => (
+        {groups.map((g) => (
           <SelectGroup key={g.group}>
             <SelectLabel>{g.group}</SelectLabel>
-            {g.items.map(item => (
-              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            {g.items.map((item) => (
+              <SelectItem key={item.slug} value={item.slug}>{item.title}</SelectItem>
             ))}
           </SelectGroup>
         ))}

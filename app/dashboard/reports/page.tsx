@@ -21,7 +21,7 @@ async function HubContent() {
             Select a report to view, print, or export.
           </p>
         </div>
-        <ReportSelector />
+        <ReportSelector role={actorRole} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
         {reports.map((r) => (

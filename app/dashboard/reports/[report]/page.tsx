@@ -45,7 +45,7 @@ async function ReportContent({ report }: { report: string }) {
   }
 
   return (
-    <ReportShell title={meta.title} description={meta.description} current={report}>
+    <ReportShell title={meta.title} description={meta.description} current={report} role={actorRole}>
       {table}
     </ReportShell>
   )
