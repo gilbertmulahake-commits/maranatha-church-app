@@ -296,6 +296,17 @@ export async function approvePendingPayment(pendingId: string) {
           throw new Error('This payment has already been approved by another user.')
         }
 
+        // 🚨 FIX (Bug 1 & 2): Check if this originated from an unmatched resolution
+        const linkedUnmatched = await tx.unmatchedPayment.findFirst({
+          where: {
+            bank_reference: pending.transaction_id,
+            status: 'Pending',
+            assigned_church_id: pending.church_id,
+          },
+        })
+
+        const paymentSource = linkedUnmatched ? 'Resolved' : 'Manual'
+
         const payment = await tx.payment.create({
           data: {
             church_id: pending.church_id,
@@ -305,7 +316,7 @@ export async function approvePendingPayment(pendingId: string) {
             payment_date: pending.payment_date,
             payment_method: pending.payment_method as 'Cash' | 'Cheque' | 'Bank_Transfer',
             status: 'Paid',
-            source: 'Manual',
+            source: paymentSource,
             month_covered: pending.payment_date.toLocaleString('default', {
               month: 'long',
               year: 'numeric',
@@ -328,6 +339,17 @@ export async function approvePendingPayment(pendingId: string) {
           where: { id: pendingId },
           data: { resulting_payment_id: payment.id },
         })
+
+        // 🚨 FIX (Bug 1): Mark the unmatched record as resolved
+        if (linkedUnmatched) {
+          await tx.unmatchedPayment.update({
+            where: { id: linkedUnmatched.id },
+            data: {
+              status: 'Resolved',
+              assigned_payment_id: payment.id,
+            },
+          })
+        }
 
         return payment
       },
@@ -380,19 +402,42 @@ export async function rejectPendingPayment(pendingId: string, reason: string) {
       return { error: 'You cannot reject a payment you proposed yourself. A different Treasurer must review it.' }
     }
 
-    const claimed = await prisma.pendingPayment.updateMany({
-      where: { id: pendingId, status: 'Pending' },
-      data: {
-        status: 'Rejected',
-        reviewed_by: actorId,
-        reviewed_at: new Date(),
-        rejection_reason: reason,
-      },
-    })
+    // 🚨 FIX: Wrap in transaction so we don't orphan the UnmatchedPayment
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.pendingPayment.updateMany({
+        where: { id: pendingId, status: 'Pending' },
+        data: {
+          status: 'Rejected',
+          reviewed_by: actorId,
+          reviewed_at: new Date(),
+          rejection_reason: reason,
+        },
+      })
 
-    if (claimed.count === 0) {
-      return { error: 'This payment has already been processed.' }
-    }
+      if (claimed.count === 0) {
+        throw new Error('This payment has already been processed.')
+      }
+
+      // 🚨 FIX (Bug 1): Reset the linked UnmatchedPayment back to the queue
+      const linkedUnmatched = await tx.unmatchedPayment.findFirst({
+        where: {
+          bank_reference: pending.transaction_id,
+          status: 'Pending',
+          assigned_church_id: pending.church_id,
+        },
+      })
+
+      if (linkedUnmatched) {
+        await tx.unmatchedPayment.update({
+          where: { id: linkedUnmatched.id },
+          data: {
+            status: 'Pending',
+            assigned_church_id: null,
+            assigned_payment_id: null,
+          },
+        })
+      }
+    })
 
     await logAudit({
       action: 'PENDING_PAYMENT_REJECTED',

@@ -24,14 +24,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-}
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat('en-KE', { timeStyle: 'medium' }).format(new Date(dateString))
-}
+import { formatCurrency, formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatters
 
 interface CashbookTableProps {
   data: CashbookRow[]
@@ -88,7 +81,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
       : filteredData
 
     return rowsToExport.map((row) => ({
-      'Time': formatDate(row.payment_date),
+      'Time': formatDateTime(row.payment_date),
       'Transaction ID': row.transaction_id,
       'Church Code': row.church_code,
       'Church Name': row.church_name,
@@ -241,7 +234,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
                   />
                 </TableCell>
                 <TableCell className="text-paragraph-small text-muted-foreground">
-                  {formatDate(row.payment_date)}
+                  {formatDateTime(row.payment_date)}
                 </TableCell>
                 <TableCell className="font-mono text-paragraph-small text-foreground">
                   {row.transaction_id}
@@ -325,7 +318,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
               </div>
               <div className="col-span-2">
                 <p className="text-muted-foreground font-medium">Date & Time</p>
-                <p className="text-foreground">{viewTransaction ? new Date(viewTransaction.payment_date).toLocaleString('en-KE', { dateStyle: 'long', timeStyle: 'medium' }) : ''}</p>
+                <p className="text-foreground">{viewTransaction ? formatDateTime(viewTransaction.payment_date) : ''}</p>
               </div>
             </div>
           </div>

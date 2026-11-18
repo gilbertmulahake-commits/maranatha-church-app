@@ -39,7 +39,7 @@
 - **Payment Source Backfill (Unit 17):** Production DB requires `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` before deployment. This preserves existing payments as webhook-originated.
 - **`FOUR_EYES_THRESHOLD` (Unit 17):** Defined once in `lib/constants.ts` and imported by `reconciliation-actions.ts` and `manual-entry-actions.ts`. Single source of truth — change it in one place to update every four-eyes gate project-wide. Do not reintroduce local copies.
 - **Next.js Version (16.4.6):** `package.json` uses `"next": "^16.4.6"` (caret range) plus an npm-audit sweep. Verified clean via `tsc --noEmit` + `lint` + full `build` (27/27 pages). The caret range permits silent minor upgrades on `npm install` without a lockfile refresh — re-pinning to `"16.4.6"` is an open decision if strict stable-stack discipline is required.
-- **Unit 17.5 — System UI Wiring & Polish (Deferred, No Schema Impact):** Inserted between Unit 17 and Unit 18. Scope: hub card wiring (the `?tab=pending` Pending Payments card is currently commented out as a duplicate of Pending Approvals), layout-collapse sweep (`min-w-0` / grid-wrapper audit across KPI cards and detail pages), unused-component wiring, and label/route consistency. This unit adds no models, fields, or migrations.
+- **Unit 17.5 — System UI Wiring & Polish (✅ COMPLETE, No Schema Impact):** Resolved layout collapse issues, centralized global formatters, fixed orphaned `UnmatchedPayment` records on rejection, and dynamically sets `Payment.source` to `'Resolved'` or `'Manual'` upon approval. No models, fields, or migrations were added.
 
 ## 2. System Boundaries
 - `app/` — Next.js routes, layouts, and page composition. Contains dashboards for Church, Region, and National HQ.
@@ -171,9 +171,13 @@ Migrations: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_paym
 
 For the guided payment wizard to track in-progress payments and match them to incoming webhooks within a time window. Fields: `id`, `church_id`, `amount`, `payment_type`, `phone`, `status`, `matched_payment_id`, `created_by`, `expires_at`, `created_at`.
 
-### Unit 17.5 — System UI Wiring & Polish (Planned, No Schema)
+### Unit 17.5 — System UI Wiring & Polish — ✅ COMPLETE (No Schema)
 
-No models, fields, or migrations. Scope is confined to component wiring, layout fixes (`min-w-0`, grid wrappers), the commented-out `?tab=pending` hub card, and label/route consistency. Will not alter the financial or authorization model.
+- **Formatters:** Centralized `formatCurrency`, `formatDate`, and `formatDateTime` into `lib/utils.ts` with explicit `Africa/Nairobi` timezone support.
+- **Layouts & Logic:** Added `is_defunct` guard to `getSuggestedAllocations`. Removed the duplicate `?tab=pending` hub card.
+- **Orphaned Unmatched Payments Fixed:** `rejectPendingPayment` now resets the linked `UnmatchedPayment` back to `Pending`. `approvePendingPayment` marks it as `Resolved` and links the new `Payment`.
+- **Source Tagging Fixed:** `approvePendingPayment` sets `Payment.source` to `'Resolved'` if it originated from an unmatched queue, or `'Manual'` otherwise.
+- No models, fields, or migrations were added.
 
 ### LoginHistory (Unit 16.4 — Optional, Not Yet Scheduled)
 

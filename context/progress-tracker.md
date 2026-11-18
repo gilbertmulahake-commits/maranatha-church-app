@@ -6,7 +6,7 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-Unit 17.5 — System UI Wiring & Polish. (Unit 17 merged via PR #44 + verification round 2; queued for UI wiring audit before Unit 18.)
+Unit 18 — Comprehensive Reporting Overhaul. (Unit 17.5 is fully verified and ready to merge).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -173,12 +173,17 @@ Unit 17.5 — System UI Wiring & Polish. (Unit 17 merged via PR #44 + verificati
   - **Local Church dashboard write-off awareness (added post-handoff):** `lib/actions/local-actions.ts` now returns `grossOutstanding`, `totalWrittenOff`, `netOutstanding` (querying `write_offs` where `status='Approved'`). `local-kpi-cards.tsx` and `churches/[code]/page.tsx` consume the new fields. Caught in verification round 2.
   - **Verification Round 2 (`test/17-reconciliation-verification` branch):** Fresh 8-step re-run discovered 3 more issues. (a) **Solutions Bank precedence flaw** — fuzzy matcher outvoted human-taught patterns in `suggestMatches()`. Fixed: short-circuit to pattern results before fuzzy loop. (b) **`recordResolution()` silent persistence failure** — rewrite now logs `🚨 FAILED TO RECORD RESOLUTION PATTERN:` instead of swallowing. (c) **`?tab=pending` hub card duplicated Pending Approvals** — commented out, tracked in Unit 17.5. Test 8 re-run confirmed passing.
   - **Post-merge hardening confirmed in `main`:** Four-eyes self-approval guards (`proposed_by === actorId`) present on all four approve/reject paths; `FOUR_EYES_THRESHOLD` single-sourced from `lib/constants.ts`.
+- **Unit 17.5: System UI Wiring & Polish (Complete)**
+  - **Formatters:** Centralized `formatCurrency`, `formatDate`, and `formatDateTime` into `lib/utils.ts` with explicit `Africa/Nairobi` timezone support to prevent Vercel/UTC rendering bugs.
+  - **Layouts & Logic:** Added `is_defunct` guard to `getSuggestedAllocations`. Permanently removed the commented-out `?tab=pending` duplicate hub card.
+  - **Orphaned Unmatched Payments Fixed:** `rejectPendingPayment` now wraps in a `$transaction` to reset the linked `UnmatchedPayment` back to `Pending` (clearing `assigned_church_id`). `approvePendingPayment` now marks the `UnmatchedPayment` as `Resolved` and links `assigned_payment_id`.
+  - **Source Tagging Fixed:** `approvePendingPayment` now dynamically sets `source: 'Resolved'` if the payment originated from an unmatched queue, or `source: 'Manual'` otherwise.
+  - **Gate:** `tsc` + `lint` pass cleanly. 4 commits.
 
 ## In Progress
 - None
 
 ## Next Up
-- **Unit 17.5: System UI Wiring & Polish** — Hub card audit (commented-out Pending Payments card; re-enable only with a real `?tab=pending` destination), layout-collapse sweep (`min-w-0` audit across remaining KPI cards / detail pages), unused-component wiring, label/route consistency. Feeds into Unit 18 on clean UI ground.
 - **Unit 18: Comprehensive Reporting Overhaul** — 14+ reports across all roles, YoY comparison, Allocation Breakdown, Inactive Church Report. Feeds on the new write-off and unmatched data from Unit 17.
 - **Then:** 19 (Pay Now Wizard) → 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
 
@@ -195,7 +200,7 @@ Unit 17.5 — System UI Wiring & Polish. (Unit 17 merged via PR #44 + verificati
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (UI wiring) → 18 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (✅) → 18 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -230,14 +235,13 @@ Unit 17.5 — System UI Wiring & Polish. (Unit 17 merged via PR #44 + verificati
 - **Solutions Bank Precedence (Unit 17 Verification Round 2):** `suggestMatches()` short-circuits to pattern results if *any* `ResolutionPattern` row matches — fuzzy matching is skipped entirely, not merely de-prioritized. A human-taught pattern can never be outvoted by Levenshtein distance. Fixed in `lib/utils/matching.ts` (returns `Array.from(suggestionMap.values())` before the fuzzy loop).
 - **`recordResolution()` Error Logging (Unit 17 Verification Round 2):** `recordResolution()` swallows write failures to avoid breaking the outer `resolveUnmatched` transaction — but now logs `🚨 FAILED TO RECORD RESOLUTION PATTERN:` with the full Prisma error. Silent persistence failures surface in dev logs. Test 8 re-run confirmed pattern persistence works end-to-end.
 - **Next.js 16.4.6 (verified):** `package.json` bumped `16.4.3` (pinned) → `^16.4.6` (caret) + npm audit sweep. Verified via `tsc --noEmit` + `lint` + `build` 27/27 pages clean. **Trade-off flagged:** the caret range now permits silent minor upgrades on `npm install` without a lockfile refresh — consider re-pinning to `16.4.6` if strict stable-stack discipline is desired.
-- **Unit 17.5 — System UI Wiring & Polish:** Inserted between Unit 17 and Unit 18. Scope: hub card audit (the `?tab=pending` Pending Payments card is commented out — duplicate of Pending Approvals), layout-collapse sweep across remaining KPI cards / detail pages, unused-component wiring, label/route consistency. Deliberately separate from Unit 18 so reporting work starts on clean UI ground.
+- **Global Formatters (Unit 17.5):** All currency and date formatting must use `formatCurrency`, `formatDate`, or `formatDateTime` from `lib/utils.ts`. Dates are strictly locked to `Africa/Nairobi` timezone to prevent Vercel (UTC) rendering bugs. Never re-inline `Intl.NumberFormat` or `Intl.DateTimeFormat`.
+- **Orphaned Unmatched Resolution (Unit 17.5):** When a `PendingPayment` is approved or rejected, the system queries for a linked `UnmatchedPayment` using `bank_reference === pending.transaction_id`. If approved, it marks the unmatched record as `Resolved` and links the new payment. If rejected, it resets the unmatched record back to the queue (`assigned_church_id = null`). Both actions are wrapped in a `$transaction` to prevent orphaned records.
+- **Dynamic Payment Source (Unit 17.5):** The `Payment.source` field is now determined dynamically during `approvePendingPayment`. If the pending payment originated from an unmatched resolution (detected via the `UnmatchedPayment` link), `source` becomes `'Resolved'`. Otherwise, it stays `'Manual'`.
 
 ## Session Notes
-- **Current Branch:** `test/17-reconciliation-verification` — 6 commits ahead of `main` (fix-reconciliation / feat-local / chore-deps / docs-build-plan / docs-code-standards / docs-progress-tracker [this commit]). PR → squash-merge → delete branch → return to `main`.
-- **Verification Complete (Round 1 — pre-PR #44 merge):** All 8 manual tests passed. Two critical security vulnerabilities found and fixed (four-eyes self-approval bypass in manual entries + write-offs).
-- **Verification Round 2 (post-merge, `test/17-reconciliation-verification` branch):** Three additional issues discovered and fixed — Solutions Bank precedence flaw, `recordResolution()` silent persistence failure, `?tab=pending` duplicate hub card. Test 8 re-run confirmed passing.
+- **Current Branch:** `feat/17.5-ui-polish` — 4 commits ahead of `main` (refactor-formatters / fix-hub-defunct / fix-orphaned-source / chore-spec-fences). Ready to push and PR.
 - **Migration Head:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method` (both applied locally, NOT yet on production).
-- **`fastest-levenshtein`** added. **`Cheque`** added to PaymentMethod enum.
 - **NOT YET DONE in production:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` — must run before prod deploy.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.

@@ -18,23 +18,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Eye, X } from 'lucide-react'
+import { formatCurrency, formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatters
 
 type ChurchOption = { id: string; church_code: string; church_name: string }
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('en-KE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(iso))
-}
 
 export function UnmatchedTable({
   items,
@@ -134,7 +120,7 @@ export function UnmatchedTable({
                   <SlaBadge status={item.sla_status} ageDays={item.age_days} />
                 </TableCell>
                 <TableCell className="text-paragraph-small text-muted-foreground tabular-nums">
-                  {formatDate(item.created_at)}
+                  {formatDateTime(item.created_at)}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-center gap-1">

@@ -9,7 +9,7 @@ import { isFinanceAdmin } from '@/lib/auth/roles'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { IconAlertTriangle, IconClock, IconScale } from '@tabler/icons-react'
+import { IconAlertTriangle, IconClock, IconScale, IconFilePlus } from '@tabler/icons-react'
 
 async function ReconciliationContent() {
   await connection()
@@ -27,21 +27,23 @@ async function ReconciliationContent() {
 
   const stats = await getReconciliationHubStats()
 
-  // 🚨 FIX: Combine both pending payments and pending write-offs
+  // Combine both pending payments and pending write-offs
   const totalPendingApprovals = stats.pendingPayments + stats.pendingWriteOffs
 
   return (
     <div className="space-y-xl">
-      <div className="grid grid-cols-1 gap-md md:grid-cols-3">
-        {/* Unmatched Webhooks Card */}
-        <Link href="/dashboard/reconciliation/unmatched">
+      {/* THE PRO UI FIX: Single responsive grid for all 4 cards */}
+      <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
+        
+        {/* Card 1: Unmatched Webhooks */}
+        <Link href="/dashboard/reconciliation/unmatched" className="block h-full">
           <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-heading-4 font-bold">
-                <IconAlertTriangle className="h-5 w-5 text-destructive" />
+                <IconAlertTriangle className="h-5 w-5 text-destructive shrink-0" />
                 Unmatched Webhooks
               </CardTitle>
-              <CardDescription>Payments waiting for manual reconciliation</CardDescription>
+              <CardDescription>Waiting for manual reconciliation</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-heading-2 font-bold tabular-nums text-foreground">
@@ -62,15 +64,15 @@ async function ReconciliationContent() {
           </Card>
         </Link>
 
-        {/* Pending Approvals Card */}
-        <Link href="/dashboard/reconciliation/pending-approvals">
+        {/* Card 2: Pending Approvals */}
+        <Link href="/dashboard/reconciliation/pending-approvals" className="block h-full">
           <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-heading-4 font-bold">
-                <IconClock className="h-5 w-5 text-amber-600" />
+                <IconClock className="h-5 w-5 text-amber-600 shrink-0" />
                 Pending Approvals
               </CardTitle>
-              <CardDescription>Awaiting Treasurer sign-off (four-eyes)</CardDescription>
+              <CardDescription>Awaiting Treasurer sign-off</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-heading-2 font-bold tabular-nums text-foreground">
@@ -83,48 +85,49 @@ async function ReconciliationContent() {
           </Card>
         </Link>
 
-        {/* Write-Offs Card */}
-        <Link href="/dashboard/reconciliation/write-offs">
+        {/* Card 3: Write-Offs */}
+        <Link href="/dashboard/reconciliation/write-offs" className="block h-full">
           <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-heading-4 font-bold">
-                <IconScale className="h-5 w-5 text-primary" />
+                <IconScale className="h-5 w-5 text-primary shrink-0" />
                 Write-Offs
               </CardTitle>
-              <CardDescription>Bad debt proposals awaiting approval</CardDescription>
+              <CardDescription>Bad debt proposals</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-heading-2 font-bold tabular-nums text-foreground">
                 {stats.pendingWriteOffs}
               </div>
               <div className="mt-2 text-paragraph-small text-muted-foreground">
-                Must be approved by the National Treasurer
+                Must be approved by the Treasurer
               </div>
             </CardContent>
           </Card>
         </Link>
-      </div>
 
-      <div className="grid grid-cols-1 gap-md md:grid-cols-2">
-        <Link href="/dashboard/reconciliation/manual-entry">
+        {/* Card 4: Manual Entry */}
+        <Link href="/dashboard/reconciliation/manual-entry" className="block h-full">
           <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
-            <CardHeader>
-              <CardTitle className="text-heading-4 font-bold">Manual Entry</CardTitle>
-              <CardDescription>Record a cash or cheque payment</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-heading-4 font-bold">
+                <IconFilePlus className="h-5 w-5 text-emerald-600 shrink-0" />
+                Manual Entry
+              </CardTitle>
+              <CardDescription>Record offline payments</CardDescription>
             </CardHeader>
+            <CardContent>
+              {/* Using a visual CTA instead of a number to balance the layout */}
+              <div className="text-heading-4 font-semibold text-primary mt-1">
+                Create New
+              </div>
+              <div className="mt-2 text-paragraph-small text-muted-foreground">
+                Cash, Cheque, or Bank Transfer
+              </div>
+            </CardContent>
           </Card>
         </Link>
-        {/* Pending Payments card disabled — duplicate of "Pending Approvals" (line 66).
-        Re-enable only if manual-entry gains a real ?tab=pending destination.
-        <Link href="/dashboard/reconciliation/manual-entry?tab=pending">
-          <Card className="h-full transition-all hover:border-primary hover:shadow-md cursor-pointer">
-            <CardHeader>
-              <CardTitle className="text-heading-4 font-bold">Pending Payments</CardTitle>
-              <CardDescription>Review high-value entries awaiting approval</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        */}
+
       </div>
     </div>
   )
@@ -142,7 +145,9 @@ export default function ReconciliationPage() {
 
       <Suspense
         fallback={
-          <div className="grid grid-cols-1 gap-md md:grid-cols-3">
+          // Updated skeleton to match the 4-column grid
+          <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
+            <Skeleton className="h-40 rounded-xl" />
             <Skeleton className="h-40 rounded-xl" />
             <Skeleton className="h-40 rounded-xl" />
             <Skeleton className="h-40 rounded-xl" />

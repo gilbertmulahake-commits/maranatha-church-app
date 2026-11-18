@@ -24,13 +24,8 @@ import {
 import { AllocationBreakdownDialog } from './allocation-breakdown-dialog'
 import { toast } from 'sonner'
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-}
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateString))
-}
+// 🚨 FIXED: Import global formatters that respect Nairobi timezone
+import { formatCurrency, formatDateTime } from '@/lib/utils'
 
 // FIXED: Centralized the method formatting so it's consistent everywhere
 function getReadableMethod(method: string) {
@@ -126,7 +121,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
         'Amount (KES)': p.amount_paid,
         'Type': p.is_mixed ? 'Mixed' : p.payment_type,
         'Method': getReadableMethod(p.payment_method),
-        'Date & Time': formatDate(p.payment_date),
+        'Date & Time': formatDateTime(p.payment_date),
         'Status': p.status,
         'Allocations Breakdown': allocationSummary
       }
@@ -323,7 +318,7 @@ export function PaymentsTable({ data }: { data: PaymentRow[] }) {
                     {getReadableMethod(payment.payment_method)}
                   </TableCell>
                   <TableCell className="text-paragraph-small text-muted-foreground">
-                    {formatDate(payment.payment_date)}
+                    {formatDateTime(payment.payment_date)}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant="outline" className={payment.status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>

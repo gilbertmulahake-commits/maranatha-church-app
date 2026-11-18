@@ -21,13 +21,7 @@ import {
   TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-
-function formatDate(dateString: Date) {
-  return new Intl.DateTimeFormat('en-KE', { 
-    dateStyle: 'medium', 
-    timeStyle: 'medium' 
-  }).format(new Date(dateString))
-}
+import { formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatter
 
 function getActionBadge(action: string) {
   if (action.includes('CREATED') || action.includes('ACTIVATED')) {
@@ -121,7 +115,7 @@ export function AuditLogTable({ logs }: { logs: AuditLog[] }) {
       : sortedData
 
     return rowsToExport.map((log) => ({
-      'Timestamp': formatDate(log.created_at),
+      'Timestamp': formatDateTime(log.created_at),
       'Actor Email': log.actor_email || 'System',
       'Actor Role': log.actor_role || 'N/A',
       'Action': log.action,
@@ -274,7 +268,7 @@ export function AuditLogTable({ logs }: { logs: AuditLog[] }) {
                   />
                 </TableCell>
                 <TableCell className="text-paragraph-small text-muted-foreground tabular-nums">
-                  {formatDate(log.created_at)}
+                  {formatDateTime(log.created_at)}
                 </TableCell>
                 <TableCell>
                   <div className="font-medium text-foreground text-paragraph-small">{log.actor_email || 'System'}</div>

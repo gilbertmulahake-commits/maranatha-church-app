@@ -17,12 +17,7 @@ import { Check, X, Clock } from 'lucide-react'
 import {
   TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency', currency: 'KES', maximumFractionDigits: 0,
-  }).format(amount)
-}
+import { formatCurrency } from '@/lib/utils' // 🚨 FIX: Global formatter
 
 export function PendingApprovalsTable({ items = [] }: { items: PendingApprovalRow[] }) {
   const [isPending, startTransition] = useTransition()

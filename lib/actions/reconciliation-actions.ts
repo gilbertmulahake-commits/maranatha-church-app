@@ -453,6 +453,7 @@ export async function getSuggestedAllocations(
       },
     })
     if (!church) return { error: 'Church not found' }
+    if (church.is_defunct) return { error: 'Cannot compute allocations for a defunct church' }
 
     const transDate = new Date()
 

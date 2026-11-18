@@ -10,20 +10,9 @@ import { ProposeWriteOffDialog } from './propose-writeoff-dialog'
 import {
   TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
+import { formatCurrency, formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatters
 
 type ChurchOption = { id: string; church_code: string; church_name: string }
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency', currency: 'KES', maximumFractionDigits: 0,
-  }).format(amount)
-}
-
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('en-KE', {
-    dateStyle: 'medium', timeStyle: 'short',
-  }).format(new Date(iso))
-}
 
 function getStatusBadge(status: string) {
   if (status === 'Approved') return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Approved</Badge>
@@ -104,7 +93,7 @@ export function WriteOffTable({
                     {item.proposed_by}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
-                    {formatDate(item.proposed_at)}
+                    {formatDateTime(item.proposed_at)}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -114,7 +103,7 @@ export function WriteOffTable({
                         {item.approved_by}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        {item.approved_at ? formatDate(item.approved_at) : '—'}
+                        {item.approved_at ? formatDateTime(item.approved_at) : '—'}
                       </div>
                     </>
                   ) : (
