@@ -11,7 +11,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   Allocation Breakdown, Source/Method Breakdown) under `/dashboard/reports/[report]`.
   Stage A = Collections Summary, Compliance, Regional Scores. Stage B = YoY Comparison,
   Allocation Breakdown, Source/Method Breakdown. Page count stays 28/28.
-  **Prerequisite:** Unit 18.2-pre (payment_date index) merges before 18.2 opens.
+  **Prerequisite (satisfied):** Unit 18.2-pre (payment_date index) merged — see `## Completed`.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -191,20 +191,20 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Cashbook Bug Fix:** Imported and exported `getReadableMethod()` from `payments-table.tsx`. Cashbook now correctly displays `Cheque` instead of falling back to `Cash`.
   - **New Reports:** Built Write-Off Register, Defunct Church Register, and Inactive Church Report (6+ months no payment, excluding defunct/new churches).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages.
+- **Unit 18.2-pre: `@@index([payment_date])` on `Payment` (Complete)**
+  - Migration `20261118133648_add_payment_date_index` — single `CREATE INDEX "Payment_payment_date_idx"`. Applied locally; `migrate status` reports 9 migrations, up to date, no drift.
+  - Prisma client regenerated (v7.10.1).
+  - Gate: `tsc --noEmit` clean (after `npx next typegen` to populate `.next/types/` on the cold cache — environmental, not a regression), `lint` clean, `build` 28/28.
+  - Note: at current row count the planner correctly prefers Seq Scan; the index is in place for reporting date-range queries as the table grows. This is the prerequisite that keeps Unit 18.2 read-only.
 
 ## In Progress
 - **Unit 18.2 — Spec finalized.** Not started. First implementation step is
   `lib/utils/report-registry.ts` (shared infrastructure; must be verified against all
   three consumers — hub page, `[report]` page, `<ReportShell>` — before Stage A
-  continues). See `context/specs/18.2-reporting-analytics.md`. Prerequisite:
-  Unit 18.2-pre (payment_date index).
+  continues). See `context/specs/18.2-reporting-analytics.md`. Prerequisite satisfied:
+  Unit 18.2-pre (payment_date index) merged.
 
 ## Next Up
-- **Unit 18.2-pre: Add `@@index([payment_date])` on `Payment`.** One migration
-  (`prisma7 migrate dev --name add_payment_date_index`), one PR. Prerequisite to
-  Unit 18.2 — reports filter on `payment_date` across an ever-growing payment table
-  and the previous deferral rationale ("not needed for 11 churches") is stale at
-  current scale (1,600+ churches, growing). Merges before 18.2 opens.
 - **Unit 18.2: Reporting Analytics & Breakdowns** — IN PROGRESS (spec finalized;
   implementation pending). See `context/specs/18.2-reporting-analytics.md`.
 - **Unit 18.2.1 (follow-up, scheduled): Instrument Timeliness / Accuracy / Engagement
@@ -299,11 +299,11 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `feat/18.1-reporting-foundation` (Cut from `main` after `feat/17.5-ui-polish` was merged).
-- **Migration Head:** `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method` (both applied locally and on production).
+- **Current Branch:** `feat/18.2-pre-payment-date-index` (cut from `main` after the docs PR merged at `38cfa97`). Next: merge 18.2-pre, then cut fresh `feat/18.2-reporting-analytics` off updated `main`.
+- **Migration Head:** `20261118133648_add_payment_date_index` (applied locally; pending production `prisma7 migrate deploy` at deploy time). Previous head: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
-- **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. See Next Up.
+- **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. Implemented and merged; see `## Completed`.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor account confirmed:** `gilbertmulaha.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`. This is the ONLY protected SYSTEM_ADMIN account.
@@ -353,5 +353,6 @@ Update this table whenever a measurement changes — it is the living record of 
   latency or measured payload size; UI counts are always derived from data, never
   from a literal. This applies project-wide, tracked under `## Scale Watch`.
 - **`@@index([payment_date])` promoted:** From pre-launch deferral to **Unit 18.2-pre**
-  — the old rationale referenced 11 churches, which is stale. Merges as one small PR
-  before 18.2 opens.
+  — the old rationale referenced 11 churches, which is stale. Merged as one small PR
+  (`20261118133648_add_payment_date_index`) before 18.2 opened.
+- **`next typegen` for cold cache:** `tsc --noEmit` alone cannot resolve `LayoutProps<"/">` on a fresh checkout because `.next/types/routes.d.ts` is generated by the Next.js compiler, not shipped. Run `npx next typegen` (or `npm run build`) after a clean pull, before trusting `tsc`. This bit us on 18.2-pre and will recur on every fresh clone.
