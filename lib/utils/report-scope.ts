@@ -43,3 +43,26 @@ export function buildPaymentWhere(
 
   return { church_id: FAIL_CLOSED_ID }
 }
+
+
+/**
+ * Applies role-based scoping to an already-sorted list of region scores.
+ * Rank is computed BEFORE filtering so a regional viewer sees their region's
+ * true global rank (not position 1 of 1). Returns rows decorated with `rank`.
+ */
+export function scopeByRole<T extends { regionId: string }>(
+  sortedRows: T[],
+  dbUser: User | null
+): Array<T & { rank: number }> {
+  const ranked = sortedRows.map((r, i) => ({ ...r, rank: i + 1 }))
+
+  if (!dbUser) return []
+  if (isNationalLevel(dbUser.role)) return ranked
+  if (
+    dbUser.role === 'REGIONAL_CHAIRMAN' ||
+    dbUser.role === 'REGIONAL_TREASURER'
+  ) {
+    return ranked.filter((r) => r.regionId === dbUser.region_id)
+  }
+  return []
+}

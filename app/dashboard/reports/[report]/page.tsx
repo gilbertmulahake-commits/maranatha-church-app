@@ -5,7 +5,8 @@ import { notFound } from 'next/navigation'
 import { 
   getArrearsReport, getDailyCashbook, getWriteOffRegister, 
   getDefunctChurchRegister, getInactiveChurches,
-  getCollectionsSummary, getRegionOptions
+  getCollectionsSummary, getRegionOptions,
+  getComplianceReport, getRegionalScoresReport
 } from '@/lib/actions/report-actions'
 import { ReportShell } from '@/components/reports/report-shell'
 import { ArrearsTable } from '@/components/reports/arrears-table'
@@ -14,6 +15,8 @@ import { WriteOffRegisterTable } from '@/components/reports/write-off-register-t
 import { DefunctRegisterTable } from '@/components/reports/defunct-register-table'
 import { InactiveChurchesTable } from '@/components/reports/inactive-churches-table'
 import { CollectionsSummaryTable } from '@/components/reports/analytics/collections-summary-table'
+import { ComplianceTable } from '@/components/reports/analytics/compliance-table'
+import { RegionalScoresTable } from '@/components/reports/analytics/regional-scores-table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 
@@ -50,6 +53,12 @@ async function ReportContent({ report }: { report: string }) {
       getRegionOptions(),
     ])
     table = <CollectionsSummaryTable initialData={data} regions={regions} />
+  } else if (report === 'compliance') {
+    const data = await getComplianceReport()
+    table = <ComplianceTable data={data} />
+  } else if (report === 'regional-scores') {
+    const data = await getRegionalScoresReport()
+    table = <RegionalScoresTable data={data} />
   }
 
   return (

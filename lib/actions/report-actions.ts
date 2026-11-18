@@ -6,6 +6,9 @@ import { verifyReportsAccess } from '@/lib/auth/guards'
 import { buildChurchWhere, buildPaymentWhere } from '@/lib/utils/report-scope'
 import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding } from '@/lib/utils/financial'
 import { isNationalLevel } from '@/lib/auth/roles'
+import { isChurchCompliant } from '@/lib/utils/financial'
+import { scopeByRole } from '@/lib/utils/report-scope'
+import { getRegionalScores, type RegionalScoreData } from '@/lib/actions/scoring-actions'
 
 export type ArrearsRow = {
   id: string
@@ -415,6 +418,103 @@ export async function getRegionOptions(): Promise<RegionOption[]> {
     })
   } catch (error) {
     console.error('Failed to fetch region options:', error)
+    return []
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Compliance Report (Unit 18.2, Stage A)
+// Per-church compliance using `isChurchCompliant` — never re-derives the rule.
+// Includes defunct churches with badge; defunct excluded from KPI denominator
+// (handled client-side).
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ComplianceRow = {
+  id: string
+  church_code: string
+  church_name: string
+  region_name: string
+  is_defunct: boolean
+  annualStatus: 'Paid' | 'Partial' | 'Overdue'
+  monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
+  annualPaid: number
+  annualExpected: number
+  monthlyPaid: number
+  monthlyExpected: number
+  grossOutstanding: number
+  writtenOff: number
+  netRecoverable: number
+}
+
+export async function getComplianceReport(): Promise<ComplianceRow[]> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const churchWhere = buildChurchWhere(dbUser)
+
+    const churches = await prisma.church.findMany({
+      where: churchWhere,
+      include: {
+        region: true,
+        payments: {
+          where: { status: 'Paid' },
+          include: { allocations: true },
+        },
+        write_offs: {
+          where: { status: 'Approved' },
+        },
+      },
+      orderBy: { church_code: 'asc' },
+    })
+
+    const now = new Date()
+
+    return churches.map((church) => {
+      const c = isChurchCompliant(church, now)
+      const writtenOff = sumApprovedWriteOffs(church.write_offs)
+      const grossAnnual = Math.max(0, c.expectedAnnual - c.annualPaid)
+      const grossMonthly = Math.max(0, c.expectedMonthly - c.monthlyPaid)
+      const grossOutstanding = grossAnnual + grossMonthly
+      const netRecoverable = getNetOutstanding(grossOutstanding, writtenOff)
+
+      return {
+        id: church.id,
+        church_code: church.church_code,
+        church_name: church.church_name,
+        region_name: church.region.name,
+        is_defunct: church.is_defunct,
+        annualStatus: c.annualStatus,
+        monthlyStatus: c.monthlyStatus,
+        annualPaid: c.annualPaid,
+        annualExpected: c.expectedAnnual,
+        monthlyPaid: c.monthlyPaid,
+        monthlyExpected: c.expectedMonthly,
+        grossOutstanding,
+        writtenOff,
+        netRecoverable,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to fetch compliance report:', error)
+    return []
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Regional Scores Report (Unit 18.2, Stage A)
+// Wraps the scoring engine and applies role scoping. Rank preserved globally —
+// a Regional Chairman sees their region's true rank, not "Rank 1 of 1".
+// ────────────────────────────────────────────────────────────────────────────
+
+export type RegionalScoresReportRow = RegionalScoreData & { rank: number }
+
+export async function getRegionalScoresReport(): Promise<RegionalScoresReportRow[]> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const scores = await getRegionalScores()
+    return scopeByRole(scores, dbUser)
+  } catch (error) {
+    console.error('Failed to fetch regional scores report:', error)
     return []
   }
 }
