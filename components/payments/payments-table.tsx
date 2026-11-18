@@ -28,7 +28,7 @@ import { toast } from 'sonner'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 
 // FIXED: Centralized the method formatting so it's consistent everywhere
-function getReadableMethod(method: string) {
+export function getReadableMethod(method: string) {
   if (method === 'M_Pesa') return 'M-Pesa'
   if (method === 'Bank_Transfer') return 'Bank'
   if (method === 'Cheque') return 'Cheque'

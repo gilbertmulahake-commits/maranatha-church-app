@@ -11,10 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
-// Single-source-of-truth table frame + responsive print button.
-// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
-//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
-// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
 import {
@@ -24,7 +20,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { formatCurrency, formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatters
+import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { getReadableMethod } from '@/components/payments/payments-table' // 🚨 FIX: Proper method mapping
 
 interface CashbookTableProps {
   data: CashbookRow[]
@@ -87,7 +84,8 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
       'Church Name': row.church_name,
       'Amount (KES)': row.amount_paid,
       'Type': row.payment_type,
-      'Method': row.payment_method === 'M_Pesa' ? 'M-Pesa' : row.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
+      'Method': getReadableMethod(row.payment_method),
+      'Source': row.source,
     }))
   }
 
@@ -165,7 +163,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            {/* PrintButton: icon-only below lg, full "Print" label at lg+. */}
             <PrintButton onClick={handleGlobalPrint} disabled={filteredData.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
@@ -196,9 +193,6 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
         }
       />
 
-      {/* TableShell: owns the card frame + overflow-x-auto (fixes the
-          column-clipping bug from the previous clipped wrapper) and renders
-          the shadcn table primitive internally. TableFooter lives inside. */}
       <TableShell>
         <TableHeader className="bg-muted/50">
           <TableRow>
@@ -249,7 +243,7 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-center text-paragraph-small text-muted-foreground">
-                  {row.payment_method === 'M_Pesa' ? 'M-Pesa' : row.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'}
+                  {getReadableMethod(row.payment_method)}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums text-emerald-600 text-paragraph-small">
                   {formatCurrency(row.amount_paid)}
@@ -313,8 +307,8 @@ export function CashbookTable({ data = [], selectedDate }: CashbookTableProps) {
                 <Badge variant="outline" className="mt-1">{viewTransaction?.payment_type}</Badge>
               </div>
               <div>
-                <p className="text-muted-foreground font-medium">Method</p>
-                <p className="text-foreground">{viewTransaction?.payment_method === 'M_Pesa' ? 'M-Pesa' : 'Bank'}</p>
+                <p className="text-muted-foreground font-medium">Method & Source</p>
+                <p className="text-foreground">{viewTransaction ? getReadableMethod(viewTransaction.payment_method) : ''} ({viewTransaction?.source})</p>
               </div>
               <div className="col-span-2">
                 <p className="text-muted-foreground font-medium">Date & Time</p>
