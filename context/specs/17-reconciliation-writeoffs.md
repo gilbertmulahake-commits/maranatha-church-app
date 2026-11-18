@@ -1,4 +1,3 @@
-```markdown
 # Unit 17: Reconciliation, Manual Entry & Write-Offs
 
 ## Goal
@@ -380,4 +379,3 @@ When a payment is resolved from unmatched or created via manual entry:
   - Invariant #5 (Reconciliation Mapping): Now formalized via `UnmatchedPayment`
   - Invariant #6 (Atomic Financial Mutations): All Payment creation wrapped in `prisma.$transaction`
   - Invariant #7 (Arrears Aging): Unchanged, but now write-offs excluded
-```
