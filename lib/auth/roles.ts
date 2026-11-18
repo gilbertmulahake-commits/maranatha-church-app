@@ -46,3 +46,15 @@ export function isFinanceAdmin(role: Role | string | null | undefined): boolean 
 export function isOperationsAdmin(role: Role | string | null | undefined): boolean {
   return role === 'OPERATIONS_ADMIN' || role === 'SYSTEM_ADMIN'
 }
+
+// Report-layer role mapping. Returns the report visibility bucket for a user.
+// Never returns 'ALL' — that value exists only in the report registry's
+// `visibleTo` arrays (a report visible to everyone), not as a caller identity.
+export function toReportRole(
+  role: Role | string | null | undefined
+): 'NATIONAL' | 'REGIONAL' | 'LOCAL' {
+  if (isNationalLevel(role)) return 'NATIONAL'
+  if (isRegionalLevel(role)) return 'REGIONAL'
+  if (isLocalLevel(role)) return 'LOCAL'
+  return 'LOCAL' // least visibility — safest default for unknown/null roles
+}
