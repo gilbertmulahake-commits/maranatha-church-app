@@ -21,10 +21,15 @@ export function buildChurchWhere(dbUser: User | null): Prisma.ChurchWhereInput {
   return { id: FAIL_CLOSED_ID }
 }
 
-export function buildPaymentWhere(dbUser: User | null): Prisma.PaymentWhereInput {
+export function buildPaymentWhere(
+  dbUser: User | null,
+  regionId?: string
+): Prisma.PaymentWhereInput {
   if (!dbUser) return { church_id: FAIL_CLOSED_ID }
 
   if (isNationalLevel(dbUser.role)) {
+    // National roles may optionally narrow to a single region via a report filter.
+    if (regionId) return { church: { region_id: regionId } }
     return {}
   }
 

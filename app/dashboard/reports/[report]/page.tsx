@@ -4,7 +4,8 @@ import { verifyReportsAccess } from '@/lib/auth/guards'
 import { notFound } from 'next/navigation'
 import { 
   getArrearsReport, getDailyCashbook, getWriteOffRegister, 
-  getDefunctChurchRegister, getInactiveChurches 
+  getDefunctChurchRegister, getInactiveChurches,
+  getCollectionsSummary, getRegionOptions
 } from '@/lib/actions/report-actions'
 import { ReportShell } from '@/components/reports/report-shell'
 import { ArrearsTable } from '@/components/reports/arrears-table'
@@ -12,6 +13,7 @@ import { CashbookWrapper } from '@/components/reports/cashbook-wrapper'
 import { WriteOffRegisterTable } from '@/components/reports/write-off-register-table'
 import { DefunctRegisterTable } from '@/components/reports/defunct-register-table'
 import { InactiveChurchesTable } from '@/components/reports/inactive-churches-table'
+import { CollectionsSummaryTable } from '@/components/reports/analytics/collections-summary-table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 
@@ -42,6 +44,12 @@ async function ReportContent({ report }: { report: string }) {
   } else if (report === 'inactive') {
     const data = await getInactiveChurches()
     table = <InactiveChurchesTable data={data} />
+  } else if (report === 'collections-summary') {
+    const [data, regions] = await Promise.all([
+      getCollectionsSummary('month'),
+      getRegionOptions(),
+    ])
+    table = <CollectionsSummaryTable initialData={data} regions={regions} />
   }
 
   return (

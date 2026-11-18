@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { verifyReportsAccess } from '@/lib/auth/guards'
 import { buildChurchWhere, buildPaymentWhere } from '@/lib/utils/report-scope'
 import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding } from '@/lib/utils/financial'
+import { isNationalLevel } from '@/lib/auth/roles'
 
 export type ArrearsRow = {
   id: string
@@ -292,6 +293,128 @@ export async function getInactiveChurches(months = 6): Promise<InactiveChurchRow
       .sort((a, b) => b.days_inactive - a.days_inactive)
   } catch (error) {
     console.error('Failed to fetch inactive churches:', error)
+    return []
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Collections Summary (Unit 18.2, Stage A)
+// Cash received by period, isolated by bucket. Period is `month` (default) or
+// `year`; each row is one calendar period of `payment_date`. Cash basis — a
+// payment is counted in the period it was received, not the period it settled.
+// ────────────────────────────────────────────────────────────────────────────
+
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function formatPeriodLabel(year: number, month: number | null): string {
+  if (month === null) return String(year)
+  return `${MONTH_LABELS[month - 1]} ${year}`
+}
+
+export type CollectionsSummaryRow = {
+  periodKey: string              // 'YYYY-MM' or 'YYYY', sortable
+  year: number
+  month: number | null           // null when period === 'year'
+  periodLabel: string            // 'Nov 2026' or '2026'
+  paymentsCount: number
+  annualCollected: number
+  monthlyCollected: number
+  prepaymentCredit: number       // allocations with billing_year > currentYear
+  totalReceived: number          // gross cash received (amount_paid sum)
+}
+
+export async function getCollectionsSummary(
+  period: 'month' | 'year' = 'month',
+  regionId?: string
+): Promise<CollectionsSummaryRow[]> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const paymentWhere = buildPaymentWhere(dbUser, regionId)
+
+    const payments = await prisma.payment.findMany({
+      where: { ...paymentWhere, status: 'Paid' },
+      include: { allocations: true },
+    })
+
+    const currentYear = new Date().getFullYear()
+    const byPeriod = new Map<string, CollectionsSummaryRow>()
+
+    payments.forEach((p) => {
+      const d = p.payment_date
+      const year = d.getFullYear()
+      const month = d.getMonth() + 1
+      const monthOrNull = period === 'year' ? null : month
+      const key = period === 'year'
+        ? String(year)
+        : `${year}-${String(month).padStart(2, '0')}`
+
+      let row = byPeriod.get(key)
+      if (!row) {
+        row = {
+          periodKey: key,
+          year,
+          month: monthOrNull,
+          periodLabel: formatPeriodLabel(year, monthOrNull),
+          paymentsCount: 0,
+          annualCollected: 0,
+          monthlyCollected: 0,
+          prepaymentCredit: 0,
+          totalReceived: 0,
+        }
+        byPeriod.set(key, row)
+      }
+
+      row.paymentsCount += 1
+      row.totalReceived += Number(p.amount_paid)
+
+      if (p.allocations.length === 0) {
+        // Fallback: no allocation rows — trust the payment's own type.
+        const amt = Number(p.amount_paid)
+        if (p.payment_type === 'Annual') row.annualCollected += amt
+        else row.monthlyCollected += amt
+      } else {
+        p.allocations.forEach((a) => {
+          const amt = Number(a.amount)
+          if (a.allocation_type === 'Annual') row.annualCollected += amt
+          else row.monthlyCollected += amt
+          // Prepayment: attribution to a future billing year. Combined across
+          // buckets — an "of which" indicator, not a bucket of its own.
+          if (a.billing_year > currentYear) row.prepaymentCredit += amt
+        })
+      }
+    })
+
+    return Array.from(byPeriod.values()).sort((a, b) =>
+      b.periodKey.localeCompare(a.periodKey)
+    )
+  } catch (error) {
+    console.error('Failed to fetch collections summary:', error)
+    return []
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Region options for report toolbar filters (Unit 18.2)
+// National roles only — Regional/Local viewers see no filter (their scope
+// already restricts them). Returns [] for non-National roles, so the caller
+// can conditionally render the <Select> with `regions.length > 0`.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type RegionOption = { id: string; name: string }
+
+export async function getRegionOptions(): Promise<RegionOption[]> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    if (!isNationalLevel(dbUser.role)) return []
+
+    return await prisma.region.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    })
+  } catch (error) {
+    console.error('Failed to fetch region options:', error)
     return []
   }
 }
