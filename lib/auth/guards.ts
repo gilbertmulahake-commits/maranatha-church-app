@@ -44,7 +44,7 @@ export async function verifyReconciliationAccess() {
 
   // Only Finance Admins, National Treasurers, or System Admins can access reconciliation
   const allowed =
-    isFinanceAdmin(dbUser.role) || dbUser.role === 'NATIONAL_TREASURER'
+    isFinanceAdmin(dbUser.role) || dbUser.role === 'NATIONAL_TREASURER' || dbUser.role === 'SYSTEM_ADMIN'
   if (!allowed) {
     throw new Error('Forbidden: Requires Finance Admin, Treasurer, or System Admin privileges')
   }
@@ -66,4 +66,17 @@ export async function verifyTreasurerAuthority() {
     throw new Error('Forbidden: Requires National Treasurer or System Admin authority')
   }
   return { actorId: user.id, actorEmail: user.email, actorRole: dbUser.role }
+}
+
+export async function verifyReportsAccess() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+  
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+  if (!dbUser) throw new Error('User not found')
+
+  // All authenticated roles can access reports. 
+  // Strict scoping is enforced by buildChurchWhere() / buildPaymentWhere() and RLS.
+  return { actorId: user.id, actorEmail: user.email, actorRole: dbUser.role, dbUser }
 }

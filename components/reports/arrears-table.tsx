@@ -12,27 +12,21 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { Button } from '@/components/ui/button'
-// Single-source-of-truth table frame + responsive print button.
-// - TableShell: card wrapper using overflow-x-auto (fixes the column-clipping
-//   bug from the old clipped-wrapper). Renders the shadcn table primitive internally.
-// - PrintButton: icon-only below `lg`, expands to "Print" text at `lg+`.
+import { Badge } from '@/components/ui/badge'
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
 import {
   TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-}
+import { formatCurrency } from '@/lib/utils' // 🚨 FIX: Global formatter
 
 export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
   const [search, setSearch] = useState('')
   const [sortConfig, setSortConfig] = useState<{
     key: keyof ArrearsRow
     direction: 'asc' | 'desc'
-  } | null>({ key: 'totalOutstanding', direction: 'desc' })
+  } | null>({ key: 'netTotal', direction: 'desc' })
 
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 15
@@ -92,18 +86,20 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
   const totals = useMemo(() => {
     return sortedData.reduce(
       (acc, row) => ({
-        annual: acc.annual + row.annualOutstanding,
-        monthly: acc.monthly + row.monthlyOutstanding,
-        total: acc.total + row.totalOutstanding,
+        grossAnnual: acc.grossAnnual + row.grossAnnual,
+        grossMonthly: acc.grossMonthly + row.grossMonthly,
+        grossTotal: acc.grossTotal + row.grossTotal,
+        writtenOff: acc.writtenOff + row.writtenOff,
+        netTotal: acc.netTotal + row.netTotal,
       }),
-      { annual: 0, monthly: 0, total: 0 }
+      { grossAnnual: 0, grossMonthly: 0, grossTotal: 0, writtenOff: 0, netTotal: 0 }
     )
   }, [sortedData])
 
   const selectedTotals = useMemo(() => {
     return sortedData.filter(r => selectedIds.includes(r.id)).reduce(
-      (acc, row) => ({ total: acc.total + row.totalOutstanding }),
-      { total: 0 }
+      (acc, row) => ({ netTotal: acc.netTotal + row.netTotal }),
+      { netTotal: 0 }
     )
   }, [sortedData, selectedIds])
 
@@ -116,9 +112,12 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
       'Church Code': row.church_code,
       'Church Name': row.church_name,
       'Region': row.region_name,
-      'Annual Out (KES)': row.annualOutstanding,
-      'Monthly Out (KES)': row.monthlyOutstanding,
-      'Total Out (KES)': row.totalOutstanding,
+      'Status': row.is_defunct ? 'Defunct' : 'Active',
+      'Gross Annual (KES)': row.grossAnnual,
+      'Gross Monthly (KES)': row.grossMonthly,
+      'Total Gross (KES)': row.grossTotal,
+      'Written Off (KES)': row.writtenOff,
+      'Net Recoverable (KES)': row.netTotal,
     }))
   }
 
@@ -129,8 +128,8 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
 
     const exportData = generateExportData(scope)
     const suffix = scope === 'selected' ? '-selected' : ''
-    const currentTotal = scope === 'selected' ? selectedTotals.total : totals.total
-    const pdfSubtitle = `Total Outstanding: ${formatCurrency(currentTotal)}`
+    const currentTotal = scope === 'selected' ? selectedTotals.netTotal : totals.netTotal
+    const pdfSubtitle = `Total Net Recoverable: ${formatCurrency(currentTotal)}`
     const titleSuffix = scope === 'selected' ? ' (Selected)' : ''
 
     if (pendingAction.type === 'print') {
@@ -147,13 +146,13 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
 
   const handleGlobalPrint = () => {
     if (selectedIds.length > 0) setPendingAction({ type: 'print' })
-    else exportToPdf(`arrears-print-${dateStr}`, 'Arrears Report', `Total: ${formatCurrency(totals.total)}`, generateExportData('all'), 'landscape', true)
+    else exportToPdf(`arrears-print-${dateStr}`, 'Arrears Report', `Total Net: ${formatCurrency(totals.netTotal)}`, generateExportData('all'), 'landscape', true)
   }
 
   const handleGlobalExport = (format: 'csv' | 'excel' | 'pdf') => {
     if (selectedIds.length > 0) setPendingAction({ type: 'export', format })
     else {
-      const sub = `Total: ${formatCurrency(totals.total)}`
+      const sub = `Total Net: ${formatCurrency(totals.netTotal)}`
       if (format === 'csv') exportToCsv(`arrears-${dateStr}`, generateExportData('all'))
       if (format === 'excel') exportToExcel(`arrears-${dateStr}`, generateExportData('all'), 'Arrears Report')
       if (format === 'pdf') exportToPdf(`arrears-${dateStr}`, 'Arrears Report', sub, generateExportData('all'))
@@ -168,8 +167,8 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         phone: c.contact_phone,
         name: c.church_name + ' Treasurer',
         type: 'Pastor' as const,
-        annualOutstanding: c.annualOutstanding,
-        monthlyOutstanding: c.monthlyOutstanding
+        annualOutstanding: c.grossAnnual,
+        monthlyOutstanding: c.grossMonthly
       }))
 
       const res = await sendBulkReminders(recipients, 'NATIONAL')
@@ -189,14 +188,13 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
     <div className="space-y-md">
       <TableToolbar
         title="Outstanding Balances"
-        subtitle={`${filteredData.length} churches with unpaid balances`}
+        subtitle={`${filteredData.length} churches with unpaid balances or write-offs`}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search churches..."
         
         actions={
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
-            {/* PrintButton: icon-only below lg, full "Print" label at lg+. */}
             <PrintButton onClick={handleGlobalPrint} disabled={filteredData.length === 0} />
             <div className="shrink-0">
               <ExportDropdown 
@@ -220,15 +218,12 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
             <ExportDropdown 
               onExportCsv={() => { exportToCsv(`arrears-selected-${dateStr}`, generateExportData('selected')); setSelectedIds([]); }}
               onExportExcel={() => { exportToExcel(`arrears-selected-${dateStr}`, generateExportData('selected'), 'Selected Arrears'); setSelectedIds([]); }}
-              onExportPdf={() => { exportToPdf(`arrears-selected-${dateStr}`, 'Arrears (Selected)', `Total: ${formatCurrency(selectedTotals.total)}`, generateExportData('selected')); setSelectedIds([]); }}
+              onExportPdf={() => { exportToPdf(`arrears-selected-${dateStr}`, 'Arrears (Selected)', `Total Net: ${formatCurrency(selectedTotals.netTotal)}`, generateExportData('selected')); setSelectedIds([]); }}
             />
           </div>
         }
       />
 
-      {/* TableShell: owns the card frame + overflow-x-auto (fixes the
-          column-clipping bug from the previous clipped wrapper) and renders
-          the shadcn table primitive internally. TableFooter lives inside. */}
       <TableShell>
         <TableHeader className="bg-muted/50">
           <TableRow>
@@ -244,14 +239,17 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
             <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground" onClick={() => requestSort('region_name')}>
               <div className="flex items-center gap-xs">Region <ArrowUpDown className="h-3 w-3" /></div>
             </TableHead>
-            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('annualOutstanding')}>
-              <div className="flex items-center justify-end gap-xs">Annual Out <ArrowUpDown className="h-3 w-3" /></div>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('grossAnnual')}>
+              <div className="flex items-center justify-end gap-xs">Gross Annual <ArrowUpDown className="h-3 w-3" /></div>
             </TableHead>
-            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('monthlyOutstanding')}>
-              <div className="flex items-center justify-end gap-xs">Monthly Out <ArrowUpDown className="h-3 w-3" /></div>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('grossMonthly')}>
+              <div className="flex items-center justify-end gap-xs">Gross Monthly <ArrowUpDown className="h-3 w-3" /></div>
             </TableHead>
-            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('totalOutstanding')}>
-              <div className="flex items-center justify-end gap-xs">Total Owed <ArrowUpDown className="h-3 w-3" /></div>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('writtenOff')}>
+              <div className="flex items-center justify-end gap-xs">Less WO <ArrowUpDown className="h-3 w-3" /></div>
+            </TableHead>
+            <TableHead className="cursor-pointer hover:bg-muted text-paragraph-small font-medium text-muted-foreground text-right" onClick={() => requestSort('netTotal')}>
+              <div className="flex items-center justify-end gap-xs">Net Recoverable <ArrowUpDown className="h-3 w-3" /></div>
             </TableHead>
             <TableHead className="text-paragraph-small font-medium text-muted-foreground text-center w-[80px]">Actions</TableHead>
           </TableRow>
@@ -259,7 +257,7 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
         <TableBody>
           {paginatedData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-12 text-paragraph-small text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-12 text-paragraph-small text-muted-foreground">
                 No arrears found matching your criteria.
               </TableCell>
             </TableRow>
@@ -273,20 +271,26 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium text-foreground text-paragraph-small">{row.church_name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground text-paragraph-small">{row.church_name}</span>
+                    {row.is_defunct && <Badge variant="outline" className="bg-gray-100 text-gray-700 text-[10px] h-4">Defunct</Badge>}
+                  </div>
                   <div className="font-mono text-paragraph-mini text-muted-foreground">{row.church_code}</div>
                 </TableCell>
                 <TableCell className="text-paragraph-small text-muted-foreground">
                   {row.region_name}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
-                  {row.annualOutstanding > 0 ? formatCurrency(row.annualOutstanding) : '-'}
+                  {row.grossAnnual > 0 ? formatCurrency(row.grossAnnual) : '-'}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-paragraph-small text-destructive">
-                  {row.monthlyOutstanding > 0 ? formatCurrency(row.monthlyOutstanding) : '-'}
+                  {row.grossMonthly > 0 ? formatCurrency(row.grossMonthly) : '-'}
                 </TableCell>
-                <TableCell className="text-right font-medium tabular-nums text-paragraph-small text-destructive">
-                  {formatCurrency(row.totalOutstanding)}
+                <TableCell className="text-right tabular-nums text-paragraph-small text-amber-600">
+                  {row.writtenOff > 0 ? `(${formatCurrency(row.writtenOff)})` : '-'}
+                </TableCell>
+                <TableCell className="text-right font-bold tabular-nums text-paragraph-small text-foreground">
+                  {formatCurrency(row.netTotal)}
                 </TableCell>
                 <TableCell className="text-center">
                   <Link href={`/dashboard/churches/${row.church_code}`}>
@@ -305,13 +309,16 @@ export function ArrearsTable({ data }: { data: ArrearsRow[] }) {
               Grand Total:
             </TableCell>
             <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-              {totals.annual > 0 ? formatCurrency(totals.annual) : '-'}
+              {totals.grossAnnual > 0 ? formatCurrency(totals.grossAnnual) : '-'}
             </TableCell>
             <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-              {totals.monthly > 0 ? formatCurrency(totals.monthly) : '-'}
+              {totals.grossMonthly > 0 ? formatCurrency(totals.grossMonthly) : '-'}
             </TableCell>
-            <TableCell className="text-right font-bold tabular-nums text-destructive text-paragraph-small">
-              {formatCurrency(totals.total)}
+            <TableCell className="text-right font-bold tabular-nums text-amber-600 text-paragraph-small">
+              {totals.writtenOff > 0 ? `(${formatCurrency(totals.writtenOff)})` : '-'}
+            </TableCell>
+            <TableCell className="text-right font-bold tabular-nums text-foreground text-paragraph-small">
+              {formatCurrency(totals.netTotal)}
             </TableCell>
             <TableCell />
           </TableRow>
