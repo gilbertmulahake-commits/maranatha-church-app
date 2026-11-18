@@ -8,6 +8,7 @@ import { Trophy, ChevronRight, Medal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { RegionBreakdownDialog } from './region-breakdown-dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-')
 
@@ -86,7 +87,20 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
                   <TableHead className="font-semibold text-foreground">Region</TableHead>
                   <TableHead className="font-semibold text-foreground">Compliance</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Arrears</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground">Score</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={<span className="cursor-help underline decoration-dotted underline-offset-2" />}>
+                          Score
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="center">
+                          Score = 40% compliance. Timeliness, accuracy, and engagement
+                          components are not yet instrumented. See the Regional Scores
+                          report for the current breakdown.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Tier</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
@@ -95,7 +109,7 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
                 {sorted.map((region, index) => {
                   const rank = index + 1
                   const isTop3 = rank <= 3
-                  
+
                   return (
                     <TableRow key={region.regionId} className="group hover:bg-muted/50">
                       <TableCell className="text-center font-bold">
@@ -117,9 +131,9 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-2 w-full max-w-[100px] @[500px]/dashboard:max-w-[140px] rounded-full bg-muted overflow-hidden">
-                            <div 
-                              className="h-full bg-primary rounded-full" 
-                              style={{ width: `${region.compliancePct}%` }} 
+                            <div
+                              className="h-full bg-primary rounded-full"
+                              style={{ width: `${region.compliancePct}%` }}
                             />
                           </div>
                           <span className="text-paragraph-small font-medium tabular-nums text-muted-foreground w-12 text-right">
@@ -162,7 +176,7 @@ export function RegionalLeaderboard({ scores }: LeaderboardProps) {
         </CardContent>
       </Card>
 
-      <RegionBreakdownDialog 
+      <RegionBreakdownDialog
         region={selectedRegion}
         rank={selectedRank}
         onClose={handleClose}
