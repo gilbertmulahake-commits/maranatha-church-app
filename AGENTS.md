@@ -30,15 +30,12 @@ Then read the current unit's spec at `context/specs/NN-name.md`.
 
 **If the current unit's spec does not exist, STOP.** Author it first using `context/specs/_template.md`. Do not begin implementation against an unwritten spec.
 
-## Spec structure
-
-Every spec contains these five sections in this order:
+Every spec contains these four sections in this order:
 
 1. **Goal** — 1–2 sentences, concrete and verifiable
 2. **Design** — visual/structural decisions, reference `ui-context.md` tokens
-3. **Implementation** — sub-sections per component or system boundary; explicit file paths
-4. **Dependencies** — packages not yet installed, with reason
-5. **Verification Checklist** — specific, testable conditions
+3. **Implementation (including Dependencies)** — sub-sections per component or system boundary; explicit file paths; packages not yet installed, with reason
+4. **Verification Checklist** — specific, testable conditions
 
 A spec missing any of these sections is not a spec. Stop and resolve it with the user before proceeding.
 
