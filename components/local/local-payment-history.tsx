@@ -25,14 +25,7 @@ import {
 } from '@/components/ui/tooltip'
 import { AllocationBreakdownDialog } from '@/components/payments/allocation-breakdown-dialog'
 import { toast } from 'sonner'
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-}
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateString))
-}
+import { formatCurrency, formatDateTime } from '@/lib/utils' // 🚨 FIX: Global formatters
 
 interface LocalPaymentHistoryProps {
   payments: LocalChurchStats['payments']
@@ -133,7 +126,7 @@ export function LocalPaymentHistory({
         'Amount (KES)': p.amount_paid,
         'Type': p.is_mixed ? 'Mixed' : (p.has_annual ? 'Annual' : 'Monthly'),
         'Method': p.payment_method === 'M_Pesa' ? 'M-Pesa' : p.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash',
-        'Date & Time': formatDate(p.payment_date),
+        'Date & Time': formatDateTime(p.payment_date),
         'Allocations Breakdown': allocationSummary
       }
     })
@@ -327,7 +320,7 @@ export function LocalPaymentHistory({
                     {payment.payment_method === 'M_Pesa' ? 'M-Pesa' : payment.payment_method === 'Bank_Transfer' ? 'Bank' : 'Cash'}
                   </TableCell>
                   <TableCell className="text-paragraph-small text-muted-foreground">
-                    {formatDate(payment.payment_date)}
+                    {formatDateTime(payment.payment_date)}
                   </TableCell>
                   <TableCell className="text-center">
                     <AllocationBreakdownDialog 
