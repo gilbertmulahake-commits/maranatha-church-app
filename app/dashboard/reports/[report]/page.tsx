@@ -13,21 +13,17 @@ import { WriteOffRegisterTable } from '@/components/reports/write-off-register-t
 import { DefunctRegisterTable } from '@/components/reports/defunct-register-table'
 import { InactiveChurchesTable } from '@/components/reports/inactive-churches-table'
 import { Skeleton } from '@/components/ui/skeleton'
-
-const REPORT_META: Record<string, { title: string, description: string }> = {
-  'arrears': { title: 'Arrears Report', description: 'Gross, Written Off, and Net Recoverable balances per church.' },
-  'cashbook': { title: 'Daily Cashbook', description: 'Transaction ledger for a specific date.' },
-  'write-offs': { title: 'Write-Off Register', description: 'Approved bad-debt write-offs.' },
-  'defunct': { title: 'Defunct Churches', description: 'Churches that have been fully written off.' },
-  'inactive': { title: 'Inactive Churches', description: 'No paid payment in the last 6 months.' },
-}
+import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 
 async function ReportContent({ report }: { report: string }) {
   await connection()
-  await verifyReportsAccess()
-  
-  const meta = REPORT_META[report]
+  const { actorRole } = await verifyReportsAccess()
+
+  const meta = getReportBySlug(report)
   if (!meta) notFound()
+
+  const visible = getReportsForRole(actorRole)
+  if (!visible.some((r) => r.slug === report)) notFound()
 
   let table = null
 
@@ -58,7 +54,7 @@ async function ReportContent({ report }: { report: string }) {
 export default async function ReportPage(props: { params: Promise<{ report: string }> }) {
   const params = await props.params
   const report = params.report
-  
+
   return (
     <div className="space-y-xl">
       <Suspense fallback={
