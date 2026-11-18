@@ -1,11 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import {
-  getExpectedUpToDate,
-  getPeriodStatus,
-  sumApprovedWriteOffs,
-} from '@/lib/utils/financial'
+import { isChurchCompliant, sumApprovedWriteOffs } from '@/lib/utils/financial'
 
 export type RegionalScoreData = {
   regionId: string
@@ -19,6 +15,10 @@ export type RegionalScoreData = {
   outstandingAmount: number
   outstandingAnnual: number
   outstandingMonthly: number
+  // Unit 18.2 additions — Gross / Less Written Off / Net for the report
+  grossOutstandingAnnual: number
+  grossOutstandingMonthly: number
+  totalWrittenOff: number
 }
 
 export async function getRegionalScores(): Promise<RegionalScoreData[]> {
@@ -46,41 +46,27 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
       let compliantChurches = 0
       let outstandingAnnual = 0
       let outstandingMonthly = 0
+      let grossOutstandingAnnual = 0
+      let grossOutstandingMonthly = 0
       let activeChurchesCount = 0
 
       region.churches.forEach((church) => {
-        // Skip defunct churches entirely — not counted in denominator, not counted in arrears
         if (church.is_defunct) return
-
         activeChurchesCount++
 
-        let annualPaid = 0
-        let monthlyPaid = 0
+        // Single source of truth for compliance + paid/expected figures
+        const c = isChurchCompliant(church, now)
+        if (c.compliant) compliantChurches++
 
-        church.payments.forEach((p) => {
-          if (p.allocations.length === 0) {
-            const amount = Number(p.amount_paid)
-            if (p.payment_type === 'Annual') annualPaid += amount
-            else monthlyPaid += amount
-          } else {
-            p.allocations.forEach((a) => {
-              const amount = Number(a.amount)
-              if (a.allocation_type === 'Annual') annualPaid += amount
-              else monthlyPaid += amount
-            })
-          }
-        })
+        let grossAnnual = Math.max(0, c.expectedAnnual - c.annualPaid)
+        let grossMonthly = Math.max(0, c.expectedMonthly - c.monthlyPaid)
 
-        const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(
-          church.created_at,
-          now
-        )
+        // Accumulate gross BEFORE write-off deduction
+        grossOutstandingAnnual += grossAnnual
+        grossOutstandingMonthly += grossMonthly
 
-        // Net outstanding = gross - written off
+        // Deduct write-offs LIFO (annual first) to compute net
         const writtenOff = sumApprovedWriteOffs(church.write_offs)
-        let grossAnnual = Math.max(0, expectedAnnual - annualPaid)
-        let grossMonthly = Math.max(0, expectedMonthly - monthlyPaid)
-
         let remainingWriteOff = writtenOff
         if (remainingWriteOff > 0) {
           const deductAnnual = Math.min(grossAnnual, remainingWriteOff)
@@ -95,13 +81,6 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
 
         outstandingAnnual += grossAnnual
         outstandingMonthly += grossMonthly
-
-        const annualStatus = getPeriodStatus(annualPaid, expectedAnnual)
-        const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
-
-        if (annualStatus === 'Paid' && monthlyStatus === 'Paid') {
-          compliantChurches++
-        }
       })
 
       const compliancePct =
@@ -109,6 +88,8 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
           ? (compliantChurches / activeChurchesCount) * 100
           : 0
       const outstandingAmount = outstandingAnnual + outstandingMonthly
+      const totalWrittenOff =
+        grossOutstandingAnnual + grossOutstandingMonthly - outstandingAmount
 
       const timelinessPct = compliancePct > 0 ? 85 : 0
       const reportingAccuracy = compliancePct > 0 ? 90 : 0
@@ -137,6 +118,9 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
         outstandingAmount,
         outstandingAnnual,
         outstandingMonthly,
+        grossOutstandingAnnual,
+        grossOutstandingMonthly,
+        totalWrittenOff,
       }
     })
 

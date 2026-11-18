@@ -4,11 +4,13 @@ export function ReportShell({
   title, 
   description, 
   current,
+  role,
   children 
 }: { 
   title: string, 
   description: string, 
   current?: string,
+  role: string,
   children: React.ReactNode 
 }) {
   return (
@@ -18,7 +20,7 @@ export function ReportShell({
           <h1 className="text-heading-2 font-bold text-foreground">{title}</h1>
           <p className="mt-xs text-paragraph-small text-muted-foreground">{description}</p>
         </div>
-        <ReportSelector current={current} />
+        <ReportSelector current={current} role={role} />
       </div>
       <div>{children}</div>
     </div>

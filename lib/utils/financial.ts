@@ -133,3 +133,70 @@ export function sumApprovedWriteOffs(
     .filter((w) => !w.status || w.status === 'Approved')
     .reduce((sum, w) => sum + Number(w.amount), 0)
 }
+
+// ============================================================================
+// UNIT 18.2: COMPLIANCE RULE (single source of truth)
+// ============================================================================
+
+export type ChurchComplianceInput = {
+  created_at: Date
+  payments: Array<{
+    amount_paid: number | string | { toString(): string }
+    payment_type: string
+    allocations: Array<{
+      amount: number | string | { toString(): string }
+      allocation_type: string
+    }>
+  }>
+}
+
+export type ChurchComplianceResult = {
+  compliant: boolean
+  annualStatus: 'Paid' | 'Partial' | 'Overdue'
+  monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
+  annualPaid: number
+  monthlyPaid: number
+  expectedAnnual: number
+  expectedMonthly: number
+}
+
+/**
+ * Strict Bucket Isolation compliance rule. A church is compliant only when
+ * BOTH the Annual and Monthly buckets are Paid. Shared by the scoring engine
+ * (`scoring-actions.ts`) and the Compliance report — one implementation.
+ */
+export function isChurchCompliant(
+  church: ChurchComplianceInput,
+  now: Date = new Date()
+): ChurchComplianceResult {
+  let annualPaid = 0
+  let monthlyPaid = 0
+
+  church.payments.forEach((p) => {
+    if (p.allocations.length === 0) {
+      const amount = Number(p.amount_paid)
+      if (p.payment_type === 'Annual') annualPaid += amount
+      else monthlyPaid += amount
+    } else {
+      p.allocations.forEach((a) => {
+        const amount = Number(a.amount)
+        if (a.allocation_type === 'Annual') annualPaid += amount
+        else monthlyPaid += amount
+      })
+    }
+  })
+
+  const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(church.created_at, now)
+  const annualStatus = getPeriodStatus(annualPaid, expectedAnnual)
+  const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
+
+  return {
+    compliant: annualStatus === 'Paid' && monthlyStatus === 'Paid',
+    annualStatus,
+    monthlyStatus,
+    annualPaid,
+    monthlyPaid,
+    expectedAnnual,
+    expectedMonthly,
+  }
+}
