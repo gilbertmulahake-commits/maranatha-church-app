@@ -518,3 +518,270 @@ export async function getRegionalScoresReport(): Promise<RegionalScoresReportRow
     return []
   }
 }
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// YoY Comparison (Unit 18.2, Stage B)
+// Cash received, calendar year of payment_date. Cash basis — prepayments count
+// in the year cash arrived, not the year they satisfied.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type YoYRow = {
+  year: string
+  annualCollected: number
+  monthlyCollected: number
+  annualDelta: number | null
+  monthlyDelta: number | null
+  annualPct: number | null
+  monthlyPct: number | null
+}
+
+export async function getYoYComparison(regionId?: string): Promise<YoYRow[]> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const where = buildPaymentWhere(dbUser, regionId)
+
+    const payments = await prisma.payment.findMany({
+      where: { ...where, status: 'Paid' },
+      include: { allocations: true },
+    })
+
+    const byYear = new Map<string, { annual: number; monthly: number }>()
+
+    payments.forEach((p) => {
+      const year = String(p.payment_date.getFullYear())
+      let row = byYear.get(year)
+      if (!row) {
+        row = { annual: 0, monthly: 0 }
+        byYear.set(year, row)
+      }
+      if (p.allocations.length === 0) {
+        const amt = Number(p.amount_paid)
+        if (p.payment_type === 'Annual') row.annual += amt
+        else row.monthly += amt
+      } else {
+        p.allocations.forEach((a) => {
+          const amt = Number(a.amount)
+          if (a.allocation_type === 'Annual') row.annual += amt
+          else row.monthly += amt
+        })
+      }
+    })
+
+    const years = Array.from(byYear.keys()).sort((a, b) => Number(b) - Number(a))
+
+    return years.map((year, i) => {
+      const curr = byYear.get(year)!
+      const prior = i + 1 < years.length ? byYear.get(years[i + 1])! : null
+      const annualDelta = prior !== null ? curr.annual - prior.annual : null
+      const monthlyDelta = prior !== null ? curr.monthly - prior.monthly : null
+      const annualPct =
+        prior !== null && prior.annual > 0
+          ? ((curr.annual - prior.annual) / prior.annual) * 100
+          : null
+      const monthlyPct =
+        prior !== null && prior.monthly > 0
+          ? ((curr.monthly - prior.monthly) / prior.monthly) * 100
+          : null
+      return {
+        year,
+        annualCollected: curr.annual,
+        monthlyCollected: curr.monthly,
+        annualDelta,
+        monthlyDelta,
+        annualPct,
+        monthlyPct,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to fetch YoY comparison:', error)
+    return []
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Allocation Breakdown (Unit 18.2, Stage B)
+// Aggregate by billing_year × allocation_type over the selected period.
+// Reconciliation: Σ allocations for payments in the period must equal
+// Σ payment.amount for the same payments. Nonzero = silent allocation defect.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type AllocationBreakdownRow = {
+  billingYear: number
+  bucket: 'Annual' | 'Monthly'
+  allocated: number
+  allocationsCount: number
+}
+
+export type AllocationBreakdownResult = {
+  rows: AllocationBreakdownRow[]
+  totalAllocated: number
+  totalReceived: number
+  discrepancy: number
+  paymentsCount: number
+}
+
+export async function getAllocationBreakdown(
+  periodStart: Date,
+  periodEnd: Date,
+  regionId?: string
+): Promise<AllocationBreakdownResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const where = buildPaymentWhere(dbUser, regionId)
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        ...where,
+        status: 'Paid',
+        payment_date: { gte: periodStart, lte: periodEnd },
+      },
+      include: { allocations: true },
+    })
+
+    const map = new Map<string, AllocationBreakdownRow>()
+    let totalReceived = 0
+    let totalAllocated = 0
+
+    payments.forEach((p) => {
+      totalReceived += Number(p.amount_paid)
+      p.allocations.forEach((a) => {
+        const amt = Number(a.amount)
+        totalAllocated += amt
+        const key = `${a.billing_year}-${a.allocation_type}`
+        let row = map.get(key)
+        if (!row) {
+          row = {
+            billingYear: a.billing_year,
+            bucket: a.allocation_type as 'Annual' | 'Monthly',
+            allocated: 0,
+            allocationsCount: 0,
+          }
+          map.set(key, row)
+        }
+        row.allocated += amt
+        row.allocationsCount += 1
+      })
+    })
+
+    const rows = Array.from(map.values()).sort((a, b) => {
+      if (b.billingYear !== a.billingYear) return b.billingYear - a.billingYear
+      return a.bucket.localeCompare(b.bucket)
+    })
+
+    return {
+      rows,
+      totalAllocated,
+      totalReceived,
+      discrepancy: totalReceived - totalAllocated,
+      paymentsCount: payments.length,
+    }
+  } catch (error) {
+    console.error('Failed to fetch allocation breakdown:', error)
+    return {
+      rows: [],
+      totalAllocated: 0,
+      totalReceived: 0,
+      discrepancy: 0,
+      paymentsCount: 0,
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Source / Method Breakdown (Unit 18.2, Stage B)
+// Cross-tab: Payment.source × PaymentMethod. Payments only — no PendingPayment,
+// no UnmatchedPayment, no write-offs.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type SourceMethodRow = {
+  source: string
+  mPesa: number
+  cash: number
+  bankTransfer: number
+  cheque: number
+  total: number
+}
+
+export type SourceMethodResult = {
+  rows: SourceMethodRow[]
+  totals: {
+    mPesa: number
+    cash: number
+    bankTransfer: number
+    cheque: number
+    grandTotal: number
+  }
+}
+
+export async function getSourceMethodBreakdown(
+  regionId?: string,
+  dateFrom?: Date,
+  dateTo?: Date
+): Promise<SourceMethodResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const where = buildPaymentWhere(dbUser, regionId)
+
+    const dateFilter: Prisma.PaymentWhereInput['payment_date'] =
+      dateFrom || dateTo
+        ? { ...(dateFrom && { gte: dateFrom }), ...(dateTo && { lte: dateTo }) }
+        : undefined
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        ...where,
+        status: 'Paid',
+        ...(dateFilter ? { payment_date: dateFilter } : {}),
+      },
+      select: { source: true, payment_method: true, amount_paid: true },
+    })
+
+    const bySource = new Map<string, SourceMethodRow>()
+
+    const ensure = (source: string): SourceMethodRow => {
+      let row = bySource.get(source)
+      if (!row) {
+        row = { source, mPesa: 0, cash: 0, bankTransfer: 0, cheque: 0, total: 0 }
+        bySource.set(source, row)
+      }
+      return row
+    }
+
+    payments.forEach((p) => {
+      const row = ensure(p.source)
+      const amt = Number(p.amount_paid)
+      if (p.payment_method === 'M_Pesa') row.mPesa += amt
+      else if (p.payment_method === 'Cash') row.cash += amt
+      else if (p.payment_method === 'Bank_Transfer') row.bankTransfer += amt
+      else if (p.payment_method === 'Cheque') row.cheque += amt
+      row.total += amt
+    })
+
+    // Ensure the three known sources always exist
+    ensure('Webhook')
+    ensure('Manual')
+    ensure('Resolved')
+
+    const rows = Array.from(bySource.values()).sort((a, b) => b.total - a.total)
+
+    const totals = rows.reduce(
+      (acc, r) => ({
+        mPesa: acc.mPesa + r.mPesa,
+        cash: acc.cash + r.cash,
+        bankTransfer: acc.bankTransfer + r.bankTransfer,
+        cheque: acc.cheque + r.cheque,
+        grandTotal: acc.grandTotal + r.total,
+      }),
+      { mPesa: 0, cash: 0, bankTransfer: 0, cheque: 0, grandTotal: 0 }
+    )
+
+    return { rows, totals }
+  } catch (error) {
+    console.error('Failed to fetch source/method breakdown:', error)
+    return {
+      rows: [],
+      totals: { mPesa: 0, cash: 0, bankTransfer: 0, cheque: 0, grandTotal: 0 },
+    }
+  }
+}

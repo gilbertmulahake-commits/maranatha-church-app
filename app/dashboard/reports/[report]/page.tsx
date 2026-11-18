@@ -6,7 +6,8 @@ import {
   getArrearsReport, getDailyCashbook, getWriteOffRegister, 
   getDefunctChurchRegister, getInactiveChurches,
   getCollectionsSummary, getRegionOptions,
-  getComplianceReport, getRegionalScoresReport
+  getComplianceReport, getRegionalScoresReport,
+  getYoYComparison, getAllocationBreakdown, getSourceMethodBreakdown
 } from '@/lib/actions/report-actions'
 import { ReportShell } from '@/components/reports/report-shell'
 import { ArrearsTable } from '@/components/reports/arrears-table'
@@ -17,6 +18,9 @@ import { InactiveChurchesTable } from '@/components/reports/inactive-churches-ta
 import { CollectionsSummaryTable } from '@/components/reports/analytics/collections-summary-table'
 import { ComplianceTable } from '@/components/reports/analytics/compliance-table'
 import { RegionalScoresTable } from '@/components/reports/analytics/regional-scores-table'
+import { YoYComparisonView } from '@/components/reports/analytics/yoy-comparison-view'
+import { AllocationBreakdownTable } from '@/components/reports/analytics/allocation-breakdown-table'
+import { SourceMethodView } from '@/components/reports/analytics/source-method-view'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 
@@ -59,6 +63,24 @@ async function ReportContent({ report }: { report: string }) {
   } else if (report === 'regional-scores') {
     const data = await getRegionalScoresReport()
     table = <RegionalScoresTable data={data} />
+  } else if (report === 'yoy-comparison') {
+    const [data, regions] = await Promise.all([
+      getYoYComparison(),
+      getRegionOptions(),
+    ])
+    table = <YoYComparisonView initialData={data} regions={regions} />
+  } else if (report === 'allocation-breakdown') {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), 0, 1)
+    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59)
+    const initialResult = await getAllocationBreakdown(start, end)
+    table = <AllocationBreakdownTable initialResult={initialResult} />
+  } else if (report === 'source-method') {
+    const [initialResult, regions] = await Promise.all([
+      getSourceMethodBreakdown(),
+      getRegionOptions(),
+    ])
+    table = <SourceMethodView initialResult={initialResult} regions={regions} />
   }
 
   return (
