@@ -193,7 +193,7 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 ### Write-Off Accounting (IFRS 9 / IPSAS 29)
 - Obligation is **never reduced** from `getExpectedUpToDate()` — the debt truly existed.
 - Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()` + `getNetOutstanding()`.
-- Aging buckets reduced **LIFO** (oldest debt written off first) — so 90+ bucket shrinks before 0-30 bucket.
+- Aging buckets reduced **FIFO** (oldest debt written off first) — so 90+ bucket shrinks before 0-30 bucket.
 - Reports must show the full reconciliation.
 
 ## Reporting Patterns (Unit 18.2)
@@ -236,3 +236,8 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 ### Score Placeholder Disclosure
 - The 40/30/20/10 Regional Incentive Score has one real axis (`compliancePct`) and three placeholder axes (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`).
 - Until Unit 18.2.1 instruments the placeholder axes, **never render them as measurements** in a report table. The dashboard leaderboard Score column header carries a `<Tooltip>` disclosing the limitation.
+
+### Arrears Aging — Single Implementation
+- `getAgingBuckets(church, ledger, now?)` in `lib/utils/financial.ts` is the **only** implementation of arrears aging (0-30 / 31-60 / 61-90 / 90+ day buckets).
+- Called by `dashboard-actions.ts` (`'Combined'` — with FIFO write-off reduction) and `report-actions.ts` → `getArrearsAgingReport` (`'Annual'` / `'Monthly'` — GROSS, no write-off reduction because `WriteOff` has no ledger attribution).
+- Do not re-implement bucket math in a new report. Extend `getAgingBuckets` if a new ledger mode is needed, but never inline.

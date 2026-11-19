@@ -6,8 +6,8 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-- **Unit 18.2: Reporting Analytics & Breakdowns** — ✅ COMPLETE and MERGED (PR #52, merge commit `cf9c213`). See `## Completed`.
-- **Next unit:** **18.2.2** (drillable Arrears Aging + Prepayment / Credit Position rollup) - read-only, no schema change, no product input required. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
+- **Unit 18.2.2a: Arrears Aging — Drillable** — ✅ COMPLETE, gate passed (tsc + lint + build 28/28). See `## Completed`. Ready to commit and merge.
+- **Next unit:** **18.2.2b** (Prepayment / Credit Position rollup) — read-only, no schema change, no product input required. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -168,7 +168,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Four-Eyes:** KES 20,000 threshold; 90+ day arrears always require Treasurer approval; write-offs are absolute four-eyes.
   - **Hybrid Allocation:** Server-side FIFO preview + client-side manual override before confirmation.
   - **Defunct church handling:** `Church.is_defunct = true` excludes from compliance %, regional scores, SMS lists, church dropdowns.
-  - **Write-off accounting:** Gross outstanding unchanged, written-off subtracted via `sumApprovedWriteOffs`. LIFO deduction from aging buckets.
+  - **Write-off accounting:** Gross outstanding unchanged, written-off subtracted via `sumApprovedWriteOffs`. FIFO deduction from aging buckets.
   - **UI:** 5 pages under `/dashboard/reconciliation` (hub + 4 sub-pages), 7 components, badge in sidebar.
   - **Verification:** All 8 manual tests passed. Found and fixed 2 critical security vulnerabilities (self-approval bypass in manual entries and write-offs). Fixed UI bugs: modal widths, Base UI `<Select>` UUID rendering, `FormData` payload error, and missing `Cheque` method in Payments Table.
   - **Local Church dashboard write-off awareness (added post-handoff):** `lib/actions/local-actions.ts` now returns `grossOutstanding`, `totalWrittenOff`, `netOutstanding` (querying `write_offs` where `status='Approved'`). `local-kpi-cards.tsx` and `churches/[code]/page.tsx` consume the new fields. Caught in verification round 2.
@@ -178,7 +178,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Formatters:** Centralized `formatCurrency`, `formatDate`, and `formatDateTime` into `lib/utils.ts` with explicit `Africa/Nairobi` timezone support to prevent Vercel/UTC rendering bugs.
   - **Layouts & Logic:** Added `is_defunct` guard to `getSuggestedAllocations`. Permanently removed the commented-out `?tab=pending` duplicate hub card.
   - **Orphaned Unmatched Payments Fixed:** `rejectPendingPayment` now wraps in a `$transaction` to reset the linked `UnmatchedPayment` back to `Pending` (clearing `assigned_church_id`). `approvePendingPayment` now marks the `UnmatchedPayment` as `Resolved` and links `assigned_payment_id`.
-  - **Source Tagging Fixed:** `approvePendingPayment` now dynamically sets `source: 'Resolved'` if the payment originated from an unmatched queue, or `source: 'Manual'` otherwise.
+  - **Source Tagging Fixed:** `approvePendingPayment` now dynamically sets `source: 'Resolved'` if the payment originated from an unmatched queue, or `'Manual'` otherwise.
   - **Gate:** `tsc` + `lint` pass cleanly.
 - **Unit 18.1: Reporting Foundation & Core Reports (Complete)**
   - **Infrastructure:** Created `lib/utils/report-scope.ts` (strict role-based Prisma where clauses) and added `verifyReportsAccess()` to `lib/auth/guards.ts`. Fixed a missing `SYSTEM_ADMIN` check in `verifyReconciliationAccess()`.
@@ -208,22 +208,20 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
     - **Source/Method Breakdown** — cross-tab Source × Method; excludes PendingPayment/UnmatchedPayment/write-offs; `getReadableMethod` reused.
   - **Dashboard leaderboard tooltip:** Score column header now discloses that only the compliance axis is instrumented.
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — six new slugs on `[report]`).
+- **Unit 18.2.2a: Arrears Aging — Drillable (Complete, gate passed)**
+  - **Aging extraction:** `getAgingBuckets(church, ledger, now?)` added to `lib/utils/financial.ts` — single source of truth for 0-30 / 31-60 / 61-90 / 90+ aging math. Three modes: `'Combined'` (dashboard — FIFO write-off reduction, byte-identical to pre-refactor aggregates 2,000 / 5,000 / 5,000 / 100,500), `'Annual'` / `'Monthly'` (report — GROSS, no reduction, because `WriteOff` has no ledger attribution).
+  - **Server action:** `getArrearsAgingReport(period, regionId?)` added to `lib/actions/report-actions.ts`. Returns `{ rows, scope_label, computed_at, total_written_off_in_scope, churches_with_write_offs }`. Scoped via `buildChurchWhere(dbUser)` + optional National-only `region_id` narrowing. WO disclosure computed across all churches in scope (before aging filter, includes defunct). `period` accepted per spec signature but unused server-side (`void period`) — both ledgers returned per row, client toggles locally.
+  - **Component:** `components/reports/analytics/arrears-aging-table.tsx` — client component with period toggle (Annual/Monthly), region filter (hidden for Regional/Local via `regions.length === 0`), sortable columns (default Total Gross desc, resets on period toggle), case-insensitive church-code + church-name search, pagination (15/page), footer totals (defunct excluded), WO disclosure line below the table (church-level, includes defunct). All currency via `formatCurrency`, timestamp via `formatDateTime`.
+  - **Registry:** `arrears-aging` slug registered in `lib/utils/report-registry.ts` (Analytics group, immediately after `arrears`, `visibleTo: ['ALL']`).
+  - **Page branch:** `arrears-aging` branch added to `app/dashboard/reports/[report]/page.tsx` — pre-fetches `getArrearsAgingReport('Annual')` + `getRegionOptions()` in `Promise.all`.
+  - **Verification:** `/dashboard/reports/arrears-aging` returns 200; hub card present in Analytics group; scope banner + `Computed:` timestamp + WO disclosure render; period toggle swaps without reload and resets sort; region filter hidden for non-National roles. All four visual checks passed.
+  - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — new slug on the existing `[report]` route).
 
 ## In Progress
-- **Unit 18.2.2** - spec authoring (implementation not started). Spec target: `context/specs/18.2.2-arrears-aging-and-prepayment.md`, to be authored against `context/specs/_template.md`. No code changes yet.
+_No unit currently in progress._ 18.2.2a complete and gate passed. Ready to open 18.2.2b in a new session.
 
 ## Next Up
-- **Unit 18.2.2 (ACTIVE): Arrears Aging drillable report + Prepayment / Credit Position report.** 
-  Both read-only aggregates over data the system already
-  holds; neither requires a schema change. (a) **Arrears Aging drillable** — the
-  National dashboard Tier 3 chart shows only the aggregate 0-30 / 31-60 / 61-90 / 90+
-  split; there is no report listing *which churches* sit in each bucket. The Arrears
-  Report shows gross/net per church but does not age the balance. This is the
-  Treasurer's primary collection tool ("who do I chase this week?"). (b) **Prepayment /
-  Credit Position** — `annualCredit` / `monthlyCredit` are surfaced only on the Local
-  dashboard; there is no National/Regional rollup of cash received against future
-  years. Identified during the Unit 18.2 enterprise-gap review; explicitly out of 18.2
-  scope. Recorded in Session Notes.
+- **Unit 18.2.2b (ACTIVE): Prepayment / Credit Position rollup.** — `annualCredit` / `monthlyCredit` are surfaced only on the Local dashboard; there is no National/Regional rollup of cash received against future years. Read-only aggregate over existing data; no schema change; no product input required. Spec not yet authored — target `context/specs/18.2.2b-prepayment-credit-position.md`. Branch off `main` after 18.2.2a merges; expected build stays 28/28 (one new slug on the existing `[report]` route).
 - **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
   40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
   client clarification** - all three axes lack product definitions and weight
@@ -248,7 +246,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 ✅ → 18.1 ✅ → 18.2 ✅ → 18.2.1 → 18.2.2 → 18.3 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 ✅ → 18.1 ✅ → 18.2 ✅ → 18.2.1 (deferred) → 18.2.2a ✅ → 18.2.2b → 18.3 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -276,7 +274,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Four-Eyes Hardening (Unit 17 Verification):** Server actions `approvePendingPayment`, `rejectPendingPayment`, `approveWriteOff`, and `rejectWriteOff` all check `if (proposed_by === actorId)` and return an error. Four guards — approve AND reject on both entities. Never trust the client.
 - **Solutions Bank (Unit 17):** `ResolutionPattern` table stores learned patterns. Every successful `resolveUnmatched` calls `recordResolution()` which upserts a pattern keyed by `(raw_reference_pattern, resolved_church_code)`. Confidence formula: `min(100, 50 + hit_count * 10)`. Patterns checked BEFORE Levenshtein in `suggestMatches()`. Never auto-commits a resolution — only surfaces suggestions.
 - **Defunct Church Handling (Unit 17):** `Church.is_defunct = true` set automatically when a write-off covers the FULL outstanding (determined during `approveWriteOff`). Defunct churches are excluded from: compliance denominators, regional incentive scores, SMS reminder lists, church dropdowns in resolution/manual entry/write-off forms. They DO appear in financial reports (gross arrears + write-off register).
-- **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()` — the debt truly existed. Write-offs are subtracted from `outstanding` in reports via `sumApprovedWriteOffs()` + `getNetOutstanding()`. Aging buckets reduced LIFO (oldest debt written off first) so 90+ bucket shrinks before 0-30 bucket. This matches IFRS 9 / IPSAS 29.
+- **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()` — the debt truly existed. Write-offs are subtracted from `outstanding` in reports via `sumApprovedWriteOffs()` + `getNetOutstanding()`. Aging buckets reduced FIFO (oldest debt written off first) so 90+ bucket shrinks before 0-30 bucket. This matches IFRS 9 / IPSAS 29.
 - **Hybrid Allocation (Unit 17):** For unmatched resolutions and manual entries, server computes FIFO allocations via `computeExpectedPeriods` + `calculateAllocations` (same logic as KCB webhook Auto mode). Client receives the preview and can override each row before submission. Only after confirmation does a real `Payment` + `PaymentAllocation[]` get created.
 - **PendingPayment Staging (Unit 17):** High-value manual entries / resolutions create a `PendingPayment` row — NEVER a `Payment`. Only after Treasurer approval does the real `Payment` get created (inside a single `$transaction` that also updates `PendingPayment.status = 'Approved'` and links `resulting_payment_id`).
 - **`react-hooks/set-state-in-effect` Pattern (Unit 17):** Never call `setState` synchronously inside `useEffect`. Move state resets to event handlers (`handleOpenChange`, `handleChurchChange`). Effects should only do async fetch → setState in the async callback.
@@ -298,6 +296,9 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Server Action Error Shape (Unit 18.2, matches 18.1):** Report actions return `Promise<TypedRow[]>` and swallow errors as `catch → console.error → return []`. Empty array means either "no data" or "query failed"; the two are indistinguishable in the UI. Accepted for 18.2 for consistency. A discriminated `{ data } | { error }` result is a candidate for a later reporting-hardening unit.
 - **Growth posture — no count assumptions (established pre-18.2):** The system currently holds ~60 regions and ~1,600+ churches, both growing. **No decision boundary in code, spec, or architecture may be anchored to those specific counts.** Performance thresholds use measured latency or measured payload size; UI counts are always derived from data, never literals. This applies project-wide. Tracked under `## Scale Watch`.
 - **Score Axis Instrumentation Deferred (2026-11-19):** Unit 18.2.1 is deferred, not cancelled. Instrumenting `timelinessPct`, `reportingAccuracy`, and `leadershipEngagement` requires client-supplied definitions that do not exist in any context file. Per `ai-workflow-rules.md` ("Do not invent product behaviour"), no spec will be authored until those definitions are recorded. The 18.2 state stands: synthetic axes, disclosure tooltip on the leaderboard Score column, axes never rendered as measurements in the Regional Scores report. Next unit is 18.2.2, which needs no product input.
+- **Aging Write-Off Presentation (Unit 18.2.2a):** `WriteOff` has no ledger attribution (a write-off is not tagged "Annual" or "Monthly"). Therefore per-ledger aging buckets in the Arrears Aging report are **GROSS** — no write-off netting — and approved write-offs are disclosed at the **church level** in a line below the table (`total_written_off_in_scope` + `churches_with_write_offs`). Matches IFRS 9 provision-matrix disclosure (gross aging + separate allowance line) and `getArrearsReport()` precedent. Per-ledger write-off netting is deferred until a future unit adds ledger type to `WriteOff`. The dashboard's `getAgingBuckets(..., 'Combined')` path still applies FIFO reduction to preserve dashboard chart behaviour — the three views are intentionally not required to reconcile to each other when payment allocations and `amount_paid` disagree.
+- **`getAgingBuckets` — Single Source of Arrears Aging (Unit 18.2.2a):** Defined in `lib/utils/financial.ts`. The National dashboard Tier 3 chart (`dashboard-actions.ts`) and the Arrears Aging drillable report (`report-actions.ts`) both call it. **Do not re-implement aging math elsewhere.** Three modes: `'Combined'` (dashboard — FIFO write-off reduction), `'Annual'` / `'Monthly'` (report — GROSS, no reduction, because `WriteOff` is church-level). Extraction was behaviour-preserving — dashboard aggregate pre- and post-refactor identical (2,000 / 5,000 / 5,000 / 100,500).
+- **Report Action Signature Convention — Dual-Ledger Response (Unit 18.2.2a):** When a report needs to expose multiple ledger views in the same response, the server action accepts the period parameter but returns **both** ledgers per row. `period` is marked `void period` to satisfy ESLint (see `code-standards.md` § Known ESLint Gaps). Client toggles locally without a refetch. This preserves `computed_at` semantics (only advances on region change or refresh) and eliminates redundant server round-trips on period toggle.
 
 ## Scale Watch
 
@@ -308,7 +309,7 @@ remain valid as the system grows.
 
 | Metric | Current target | Trigger | Action when triggered |
 |---|---|---|---|
-| Report p95 response time | < 2s | > 3s | Apply the report's mitigation from `18.2-reporting-analytics.md` → Scale Considerations |
+| Report p95 response time | < 2s | > 3s | Apply the report's mitigation from `18.2-reporting-analytics.md` → Scale Considerations. **Arrears Aging (18.2.2a)** mitigation: aggregate-query rewrite (per-church `aggregate` + date-windowed sums) — this report loops all in-scope churches × 2 ledgers per request |
 | Compliance payload size | < 5,000 rows | > 5,000 rows | Switch from `findMany with includes` to per-church `aggregate` |
 | Regional scoring p95 | < 2s | > 2s | Migrate score computation to background job |
 | `Payment` table scans | 0 | Any observed via `EXPLAIN` | Ensure `@@index([payment_date])` is in place (Unit 18.2-pre) |
@@ -318,8 +319,8 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `main` (at `cf9c213` — merge of PR #52 for 18.2). Feature branch `feat/18.2-reporting-analytics` deleted local + remote. `feat/18.2-pre-payment-date-index` also deleted local + remote.
-- **Migration Head:** `20261118133648_add_payment_date_index`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy to apply the 18.2-pre index. All prior migrations (`20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`) are already applied to production.
+- **Current Branch:** `main` (at `cf9c213` — merge of PR #52 for 18.2). Feature branch `feat/18.2-reporting-analytics` deleted local + remote. `feat/18.2-pre-payment-date-index` also deleted local + remote. **18.2.2a work uncommitted in the working tree on `main`** — user may commit directly or branch to `feat/18.2.2a-arrears-aging-drillable` before commit. Decide before the closing gate is recorded as merged.
+- **Migration Head:** `20261118133648_add_payment_date_index`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy to apply the 18.2-pre index. All prior migrations (`20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`) are already applied to production. 18.2.2a added **no new migrations**.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
 - **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. Implemented and merged (PR #51); see `## Completed`.
@@ -378,12 +379,17 @@ Update this table whenever a measurement changes — it is the living record of 
 - **Enterprise reporting gap review (during 18.2):** Reviewed the 11-report set against
   enterprise-grade expectations for a 1,600+ church system. Three gaps identified, all
   deferred and tracked in Next Up: (a) Arrears Aging is aggregate-only on the dashboard
-  — no drillable per-church aging report; (b) no National/Regional Prepayment / Credit
-  Position rollup; (c) Payment Intake / Reconciliation Health is out of scope until
-  18.3, where it is now explicitly required. Judged **not** to expand 18.2 mid-unit
-  (scope discipline; the registry accommodates additional reports without structural
-  change). Rejected as lower value for now: score trend history (blocked on 18.2.1),
-  executive PDF digest, SMS delivery report, Manual Entry Register (covered by
-  Source/Method + Cashbook + Audit Log).
+  — no drillable per-church aging report (delivered in 18.2.2a); (b) no National/Regional
+  Prepayment / Credit Position rollup (scheduled as 18.2.2b); (c) Payment Intake /
+  Reconciliation Health is out of scope until 18.3, where it is now explicitly required.
+  Judged **not** to expand 18.2 mid-unit (scope discipline; the registry accommodates
+  additional reports without structural change). Rejected as lower value for now: score
+  trend history (blocked on 18.2.1), executive PDF digest, SMS delivery report, Manual
+  Entry Register (covered by Source/Method + Cashbook + Audit Log).
 - **Unit 18.2 complete (merged PR #52, `cf9c213`):** Registry-driven reporting layer, six Stage A/B reports, `isChurchCompliant` extracted, `RegionalScoreData` extended (gross/written-off without breaking the dashboard), region narrowing via `buildPaymentWhere(dbUser, regionId?)`, `scopeByRole` for rank-preserving regional filtering, dashboard leaderboard tooltip disclosing placeholder axes. Gate 28/28, page count unchanged. Branch deleted local + remote after merge. Instrumenting the three placeholder axes remains scheduled as Unit 18.2.1.
 - **Unit 18.2.1 deferred, 18.2.2 opened (2026-11-19):** Client could not clarify the three score axes. Rather than invent definitions, 18.2.1 was formally deferred with the required answers itemised in `## Open Questions`. 18.2.2 (drillable Arrears Aging + Prepayment / Credit Position rollup) selected as the next unit: read-only, no schema change, no product input. Branch off `main` at `cf9c213`; migration head unchanged (`20261118133648_add_payment_date_index`); expected build stays 28/28 (new slugs on the existing `[report]` route).
+- **Unit 18.2.2a complete (this session):** Split 18.2.2 into 18.2.2a (Arrears Aging drillable — this unit) and 18.2.2b (Prepayment / Credit Position rollup — next). Extracted `getAgingBuckets` to `lib/utils/financial.ts` (single source; dashboard byte-identical before/after extraction — 2,000 / 5,000 / 5,000 / 100,500 baseline vs. after Step 1 refactor). Added `getArrearsAgingReport` + `arrears-aging-table.tsx` + registry entry + page branch. `/dashboard/reports/arrears-aging` renders end-to-end; four visual checks passed (hub card present in Analytics group, scope banner + `Computed:` timestamp + WO disclosure render, period toggle swaps without reload and resets sort, region filter hidden for non-National roles). Gate: `tsc` clean, `lint` 0 problems, `build` 28/28 (unchanged). One spec deviation noted: the page branch passes `initialResult` + `regions` as props (matching `CollectionsSummaryTable` pattern) rather than a propless `<ArrearsAgingTable />` — cleaner than client-fetch-on-mount and avoids the `react-hooks/set-state-in-effect` edge case.
+- **Deferred — `params` outside `<Suspense>` on `/dashboard/reports/[report]`:** Next.js 16 dev warning fires on every report slug (`/arrears`, `/compliance`, `/arrears-aging`, etc.) because `ReportPage` awaits `props.params` outside the `<Suspense>` boundary. All routes return 200 — not a functional failure. **Not introduced by 18.2.2a** — pre-existing structure that predates this unit. Candidate follow-up unit: move `params` await inside `<Suspense>` (or set `export const instant = false` on the route). No scope decision yet; will be picked up alongside another `/dashboard/reports` unit.
+- **Deferred — period-level drill-down on Arrears Aging:** Explicitly out of 18.2.2a scope per spec § Out of scope. Next drill: click a church row to see the underlying periods in each bucket (which specific billing years/months are overdue). Candidate follow-up after 18.2.2b.
+- **Deferred — historical trend on Arrears Aging:** Period-over-period aging comparison requires persisted snapshots + schema (a `AgingSnapshot` table or similar). Separate unit. Not in 18.2.2b scope either — that unit is a *current-state* Prepayment / Credit Position rollup, not a historical trend.
+- **LIFO→FIFO correction (Unit 18.2.2a):** Four files carried the stale "LIFO" misnomer in comments/docs (`architecture.md` § 7, `code-standards.md` § Write-Off Accounting, `lib/actions/scoring-actions.ts`, `HANDOFF_UNIT_17.md`). Corrected to FIFO (oldest debt written off first) in this unit. No logic change — comment/doc-only.

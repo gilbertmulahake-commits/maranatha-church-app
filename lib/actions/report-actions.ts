@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { verifyReportsAccess } from '@/lib/auth/guards'
 import { buildChurchWhere, buildPaymentWhere } from '@/lib/utils/report-scope'
-import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding } from '@/lib/utils/financial'
+import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding, getAgingBuckets, type AgingBuckets } from '@/lib/utils/financial'
 import { isNationalLevel } from '@/lib/auth/roles'
 import { isChurchCompliant } from '@/lib/utils/financial'
 import { scopeByRole } from '@/lib/utils/report-scope'
@@ -782,6 +782,145 @@ export async function getSourceMethodBreakdown(
     return {
       rows: [],
       totals: { mPesa: 0, cash: 0, bankTransfer: 0, cheque: 0, grandTotal: 0 },
+    }
+  }
+}
+
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Arrears Aging — Drillable (Unit 18.2.2a)
+// Per-church gross aging buckets, per ledger. Write-offs disclosed at
+// church level (WriteOff has no ledger attribution). Aging math comes
+// from getAgingBuckets('Annual' / 'Monthly') — never re-derived here.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ArrearsAgingRow = {
+  church_id: string
+  church_code: string
+  church_name: string
+  region_name: string
+  is_defunct: boolean
+  annual: AgingBuckets & { total_gross: number }
+  monthly: AgingBuckets & { total_gross: number }
+}
+
+export type ArrearsAgingResult = {
+  rows: ArrearsAgingRow[]
+  scope_label: string
+  computed_at: string
+  total_written_off_in_scope: number
+  churches_with_write_offs: number
+}
+
+export async function getArrearsAgingReport(
+  period: 'Annual' | 'Monthly',
+  regionId?: string
+): Promise<ArrearsAgingResult> {
+  // `period` is accepted per spec signature; the server returns BOTH ledgers
+  // per row, so the client toggles columns locally without a re-fetch.
+  void period
+
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const churchWhere = buildChurchWhere(dbUser)
+    const where: Prisma.ChurchWhereInput = {
+      ...churchWhere,
+      // National roles may narrow by region; Regional/Local callers already
+      // fail closed via buildChurchWhere, so regionId is ignored for them.
+      ...(isNationalLevel(dbUser.role) && regionId ? { region_id: regionId } : {}),
+    }
+
+    const churches = await prisma.church.findMany({
+      where,
+      include: {
+        region: true,
+        payments: {
+          where: { status: 'Paid' },
+          include: { allocations: true },
+        },
+        write_offs: {
+          where: { status: 'Approved' },
+        },
+      },
+      orderBy: { church_code: 'asc' },
+    })
+
+    const now = new Date()
+    const rows: ArrearsAgingRow[] = []
+    let total_written_off_in_scope = 0
+    let churches_with_write_offs = 0
+
+    churches.forEach((church) => {
+      // Write-off disclosure — counts every church in scope with approved
+      // write-offs, regardless of whether it has aging > 0. Defunct churches
+      // are in scope and therefore included (see spec § Footer total row).
+      const writtenOff = sumApprovedWriteOffs(church.write_offs)
+      if (writtenOff > 0) {
+        total_written_off_in_scope += writtenOff
+        churches_with_write_offs += 1
+      }
+
+      const annual = getAgingBuckets(church, 'Annual', now)
+      const monthly = getAgingBuckets(church, 'Monthly', now)
+      const annualTotal =
+        annual.bucket0_30 + annual.bucket31_60 + annual.bucket61_90 + annual.bucket90_plus
+      const monthlyTotal =
+        monthly.bucket0_30 + monthly.bucket31_60 + monthly.bucket61_90 + monthly.bucket90_plus
+
+      // Chase list only — fully-paid churches are excluded.
+      if (annualTotal === 0 && monthlyTotal === 0) return
+
+      rows.push({
+        church_id: church.id,
+        church_code: church.church_code,
+        church_name: church.church_name,
+        region_name: church.region.name,
+        is_defunct: church.is_defunct,
+        annual: { ...annual, total_gross: annualTotal },
+        monthly: { ...monthly, total_gross: monthlyTotal },
+      })
+    })
+
+    // Scope label — server-computed so the client can never mis-report scope.
+    let scope_label: string
+    if (isNationalLevel(dbUser.role)) {
+      if (regionId) {
+        const region = await prisma.region.findUnique({
+          where: { id: regionId },
+          select: { name: true },
+        })
+        scope_label = region ? `Region: ${region.name}` : 'All Regions'
+      } else {
+        scope_label = 'All Regions'
+      }
+    } else {
+      const isLocalRole =
+        dbUser.role === 'LOCAL_PASTOR' || dbUser.role === 'CHURCH_TREASURER'
+      if (isLocalRole) {
+        scope_label =
+          churches.length > 0 ? `Church: ${churches[0].church_code}` : 'Your Church'
+      } else {
+        scope_label =
+          churches.length > 0 ? `Region: ${churches[0].region.name}` : 'Your Region'
+      }
+    }
+
+    return {
+      rows,
+      scope_label,
+      computed_at: new Date().toISOString(),
+      total_written_off_in_scope,
+      churches_with_write_offs,
+    }
+  } catch (error) {
+    console.error('Failed to fetch arrears aging report:', error)
+    return {
+      rows: [],
+      scope_label: 'Unknown',
+      computed_at: new Date().toISOString(),
+      total_written_off_in_scope: 0,
+      churches_with_write_offs: 0,
     }
   }
 }

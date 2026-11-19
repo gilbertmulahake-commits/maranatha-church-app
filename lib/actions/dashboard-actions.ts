@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import {
+  getAgingBuckets,
   getExpectedUpToDate,
   getPeriodStatus,
   sumApprovedWriteOffs,
@@ -55,12 +56,6 @@ export async function getDashboardStats() {
     const endOfLastMonth = new Date(startOfMonth.getTime() - 1)
     const endOfLastYear = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999)
 
-    const thirtyDaysAgo = new Date(today)
-    thirtyDaysAgo.setDate(today.getDate() - 30)
-    const sixtyDaysAgo = new Date(today)
-    sixtyDaysAgo.setDate(today.getDate() - 60)
-    const ninetyDaysAgo = new Date(today)
-    ninetyDaysAgo.setDate(today.getDate() - 90)
     const sevenDaysAgo = new Date(today)
     sevenDaysAgo.setDate(today.getDate() - 7)
 
@@ -130,10 +125,6 @@ export async function getDashboardStats() {
         endOfLastYear
       )
 
-      const { totalExpected: exp30 } = getExpectedUpToDate(church.created_at, thirtyDaysAgo)
-      const { totalExpected: exp60 } = getExpectedUpToDate(church.created_at, sixtyDaysAgo)
-      const { totalExpected: exp90 } = getExpectedUpToDate(church.created_at, ninetyDaysAgo)
-
       totalExpectedAnnual += expectedAnnual
       totalExpectedMonthly += expectedMonthly
       totalExpected += churchExpectedToday
@@ -148,18 +139,10 @@ export async function getDashboardStats() {
       let churchMonthlyPaid = 0
       let churchPaidLastMonth = 0
 
-      let paid30 = 0
-      let paid60 = 0
-      let paid90 = 0
-
       church.payments.forEach((p) => {
         const amount = Number(p.amount_paid)
         const pDate = new Date(p.payment_date)
         churchTotalPaid += amount
-
-        if (pDate <= thirtyDaysAgo) paid30 += amount
-        if (pDate <= sixtyDaysAgo) paid60 += amount
-        if (pDate <= ninetyDaysAgo) paid90 += amount
 
         if (p.allocations.length === 0) {
           if (p.payment_type === 'Annual') {
@@ -230,33 +213,13 @@ export async function getDashboardStats() {
       const writtenOff = sumApprovedWriteOffs(church.write_offs)
       totalWrittenOff += writtenOff
 
-      // Aging buckets (gross) — then reduce by write-offs (LIFO: oldest first)
-      const unpaidToday = Math.max(0, churchExpectedToday - churchTotalPaid)
-      const unpaid30 = Math.max(0, exp30 - paid30)
-      const unpaid60 = Math.max(0, exp60 - paid60)
-      const unpaid90 = Math.max(0, exp90 - paid90)
+      // Aging buckets — computed by getAgingBuckets (single source of truth)
+      const churchAging = getAgingBuckets(church, 'Combined', today)
 
-      let bucket90plus = unpaid90
-      let bucket61to90 = Math.max(0, unpaid60 - unpaid90)
-      let bucket31to60 = Math.max(0, unpaid30 - unpaid60)
-      let bucket0to30 = Math.max(0, unpaidToday - unpaid30)
-
-      let remainingWriteOff = writtenOff
-      const reduce = (bucket: number) => {
-        if (remainingWriteOff <= 0) return bucket
-        const reduction = Math.min(bucket, remainingWriteOff)
-        remainingWriteOff -= reduction
-        return bucket - reduction
-      }
-      bucket90plus = reduce(bucket90plus)
-      bucket61to90 = reduce(bucket61to90)
-      bucket31to60 = reduce(bucket31to60)
-      bucket0to30 = reduce(bucket0to30)
-
-      aging90_plus += bucket90plus
-      aging61_90 += bucket61to90
-      aging31_60 += bucket31to60
-      aging0_30 += bucket0to30
+      aging90_plus += churchAging.bucket90_plus
+      aging61_90 += churchAging.bucket61_90
+      aging31_60 += churchAging.bucket31_60
+      aging0_30 += churchAging.bucket0_30
 
       // Compliance counts — defunct churches excluded from denominators
       if (!church.is_defunct) {

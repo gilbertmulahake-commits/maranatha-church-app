@@ -32,6 +32,14 @@ export const REPORTS: ReportEntry[] = [
     visibleTo: ['ALL'],
   },
   {
+    slug: 'arrears-aging',
+    title: 'Arrears Aging — Drillable',
+    description:
+      'Per-church gross arrears aged by 0-30 / 31-60 / 61-90 / 90+ day buckets (FIFO), with church-level approved write-offs disclosed separately.',
+    group: 'Analytics',
+    visibleTo: ['ALL'],
+  },
+  {
     slug: 'cashbook',
     title: 'Daily Cashbook',
     description: 'Transaction ledger for a specific date.',

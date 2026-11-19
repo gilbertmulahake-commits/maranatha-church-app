@@ -45,7 +45,7 @@ All resolutions use Hybrid Allocation (Auto FIFO preview + manual override), enf
 - Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference`
 
 ### 5. Financial Calculations
-- `lib/actions/dashboard-actions.ts` — write-off exclusions (LIFO from aging buckets), defunct church exclusion, new fields (`grossOutstanding`, `totalWrittenOff`, `totalChurchesAll`)
+- `lib/actions/dashboard-actions.ts` — write-off exclusions (FIFO from aging buckets), defunct church exclusion, new fields (`grossOutstanding`, `totalWrittenOff`, `totalChurchesAll`)
 - `lib/actions/scoring-actions.ts` — excludes defunct churches from score denominators, nets outstanding against write-offs
 
 ### 6. UI — Navigation
@@ -147,7 +147,7 @@ Open PR → manual review (no CodeRabbit) → squash merge → local sync → ch
 - Attachment uploads for manual entries (currently only URL field accepted, no UI to upload — deferred)
 - Solutions Bank rule creation UI (patterns only learn automatically from resolutions — admin rule creation deferred)
 - Daily digest emails / cron escalation (deferred to Inngest background jobs)
-- Aging bucket reduction LIFO logic affects dashboard's aging chart — verify visually in Test 7
+- Aging bucket reduction FIFO logic affects dashboard's aging chart — verify visually in Test 7
 
 ## File Reference — All Unit 17 Touched Files
 

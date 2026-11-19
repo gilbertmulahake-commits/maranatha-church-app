@@ -200,3 +200,140 @@ export function isChurchCompliant(
     expectedMonthly,
   }
 }
+
+
+// ============================================================================
+// UNIT 18.2.2a: ARREARS AGING (single source of truth)
+// ============================================================================
+
+export type AgingChurchInput = {
+  created_at: Date
+  is_defunct: boolean
+  payments: Array<{
+    amount_paid: number | string | { toString(): string }
+    payment_type: string
+    payment_date: Date
+    allocations: Array<{
+      amount: number | string | { toString(): string }
+      allocation_type: string
+    }>
+  }>
+  write_offs: Array<{
+    amount: number | string | { toString(): string }
+    status?: string
+  }>
+}
+
+export type AgingBuckets = {
+  bucket0_30: number
+  bucket31_60: number
+  bucket61_90: number
+  bucket90_plus: number
+}
+
+/**
+ * Aging buckets for a church.
+ *
+ * 'Combined' reproduces the National dashboard's aggregate aging math
+ * exactly (Annual + Monthly combined at each cutoff, FIFO write-off
+ * reduction applied — oldest debt reduced first).
+ *
+ * 'Annual' and 'Monthly' return GROSS per-ledger buckets — no write-off
+ * reduction — because WriteOff has no ledger attribution (see Unit
+ * 18.2.2a spec § Design). Net Recoverable per church remains in
+ * getArrearsReport().
+ */
+export function getAgingBuckets(
+  church: AgingChurchInput,
+  ledger: 'Annual' | 'Monthly' | 'Combined',
+  now: Date = new Date()
+): AgingBuckets {
+  const thirtyDaysAgo = new Date(now)
+  thirtyDaysAgo.setDate(now.getDate() - 30)
+  const sixtyDaysAgo = new Date(now)
+  sixtyDaysAgo.setDate(now.getDate() - 60)
+  const ninetyDaysAgo = new Date(now)
+  ninetyDaysAgo.setDate(now.getDate() - 90)
+
+  const expToday = getExpectedUpToDate(church.created_at, now)
+  const exp30 = getExpectedUpToDate(church.created_at, thirtyDaysAgo)
+  const exp60 = getExpectedUpToDate(church.created_at, sixtyDaysAgo)
+  const exp90 = getExpectedUpToDate(church.created_at, ninetyDaysAgo)
+
+  const pick = (snap: {
+    expectedAnnual: number
+    expectedMonthly: number
+    totalExpected: number
+  }): number => {
+    if (ledger === 'Annual') return snap.expectedAnnual
+    if (ledger === 'Monthly') return snap.expectedMonthly
+    return snap.totalExpected
+  }
+
+  const expectedToday = pick(expToday)
+  const e30 = pick(exp30)
+  const e60 = pick(exp60)
+  const e90 = pick(exp90)
+
+  let paidToday = 0
+  let paid30 = 0
+  let paid60 = 0
+  let paid90 = 0
+
+  church.payments.forEach((p) => {
+    const pDate = new Date(p.payment_date)
+    let amountForLedger = 0
+
+    if (ledger === 'Combined') {
+      amountForLedger = Number(p.amount_paid)
+    } else if (p.allocations.length === 0) {
+      if (p.payment_type === ledger) {
+        amountForLedger = Number(p.amount_paid)
+      }
+    } else {
+      p.allocations.forEach((a) => {
+        if (a.allocation_type === ledger) {
+          amountForLedger += Number(a.amount)
+        }
+      })
+    }
+
+    paidToday += amountForLedger
+    if (pDate <= thirtyDaysAgo) paid30 += amountForLedger
+    if (pDate <= sixtyDaysAgo) paid60 += amountForLedger
+    if (pDate <= ninetyDaysAgo) paid90 += amountForLedger
+  })
+
+  const unpaidToday = Math.max(0, expectedToday - paidToday)
+  const unpaid30 = Math.max(0, e30 - paid30)
+  const unpaid60 = Math.max(0, e60 - paid60)
+  const unpaid90 = Math.max(0, e90 - paid90)
+
+  let bucket90plus = unpaid90
+  let bucket61to90 = Math.max(0, unpaid60 - unpaid90)
+  let bucket31to60 = Math.max(0, unpaid30 - unpaid60)
+  let bucket0to30 = Math.max(0, unpaidToday - unpaid30)
+
+  if (ledger === 'Combined') {
+    // FIFO reduction — oldest debt first (90+ shrinks before 0-30).
+    const writtenOff = sumApprovedWriteOffs(church.write_offs)
+    let remainingWriteOff = writtenOff
+    const reduce = (bucket: number) => {
+      if (remainingWriteOff <= 0) return bucket
+      const reduction = Math.min(bucket, remainingWriteOff)
+      remainingWriteOff -= reduction
+      return bucket - reduction
+    }
+    bucket90plus = reduce(bucket90plus)
+    bucket61to90 = reduce(bucket61to90)
+    bucket31to60 = reduce(bucket31to60)
+    bucket0to30 = reduce(bucket0to30)
+  }
+
+  return {
+    bucket0_30: bucket0to30,
+    bucket31_60: bucket31to60,
+    bucket61_90: bucket61to90,
+    bucket90_plus: bucket90plus,
+  }
+}
