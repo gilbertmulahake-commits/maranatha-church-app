@@ -1,8 +1,3 @@
-Here is the complete, comprehensive `context/code-standards.md`, updated to reflect everything we learned, built, and hardened during the Unit 17 verification phase. 
-
-I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Base UI `<SelectValue>` UUID fix**, the **Standardized Modal layout**, and the **FormData payload rule**.
-
-```markdown
 # Code Standards
 
 ## General
@@ -45,10 +40,16 @@ I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Bas
 ## File Organisation
 - `app/` — routes, layouts, page-level composition.
 - `components/` — reusable UI components.
+  - `components/reports/analytics/` — Unit 18.2 analytics report tables (Collections Summary, Compliance, Regional Scores, YoY Comparison view + chart, Allocation Breakdown, Source/Method).
 - `lib/` — server helpers, data access, Prisma client, API integrations.
+  - `lib/actions/report-actions.ts` — Read-only report server actions (18.1 core + 18.2 analytics).
   - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF).
   - `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein + pattern learning).
+  - `lib/utils/financial.ts` — Cumulative ledger helpers + `isChurchCompliant` (Unit 18.2 compliance single source of truth).
+  - `lib/utils/report-scope.ts` — `buildChurchWhere`, `buildPaymentWhere`, `scopeByRole` (Unit 18.1 + 18.2).
+  - `lib/utils/report-registry.ts` — Report slug/title/description/group/role visibility (Unit 18.2 single source of truth).
   - `lib/auth/guards.ts` — Centralized RBAC verification helpers.
+  - `lib/auth/roles.ts` — Role predicates + `toReportRole`.
 - `prisma/` — schema and migrations.
 - `context/` — the six context files and specs.
 
@@ -62,6 +63,7 @@ I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Bas
 - **Backup before migrating** any database that holds live data. Use `pg_dump` locally (Supabase Free Plan has no scheduled backups).
 - **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
 - **Backfill discipline:** When adding a new field with a default (e.g., `Payment.source`), always document the required production backfill query in the migration folder or handoff doc. Never deploy without applying it.
+- **Cold-cache `tsc`:** On a fresh clone, `tsc --noEmit` alone cannot resolve Next.js's generated `LayoutProps<"/">`. Run `npx next typegen` (or `npm run build`) first to populate `.next/types/routes.d.ts`.
 
 ## Authentication & Protected Accounts
 - **SYSTEM_ADMIN role is reserved for the vendor/platform owner.** It has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation by other users.
@@ -70,12 +72,13 @@ I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Bas
 - **Never auto-create SYSTEM_ADMIN accounts** via inviteUser. They must be created manually via the Supabase dashboard or a one-off seed script.
 - **Client handover checklist:** Before handing credentials to the client, verify that (a) at least one SYSTEM_ADMIN account exists and is protected, (b) the client's National Treasurer account is separate, (c) the client CANNOT see the SYSTEM_ADMIN account in their Users list.
 
-## RBAC Guard Pattern (Unit 16.5)
+## RBAC Guard Pattern (Unit 16.5 / 18.1)
 - **All mutations** must call the appropriate guard at the top of the `try` block:
   - `verifyOperationsAccess()` — Church/Region/User mutations (Operations Admin or Treasurer)
   - `verifyFinanceAccess()` — Payment mutations (Finance Admin or Treasurer)
   - `verifyReconciliationAccess()` — Reconciliation reads/resolutions (Finance Admin, Treasurer, or System Admin)
   - `verifyTreasurerAuthority()` — Approvals and write-offs (Treasurer or System Admin only)
+  - `verifyReportsAccess()` — All report reads (any authenticated role; scoping via `buildChurchWhere` / `buildPaymentWhere` / `scopeByRole` — Invariant 2)
 - If the caller lacks permission, the guard throws — the `catch` block converts this into a `{ error: 'Forbidden' }` return shape.
 - **Separation of Duties:** `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users. Neither can do the other's job. `SYSTEM_ADMIN` can do both.
 
@@ -103,7 +106,7 @@ I have added the **Separation of Duties (Four-Eyes Hardening)** logic, the **Bas
 **`<Select>` nullability:**
 - Base UI's `<Select onValueChange>` passes `string | null` (not `string`).
 - **Never cast** with `as string`. Always guard: `if (val) { ... }`, or widen the handler to accept `string | null`.
-- Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`, `resolve-dialog.tsx`, `manual-entry-form.tsx`, `propose-writeoff-dialog.tsx` (all pattern `handleStatusFilterChange` / `handleChurchChange`).
+- Files: `region-table.tsx`, `regional-table.tsx`, `local-payment-history.tsx`, `resolve-dialog.tsx`, `manual-entry-form.tsx`, `propose-writeoff-dialog.tsx`, `collections-summary-table.tsx`, `allocation-breakdown-table.tsx`, `yoy-comparison-view.tsx`, `source-method-view.tsx` (all pattern `handleStatusFilterChange` / `handleChurchChange` / `handleRegionChange`).
 
 **`<SelectValue>` UUID rendering bug:**
 - When a `<Select>` holds a database ID, Base UI will display the raw UUID (e.g., `fc224644...`) instead of the human-readable name.
@@ -147,6 +150,9 @@ Never re-implement these — always use the component:
 | Table toolbar (search + filters + bulk) | `<TableToolbar>` | `components/ui/table-toolbar.tsx` |
 | SLA age badge (green/yellow/red) | `<SlaBadge>` | `components/reconciliation/sla-badge.tsx` |
 | Readable Payment Methods | `getReadableMethod()` | `components/payments/payments-table.tsx` (Maps `M_Pesa` → `M-Pesa`, `Cheque` → `Cheque`) |
+| Report slug/title/description/visibleTo | `getReportBySlug` / `getReportsForRole` | `lib/utils/report-registry.ts` |
+| Role → report visibility bucket | `toReportRole` | `lib/auth/roles.ts` |
+| Compliance rule (Strict Bucket Isolation) | `isChurchCompliant` | `lib/utils/financial.ts` |
 
 If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
 
@@ -189,4 +195,44 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 - Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()` + `getNetOutstanding()`.
 - Aging buckets reduced **LIFO** (oldest debt written off first) — so 90+ bucket shrinks before 0-30 bucket.
 - Reports must show the full reconciliation.
-```
+
+## Reporting Patterns (Unit 18.2)
+
+### Report Action House Style
+- All report reads use `'use server'` + `verifyReportsAccess()` at the top of the `try` block.
+- Use `buildChurchWhere(dbUser)` / `buildPaymentWhere(dbUser, regionId?)` for scoping — never inline role checks.
+- Return `Promise<TypedRow[]>`. On error: `catch → console.error → return []`. Empty array means "no data **or** query failed" — a known limitation tracked for future hardening (a discriminated `{ data } | { error }` result is a candidate).
+- Row types exported at the top of `lib/actions/report-actions.ts`.
+
+### Report Registry — Single Source of Truth
+- Every report slug, title, description, group, and `visibleTo` lives in `lib/utils/report-registry.ts`.
+- Three consumers: hub (`app/dashboard/reports/page.tsx`), dynamic resolver (`app/dashboard/reports/[report]/page.tsx`), and `<ReportSelector>` (`components/reports/report-selector.tsx`).
+- **Never** duplicate a slug, title, or description in a component. Use `getReportBySlug(slug)` or `getReportsForRole(actorRole)`.
+- Role mapping: `toReportRole(role)` in `lib/auth/roles.ts` — never re-derive role → bucket logic elsewhere.
+- Adding a report = one new entry in `REPORTS` + one new `else if` branch in the `[report]` page + one new table component. No other file changes.
+
+### Compliance Rule — Single Implementation
+- The Strict Bucket Isolation compliance rule (`annualStatus === 'Paid' && monthlyStatus === 'Paid'`) lives in `lib/utils/financial.ts` → `isChurchCompliant(church, now)`.
+- Called by `scoring-actions.ts` **and** `getComplianceReport()`. **Never re-implement in a new report.**
+
+### Region Narrowing
+- For National-role region filters, extend `buildPaymentWhere(dbUser, regionId?)` — do not merge `region_id` filters manually per-report.
+- Regional / Local callers ignore `regionId`; the scope helper already fails closed for them.
+
+### Rank-Preserving Scoping
+- When a report returns a ranked list (e.g., Regional Scores), apply `scopeByRole(sortedRows, dbUser)` from `lib/utils/report-scope.ts`.
+- Rank is computed **before** filtering, so a Regional viewer sees their region's true global rank — not "Rank 1 of 1".
+
+### Bucket Isolation in Reports
+- Annual and Monthly always occupy **separate columns**. Never render a combined "Total Collected" cell.
+- Written-off amounts appear as a distinct "Less Written Off" column, never silently netted into "Collected".
+
+### YoY Basis
+- Year-over-year comparison is **cash received — calendar year of `payment_date`**, not `billing_year` attribution. Prepayments count in the year cash arrived. The page subtitle states this so readers don't confuse it with obligation satisfaction.
+
+### Allocation Reconciliation Column
+- Allocation Breakdown always carries a mandatory discrepancy column: Σ `PaymentAllocation.amount` must equal Σ `Payment.amount` in scope. Nonzero → `text-destructive` + `<AlertTriangle>` icon. Purpose: surface silent allocation defects at report time, not in a later audit.
+
+### Score Placeholder Disclosure
+- The 40/30/20/10 Regional Incentive Score has one real axis (`compliancePct`) and three placeholder axes (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`).
+- Until Unit 18.2.1 instruments the placeholder axes, **never render them as measurements** in a report table. The dashboard leaderboard Score column header carries a `<Tooltip>` disclosing the limitation.

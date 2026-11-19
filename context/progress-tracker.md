@@ -6,12 +6,8 @@ Update this file after every meaningful implementation change.
 Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
-- **Unit 18.2: Reporting Analytics & Breakdowns** — six read-only reports
-  (Collections Summary, Compliance, Regional Scores, YoY Comparison,
-  Allocation Breakdown, Source/Method Breakdown) under `/dashboard/reports/[report]`.
-  Stage A = Collections Summary, Compliance, Regional Scores. Stage B = YoY Comparison,
-  Allocation Breakdown, Source/Method Breakdown. Page count stays 28/28.
-  **Status:** ✅ COMPLETE (this session) — see `## Completed`.
+- **Unit 18.2: Reporting Analytics & Breakdowns** — ✅ COMPLETE and MERGED (PR #52, merge commit `cf9c213`). See `## Completed`.
+- **Next unit:** awaiting selection between **18.2.1** (instrument score axes — recommended first, since 60% of the 40/30/20/10 input is synthetic) and **18.2.2** (drillable Arrears Aging + Prepayment rollup). Fresh chat + fresh spec per `ai-workflow-rules.md`. See `## Next Up`.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -191,12 +187,12 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Cashbook Bug Fix:** Imported and exported `getReadableMethod()` from `payments-table.tsx`. Cashbook now correctly displays `Cheque` instead of falling back to `Cash`.
   - **New Reports:** Built Write-Off Register, Defunct Church Register, and Inactive Church Report (6+ months no payment, excluding defunct/new churches).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages.
-- **Unit 18.2-pre: `@@index([payment_date])` on `Payment` (Complete)**
+- **Unit 18.2-pre: `@@index([payment_date])` on `Payment` (Complete, Merged PR #51)**
   - Migration `20261118133648_add_payment_date_index` — single `CREATE INDEX "Payment_payment_date_idx"`. Applied locally; `migrate status` reports 9 migrations, up to date, no drift.
   - Prisma client regenerated (v7.10.1).
   - Gate: `tsc --noEmit` clean (after `npx next typegen` to populate `.next/types/` on the cold cache — environmental, not a regression), `lint` clean, `build` 28/28.
   - Note: at current row count the planner correctly prefers Seq Scan; the index is in place for reporting date-range queries as the table grows. This is the prerequisite that keeps Unit 18.2 read-only.
-- **Unit 18.2: Reporting Analytics & Breakdowns (Complete)**
+- **Unit 18.2: Reporting Analytics & Breakdowns (Complete, Merged PR #52)**
   - **Registry:** `lib/utils/report-registry.ts` — single source of truth for 11 reports (slug, title, description, group, visibleTo). Three consumers migrated: hub, `[report]` page, `<ReportSelector>`. `<ReportShell>` forwards `role` only (no slug list, grep verified). `import type { Role }` in `roles.ts` prevents Prisma leaking into the client bundle via the selector.
   - **Role mapping:** `toReportRole` in `lib/auth/roles.ts` — reuses the three `is*Level` helpers, never returns `'ALL'`, unknown → `'LOCAL'`.
   - **Scope extension:** `buildPaymentWhere(dbUser, regionId?)` — optional region narrowing for National roles; backwards compatible with 18.1 callers.
@@ -214,7 +210,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — six new slugs on `[report]`).
 
 ## In Progress
-- Nothing — Unit 18.2 shipped. Awaiting PR merge.
+- Nothing — Unit 18.2 shipped and merged (PR #52, `cf9c213`). Awaiting next-unit selection.
 
 ## Next Up
 - **Unit 18.2.1 (follow-up, scheduled): Instrument Timeliness / Accuracy / Engagement
@@ -252,7 +248,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 (✅) → 18.1 → 18.2 → 18.2.1 → 18.3 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 ✅ → 18.1 ✅ → 18.2 ✅ → 18.2.1 → 18.2.2 → 18.3 → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -294,7 +290,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Reporting Guards (Unit 18.1):** Report reads use `verifyReportsAccess()` (authenticated + known role), relying on `buildReportWhere()` and RLS for strict scoping (Invariant 2). Reconciliation reports use `verifyReconciliationAccess()`.
 - **Inactive Church Definition (Unit 18.1):** Defined as no paid payment in the last 6 months, excluding defunct churches and churches created < 6 months ago.
 - **Reporting Reuse Principle (Unit 18.2):** Reports consume existing financial and scoring logic — never re-derive. The 40/30/20/10 formula and Strict Bucket Isolation compliance rule have exactly one implementation (`lib/actions/scoring-actions.ts`); reports call it and render the result. Compliance rule additionally extracted to `lib/utils/financial.ts` → `isChurchCompliant(church, now)` so the compliance report and the engine share it. Drift between a report and the corresponding dashboard KPI is a defect, not a design choice.
-- **Single Report Registry (Unit 18.2):** Slug → label → description → role visibility lives in `lib/utils/report-registry.ts` and serves three consumers: hub card grid, `[report]` page resolution, `<ReportShell>` nav. Before 18.2, the mapping was duplicated across the hub and `[report]` page.
+- **Single Report Registry (Unit 18.2):** Slug → label → description → group → role visibility lives in `lib/utils/report-registry.ts` and serves three consumers: hub card grid, `[report]` page resolution, `<ReportSelector>` nav. Before 18.2, the mapping was duplicated across the hub and `[report]` page.
 - **YoY Basis (Unit 18.2):** Year-over-year comparison uses **cash received — calendar year of `payment_date`**, not `billing_year` attribution. Prepayments counted in the year cash arrived. Subtitle on the page states this so readers do not mistake it for obligation satisfaction.
 - **Allocation Reconciliation Column (Unit 18.2):** Allocation Breakdown carries a mandatory discrepancy column: Σ `PaymentAllocation.amount` must equal Σ `Payment.amount` in scope. Nonzero rows flag in `text-destructive`. Purpose: surface silent allocation defects at report time, not in a later audit.
 - **Scoring Placeholder Disclosure (Unit 18.2):** Regional Incentive Score is currently computed from one real axis (`compliancePct`) and three hardcoded constants (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`). The Regional Scores report renders only the real components; the dashboard leaderboard Score column gains a matching info tooltip. Instrumenting the three axes is Unit 18.2.1 — not deferred indefinitely.
@@ -321,16 +317,16 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `feat/18.2-reporting-analytics` (off `main` at `9027b21` — the 18.2-pre merge). Ready for PR.
-- **Migration Head:** `20261118133648_add_payment_date_index` (applied locally; production `prisma7 migrate deploy` executes on Vercel deploy). Previous head: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`.
+- **Current Branch:** `main` (at `cf9c213` — merge of PR #52 for 18.2). Feature branch `feat/18.2-reporting-analytics` deleted local + remote. `feat/18.2-pre-payment-date-index` also deleted local + remote.
+- **Migration Head:** `20261118133648_add_payment_date_index`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy to apply the 18.2-pre index. All prior migrations (`20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`) are already applied to production.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
-- **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. Implemented and merged; see `## Completed`.
+- **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. Implemented and merged (PR #51); see `## Completed`.
 - **KCB and Equity APIs are still mocked.** Real sandbox integration pending client credential acquisition.
 - **Africa's Talking is in sandbox mode.** Sandbox URL is configured via `AFRICASTALKING_API_URL` env var.
 - **Vendor account confirmed:** `gilbertmulaha.ke@gmail.com`, UUID `86f0852b-23f2-4a32-a478-4e7b96f792d7`. This is the ONLY protected SYSTEM_ADMIN account.
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
-- **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase.
+- **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase (except the pending 18.2-pre index).
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
 - **Stable Stack (Do Not Blindly Upgrade):** Next.js 16.4.6 (caret range — see Architecture Decisions, re-pinning decision pending), Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
 - **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper.
@@ -388,4 +384,4 @@ Update this table whenever a measurement changes — it is the living record of 
   change). Rejected as lower value for now: score trend history (blocked on 18.2.1),
   executive PDF digest, SMS delivery report, Manual Entry Register (covered by
   Source/Method + Cashbook + Audit Log).
-- **Unit 18.2 complete (this session):** Registry-driven reporting layer, six Stage A/B reports, `isChurchCompliant` extracted, `RegionalScoreData` extended (gross/written-off without breaking the dashboard), region narrowing via `buildPaymentWhere(dbUser, regionId?)`, `scopeByRole` for rank-preserving regional filtering, dashboard leaderboard tooltip disclosing placeholder axes. Gate 28/28, page count unchanged. Instrumenting the three placeholder axes remains scheduled as Unit 18.2.1.
+- **Unit 18.2 complete (merged PR #52, `cf9c213`):** Registry-driven reporting layer, six Stage A/B reports, `isChurchCompliant` extracted, `RegionalScoreData` extended (gross/written-off without breaking the dashboard), region narrowing via `buildPaymentWhere(dbUser, regionId?)`, `scopeByRole` for rank-preserving regional filtering, dashboard leaderboard tooltip disclosing placeholder axes. Gate 28/28, page count unchanged. Branch deleted local + remote after merge. Instrumenting the three placeholder axes remains scheduled as Unit 18.2.1.
