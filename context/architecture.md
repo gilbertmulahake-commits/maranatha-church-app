@@ -129,7 +129,7 @@
 - **Dynamic Statuses:** A church's status is evaluated per bucket (`annualStatus` vs `monthlyStatus`). The UI dynamically swaps the badge and KPI counts based on the active `periodView`.
 - **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit`.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table.
-- **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()`. Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()`. Aging buckets reduced LIFO (oldest debt written off first). Matches IFRS 9 / IPSAS 29.
+- **Write-Off Accounting (Unit 17):** Obligation is never reduced from `getExpectedUpToDate()`. Write-offs are subtracted from `outstanding` via `sumApprovedWriteOffs()`. Aging buckets reduced FIFO (oldest debt written off first). Matches IFRS 9 / IPSAS 29.
 - **Fund Accounting (Future):** All payments are currently split into `Annual` and `Monthly` buckets. In V2, the system will support arbitrary **Funds**.
 
 ## 8. Schema Additions

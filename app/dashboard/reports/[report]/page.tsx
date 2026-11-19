@@ -7,7 +7,8 @@ import {
   getDefunctChurchRegister, getInactiveChurches,
   getCollectionsSummary, getRegionOptions,
   getComplianceReport, getRegionalScoresReport,
-  getYoYComparison, getAllocationBreakdown, getSourceMethodBreakdown
+  getYoYComparison, getAllocationBreakdown, getSourceMethodBreakdown,
+  getArrearsAgingReport
 } from '@/lib/actions/report-actions'
 import { ReportShell } from '@/components/reports/report-shell'
 import { ArrearsTable } from '@/components/reports/arrears-table'
@@ -21,6 +22,7 @@ import { RegionalScoresTable } from '@/components/reports/analytics/regional-sco
 import { YoYComparisonView } from '@/components/reports/analytics/yoy-comparison-view'
 import { AllocationBreakdownTable } from '@/components/reports/analytics/allocation-breakdown-table'
 import { SourceMethodView } from '@/components/reports/analytics/source-method-view'
+import { ArrearsAgingTable } from '@/components/reports/analytics/arrears-aging-table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 
@@ -57,6 +59,13 @@ async function ReportContent({ report }: { report: string }) {
       getRegionOptions(),
     ])
     table = <CollectionsSummaryTable initialData={data} regions={regions} />
+  
+  } else if (report === 'arrears-aging') {
+    const [initialResult, regions] = await Promise.all([
+      getArrearsAgingReport('Annual'),
+      getRegionOptions(),
+    ])
+    table = <ArrearsAgingTable initialResult={initialResult} regions={regions} />
   } else if (report === 'compliance') {
     const data = await getComplianceReport()
     table = <ComplianceTable data={data} />

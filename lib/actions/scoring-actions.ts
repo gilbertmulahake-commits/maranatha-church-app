@@ -65,7 +65,7 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
         grossOutstandingAnnual += grossAnnual
         grossOutstandingMonthly += grossMonthly
 
-        // Deduct write-offs LIFO (annual first) to compute net
+        // Deduct write-offs FIFO (annual first) to compute net
         const writtenOff = sumApprovedWriteOffs(church.write_offs)
         let remainingWriteOff = writtenOff
         if (remainingWriteOff > 0) {
