@@ -135,6 +135,18 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Feeds on new write-off + unmatched data from Unit 17.
     - Replaces the current minimal `/dashboard/reports` page.
 
+23.1. **Unit 18.2.1: Score Axis Instrumentation** (DEFERRED 2026-11-19, pending client clarification)
+    - Currently the 40/30/20/10 formula runs on one real axis (`compliancePct`) plus three hardcoded placeholders (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`).
+    - Blocked: client must define each axis (business meaning, formula, data source, 40/30/20/10 weight) before any spec can be authored.
+    - Do not schedule until those definitions are recorded in `progress-tracker.md` → `## Open Questions`.
+
+23.2. **Unit 18.2.2: Arrears Aging Drillable + Prepayment / Credit Position** (ACTIVE)
+    - Two read-only reports over existing data. No schema change.
+    - (a) Drillable Arrears Aging — per-church breakdown of the 0-30 / 31-60 / 61-90 / 90+ split the National dashboard currently shows only in aggregate.
+    - (b) Prepayment / Credit Position — National/Regional rollup of `annualCredit` / `monthlyCredit`, currently surfaced only on the Local dashboard.
+    - Registered as new slugs in `lib/utils/report-registry.ts`; no new page files. Build stays 28/28.
+
+
 24. **Unit 19: Guided Payment Flow (Pay Now Wizard)**
     - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
 

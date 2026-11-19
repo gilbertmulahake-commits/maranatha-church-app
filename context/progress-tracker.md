@@ -7,7 +7,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
 - **Unit 18.2: Reporting Analytics & Breakdowns** — ✅ COMPLETE and MERGED (PR #52, merge commit `cf9c213`). See `## Completed`.
-- **Next unit:** awaiting selection between **18.2.1** (instrument score axes — recommended first, since 60% of the 40/30/20/10 input is synthetic) and **18.2.2** (drillable Arrears Aging + Prepayment rollup). Fresh chat + fresh spec per `ai-workflow-rules.md`. See `## Next Up`.
+- **Next unit:** **18.2.2** (drillable Arrears Aging + Prepayment / Credit Position rollup) - read-only, no schema change, no product input required. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -210,16 +210,11 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — six new slugs on `[report]`).
 
 ## In Progress
-- Nothing — Unit 18.2 shipped and merged (PR #52, `cf9c213`). Awaiting next-unit selection.
+- **Unit 18.2.2** - spec authoring (implementation not started). Spec target: `context/specs/18.2.2-arrears-aging-and-prepayment.md`, to be authored against `context/specs/_template.md`. No code changes yet.
 
 ## Next Up
-- **Unit 18.2.1 (follow-up, scheduled): Instrument Timeliness / Accuracy / Engagement
-  score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
-  40/30/20/10 formula is real but 60% of its input is synthetic. Requires a product
-  definition of each axis, a data source for each, and possibly a schema addition.
-  Blocking clean Regional Scores reporting at full fidelity. Not in 18.2 scope.
-- **Unit 18.2.2 (follow-up, scheduled): Arrears Aging drillable report + Prepayment /
-  Credit Position report.** Both read-only aggregates over data the system already
+- **Unit 18.2.2 (ACTIVE): Arrears Aging drillable report + Prepayment / Credit Position report.** 
+  Both read-only aggregates over data the system already
   holds; neither requires a schema change. (a) **Arrears Aging drillable** — the
   National dashboard Tier 3 chart shows only the aggregate 0-30 / 31-60 / 61-90 / 90+
   split; there is no report listing *which churches* sit in each bucket. The Arrears
@@ -229,6 +224,11 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   dashboard; there is no National/Regional rollup of cash received against future
   years. Identified during the Unit 18.2 enterprise-gap review; explicitly out of 18.2
   scope. Recorded in Session Notes.
+- **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
+  40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
+  client clarification** - all three axes lack product definitions and weight
+  ordering. Do not schedule until the client defines each axis and its 40/30/20/10
+  weight. See `## Open Questions`.
 - **Then:** 18.3 (Reconciliation Reporting — **must include Payment Intake Health:
   webhook volume, unmatched backlog, and resolution SLA aging**) → 19 (Pay Now Wizard)
   → 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
@@ -238,7 +238,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Bank Preference:** The Ministry prefers Equity Bank over KCB. The V2 roadmap includes dual-bank support so either (or both) can be active.
 - **Equity Jenga API:** The exact API credentials and payload format for Equity's IPN webhook are TBD.
 - **Offline Remittance Handling:** How to handle payments made via cash, cheques, or direct bank transfers that bypass the webhook. Requires a manual entry UI for National HQ. (Addressed in Unit 17).
-- **Score axis instrumentation:** Defining real formulas for `timelinessPct`, `reportingAccuracy`, and `leadershipEngagement` requires product input. What constitutes "on-time" contribution? What constitutes "reporting accuracy"? What constitutes "leadership engagement"? These are the questions Unit 18.2.1 must answer before the 40/30/20/10 formula can be fully honest.
+- **Score axis instrumentation (DEFERRED 2026-11-19):** The three placeholder axes (`timelinessPct`, `reportingAccuracy`, `leadershipEngagement`) have no product definition and no data source in the current schema. Deferred pending client clarification. Before Unit 18.2.1 can be scheduled, the client must answer for EACH axis: (a) what it measures in business terms, (b) the formula yielding a 0-100 value, (c) the data source (existing table or new field/table), (d) which of 40/30/20/10 it carries. Until then the placeholder values and the 18.2 disclosure tooltip remain, and the axes must never be rendered as measurements.
 - **Scale monitoring tooling:** Which observation tooling will be used to track the Scale Watch metrics in production? Candidates: Vercel Analytics (built-in), Sentry performance, or a lightweight custom logger. Decision needed before church count grows further — not blocking 18.2.
 
 ## Architecture Decisions
@@ -297,6 +297,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Engine Guard Boundary (Unit 18.2, observation):** `getRegionalScores()` has no caller guard; it relies on RLS at the DB layer. The report wrapper (`getRegionalScoresReport`) adds `verifyReportsAccess()` + `scopeByRole`. Adding a guard inside the engine is avoided because the engine cannot know the caller's render context. If a future audit finds RLS is not filtering `region.findMany()` as expected, harden at the caller of every engine invocation — do not add the guard inside the engine itself.
 - **Server Action Error Shape (Unit 18.2, matches 18.1):** Report actions return `Promise<TypedRow[]>` and swallow errors as `catch → console.error → return []`. Empty array means either "no data" or "query failed"; the two are indistinguishable in the UI. Accepted for 18.2 for consistency. A discriminated `{ data } | { error }` result is a candidate for a later reporting-hardening unit.
 - **Growth posture — no count assumptions (established pre-18.2):** The system currently holds ~60 regions and ~1,600+ churches, both growing. **No decision boundary in code, spec, or architecture may be anchored to those specific counts.** Performance thresholds use measured latency or measured payload size; UI counts are always derived from data, never literals. This applies project-wide. Tracked under `## Scale Watch`.
+- **Score Axis Instrumentation Deferred (2026-11-19):** Unit 18.2.1 is deferred, not cancelled. Instrumenting `timelinessPct`, `reportingAccuracy`, and `leadershipEngagement` requires client-supplied definitions that do not exist in any context file. Per `ai-workflow-rules.md` ("Do not invent product behaviour"), no spec will be authored until those definitions are recorded. The 18.2 state stands: synthetic axes, disclosure tooltip on the leaderboard Score column, axes never rendered as measurements in the Regional Scores report. Next unit is 18.2.2, which needs no product input.
 
 ## Scale Watch
 
@@ -385,3 +386,4 @@ Update this table whenever a measurement changes — it is the living record of 
   executive PDF digest, SMS delivery report, Manual Entry Register (covered by
   Source/Method + Cashbook + Audit Log).
 - **Unit 18.2 complete (merged PR #52, `cf9c213`):** Registry-driven reporting layer, six Stage A/B reports, `isChurchCompliant` extracted, `RegionalScoreData` extended (gross/written-off without breaking the dashboard), region narrowing via `buildPaymentWhere(dbUser, regionId?)`, `scopeByRole` for rank-preserving regional filtering, dashboard leaderboard tooltip disclosing placeholder axes. Gate 28/28, page count unchanged. Branch deleted local + remote after merge. Instrumenting the three placeholder axes remains scheduled as Unit 18.2.1.
+- **Unit 18.2.1 deferred, 18.2.2 opened (2026-11-19):** Client could not clarify the three score axes. Rather than invent definitions, 18.2.1 was formally deferred with the required answers itemised in `## Open Questions`. 18.2.2 (drillable Arrears Aging + Prepayment / Credit Position rollup) selected as the next unit: read-only, no schema change, no product input. Branch off `main` at `cf9c213`; migration head unchanged (`20261118133648_add_payment_date_index`); expected build stays 28/28 (new slugs on the existing `[report]` route).
