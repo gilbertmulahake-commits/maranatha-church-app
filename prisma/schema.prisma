@@ -66,6 +66,7 @@ model Church {
   unmatched_assigned    UnmatchedPayment[] @relation("UnmatchedAssignedChurch")
   write_offs            WriteOff[]
   pending_payments      PendingPayment[]
+  payment_intents       PaymentIntent[]
 }
 
 model Payment {
@@ -89,6 +90,7 @@ model Payment {
   unmatched_origins UnmatchedPayment[] @relation("UnmatchedAssignedPayment")
 
   @@index([payment_date])
+  @@index([church_id, created_at])
 }
 
 model PaymentAllocation {
@@ -173,6 +175,7 @@ model UnmatchedPayment {
   @@index([reviewed_at])
   @@index([raw_bill_ref])
   @@index([assigned_church_id])
+  @@index([amount, created_at])
 }
 
 model ResolutionPattern {
@@ -238,6 +241,42 @@ model PendingPayment {
   @@index([church_id])
 }
 
+
+// --- UNIT 19 MODELS ---
+
+model PaymentIntent {
+  id                    String                 @id @default(uuid())
+  church_id             String
+  church                Church                 @relation(fields: [church_id], references: [id])
+  amount                Decimal
+  payment_type          PaymentType
+  channel               PaymentIntentChannel   @default(Manual)
+  status                PaymentIntentStatus    @default(Active)
+
+  // Provider tracking (null for Manual)
+  provider_request_id   String?
+  provider_receipt      String?                @unique
+  provider_result_code  String?
+  raw_callback          Json?
+
+  // Matching
+  matched_payment_id    String?                @unique
+  matched_unmatched_id  String?                @unique
+  matched_at            DateTime?
+
+  // Forensics
+  raw_bill_ref_entered  String?
+  created_by            String
+  expires_at            DateTime
+  abandoned_at          DateTime?
+  created_at            DateTime               @default(now())
+
+  @@index([church_id, status])
+  @@index([expires_at])
+  @@index([channel, status])
+  @@index([provider_request_id])
+}
+
 // --- ENUMS ---
 
 enum PaymentType {
@@ -256,6 +295,21 @@ enum PaymentStatus {
   Paid
   Pending
   Overdue
+}
+
+
+enum PaymentIntentStatus {
+  Active
+  Matched
+  Unmatched
+  Expired
+  Abandoned
+}
+
+enum PaymentIntentChannel {
+  Manual
+  KCB_Buni
+  Equity_Jenga
 }
 
 enum Role {

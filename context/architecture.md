@@ -197,7 +197,7 @@ For the guided payment wizard to track in-progress payments and match them to in
 - `matched_payment_id`, `matched_unmatched_id`, `matched_at`, `abandoned_at` (audit trail)
 - `raw_bill_ref_entered` — what the user was instructed to type (typo detection for the `Manual` channel)
 
-**Indexes:** `@@index([church_id, status])`, `@@index([expires_at])`, `@@unique([provider_receipt])` (sparse — many null, one non-null per receipt).
+**Indexes:** `@@index([church_id, status])`, `@@index([expires_at])`, `@@index([channel, status])`, `@@index([provider_request_id])`, `@@unique([provider_receipt])` (sparse — many null, one non-null per receipt), `@@unique([matched_payment_id])`, `@@unique([matched_unmatched_id])`.
 
 **Truth path per channel:**
 | Channel | Truth source for `Payment` write |
