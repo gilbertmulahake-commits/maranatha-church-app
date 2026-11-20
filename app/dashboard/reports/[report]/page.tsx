@@ -25,6 +25,8 @@ import { SourceMethodView } from '@/components/reports/analytics/source-method-v
 import { ArrearsAgingTable } from '@/components/reports/analytics/arrears-aging-table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
+import { getPrepaymentCreditPosition } from '@/lib/actions/report-actions'
+import { PrepaymentCreditPositionTable } from '@/components/reports/analytics/prepayment-credit-position-table'
 
 async function ReportContent({ report }: { report: string }) {
   await connection()
@@ -66,6 +68,12 @@ async function ReportContent({ report }: { report: string }) {
       getRegionOptions(),
     ])
     table = <ArrearsAgingTable initialResult={initialResult} regions={regions} />
+  } else if (report === 'prepayment-credit-position') {
+    const [initialResult, regions] = await Promise.all([
+      getPrepaymentCreditPosition(),
+      getRegionOptions(),
+    ])
+    table = <PrepaymentCreditPositionTable initialResult={initialResult} regions={regions} />
   } else if (report === 'compliance') {
     const data = await getComplianceReport()
     table = <ComplianceTable data={data} />
@@ -98,6 +106,8 @@ async function ReportContent({ report }: { report: string }) {
     </ReportShell>
   )
 }
+
+export const instant = false
 
 export default async function ReportPage(props: { params: Promise<{ report: string }> }) {
   const params = await props.params

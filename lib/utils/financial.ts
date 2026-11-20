@@ -337,3 +337,41 @@ export function getAgingBuckets(
     bucket90_plus: bucket90plus,
   }
 }
+
+// ============================================================================
+// UNIT 18.2.2b: CREDIT POSITION (single source of truth)
+// ============================================================================
+
+export type CreditPosition = {
+  annualCredit: number
+  monthlyCredit: number
+  annualPaid: number
+  monthlyPaid: number
+  expectedAnnual: number
+  expectedMonthly: number
+}
+
+/**
+ * Prepayment / credit position per ledger for a church, as of `now`.
+ *
+ * Composes the existing single-source helpers:
+ *  - `isChurchCompliant` — annualPaid / monthlyPaid / expectedAnnual / expectedMonthly
+ *  - `getCreditBalance` — max(0, paid - expected)
+ *
+ * Strict Bucket Isolation: Annual and Monthly credit are independent.
+ * There is no combined-credit concept. Do not re-derive this math in a report.
+ */
+export function getCreditPosition(
+  church: ChurchComplianceInput,
+  now: Date = new Date()
+): CreditPosition {
+  const c = isChurchCompliant(church, now)
+  return {
+    annualCredit: getCreditBalance(c.annualPaid, c.expectedAnnual),
+    monthlyCredit: getCreditBalance(c.monthlyPaid, c.expectedMonthly),
+    annualPaid: c.annualPaid,
+    monthlyPaid: c.monthlyPaid,
+    expectedAnnual: c.expectedAnnual,
+    expectedMonthly: c.expectedMonthly,
+  }
+}

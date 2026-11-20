@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChurchProfileClient } from '@/components/churches/church-profile-client'
-import { getExpectedUpToDate, getPeriodStatus, getCreditBalance } from '@/lib/utils/financial'
+import { getPeriodStatus, getCreditPosition } from '@/lib/utils/financial'
 import { KpiGrid } from '@/components/ui/kpi-grid'
 
 async function ChurchProfileContent({ params }: { params: Promise<{ code: string }> }) {
@@ -34,25 +34,11 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   if (!church) return notFound()
 
   const now = new Date()
-  let annualPaid = 0
-  let monthlyPaid = 0
-
-  church.payments.forEach((p) => {
-    if (p.allocations.length === 0) {
-      const amount = Number(p.amount_paid)
-      if (p.payment_type === 'Annual') annualPaid += amount
-      else monthlyPaid += amount
-    } else {
-      p.allocations.forEach((a) => {
-        const amount = Number(a.amount)
-        if (a.allocation_type === 'Annual') annualPaid += amount
-        else monthlyPaid += amount
-      })
-    }
-  })
+  const credit = getCreditPosition(church, now)
+  const { annualPaid, monthlyPaid, expectedAnnual, expectedMonthly } = credit
 
   const totalPaid = annualPaid + monthlyPaid
-  const { expectedAnnual, expectedMonthly, totalExpected } = getExpectedUpToDate(church.created_at, now)
+  const totalExpected = expectedAnnual + expectedMonthly
 
   const grossAnnualOutstanding = Math.max(0, expectedAnnual - annualPaid)
   const grossMonthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)
@@ -119,8 +105,8 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
     totalWrittenOff: totalWrittenOff,
     netOutstanding: netOutstanding,
     
-    annualCredit: getCreditBalance(annualPaid, expectedAnnual),
-    monthlyCredit: getCreditBalance(monthlyPaid, expectedMonthly),
+    annualCredit: credit.annualCredit,
+    monthlyCredit: credit.monthlyCredit,
     annualStatus,
     monthlyStatus,
     overallStatus,
