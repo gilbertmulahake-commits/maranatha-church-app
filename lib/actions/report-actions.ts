@@ -1059,3 +1059,367 @@ export async function getPrepaymentCreditPosition(
     }
   }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Payment Intake Health (Unit 18.3)
+// Three National-only operational reports: Volume, Backlog, and SLA.
+// ────────────────────────────────────────────────────────────────────────────
+
+function getPeriodStart(periodDays: number | 'all'): Date | null {
+  if (periodDays === 'all') return null
+  const d = new Date()
+  d.setDate(d.getDate() - periodDays)
+  return d
+}
+
+function hoursBetween(a: Date, b: Date): number {
+  return (b.getTime() - a.getTime()) / (1000 * 60 * 60)
+}
+
+// 1. Payment Intake Volume
+export type IntakeVolumeRow = {
+  date: string // 'YYYY-MM-DD'
+  total_webhooks: number
+  matched_stp: number
+  resolved_later: number
+  captured_unmatched: number
+  match_rate_pct: number
+  kes_received: number
+}
+
+export type IntakeVolumeResult = {
+  rows: IntakeVolumeRow[]
+  period_label: string
+  computed_at: string
+  totals: {
+    total_webhooks: number
+    matched_stp: number
+    resolved_later: number
+    captured_unmatched: number
+    match_rate_pct: number
+    straight_through_rate_pct: number
+    manual_intervention_rate_pct: number
+    rejection_rate_pct: number
+    kes_received: number
+  }
+}
+
+export async function getPaymentIntakeVolume(
+  periodDays: number | 'all' = 30
+): Promise<IntakeVolumeResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    if (!isNationalLevel(dbUser.role)) throw new Error('Forbidden')
+
+    const startDate = getPeriodStart(periodDays)
+
+    const [payments, unmatched] = await Promise.all([
+      prisma.payment.findMany({
+        where: {
+          source: { in: ['Webhook', 'Resolved'] },
+          ...(startDate ? { payment_date: { gte: startDate } } : {}),
+        },
+        select: { payment_date: true, amount_paid: true, source: true },
+      }),
+      prisma.unmatchedPayment.findMany({
+        where: {
+          ...(startDate ? { created_at: { gte: startDate } } : {}),
+        },
+        select: { created_at: true, amount: true, status: true },
+      }),
+    ])
+
+    const byDate = new Map<string, IntakeVolumeRow>()
+
+    const ensure = (dateStr: string): IntakeVolumeRow => {
+      let row = byDate.get(dateStr)
+      if (!row) {
+        row = {
+          date: dateStr,
+          total_webhooks: 0,
+          matched_stp: 0,
+          resolved_later: 0,
+          captured_unmatched: 0,
+          match_rate_pct: 0,
+          kes_received: 0,
+        }
+        byDate.set(dateStr, row)
+      }
+      return row
+    }
+
+    let total_kes = 0
+    let total_stp = 0
+    let total_manual = 0
+    let total_captured = 0
+
+    payments.forEach((p) => {
+      const dateStr = p.payment_date.toISOString().split('T')[0]
+      const row = ensure(dateStr)
+      const amt = Number(p.amount_paid)
+
+      if (p.source === 'Webhook') row.total_webhooks += 1
+      row.kes_received += amt
+      total_kes += amt
+
+      if (p.source === 'Webhook') {
+        row.matched_stp += 1
+        total_stp += 1
+      } else if (p.source === 'Resolved') {
+        row.resolved_later += 1
+        total_manual += 1
+      }
+    })
+
+    let total_rejected = 0
+
+    unmatched.forEach((u) => {
+      const dateStr = u.created_at.toISOString().split('T')[0]
+      const row = ensure(dateStr)
+
+      row.total_webhooks += 1
+      row.captured_unmatched += 1
+      total_captured += 1
+      if (u.status === 'Rejected') total_rejected += 1
+    })
+
+    const rows = Array.from(byDate.values())
+      .map((r) => ({
+        ...r,
+        match_rate_pct: r.total_webhooks > 0 ? ((r.total_webhooks - r.captured_unmatched) / r.total_webhooks) * 100 : 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    const totalWebhooks = total_stp + total_captured
+
+    return {
+      rows,
+      period_label: periodDays === 'all' ? 'All Time' : `Last ${periodDays} Days`,
+      computed_at: new Date().toISOString(),
+      totals: {
+        total_webhooks: totalWebhooks,
+        matched_stp: total_stp,
+        resolved_later: total_manual,
+        captured_unmatched: total_captured,
+        match_rate_pct: totalWebhooks > 0 ? ((totalWebhooks - total_captured) / totalWebhooks) * 100 : 0,
+        straight_through_rate_pct: totalWebhooks > 0 ? (total_stp / totalWebhooks) * 100 : 0,
+        manual_intervention_rate_pct: totalWebhooks > 0 ? (total_manual / totalWebhooks) * 100 : 0,
+        rejection_rate_pct: totalWebhooks > 0 ? (total_rejected / totalWebhooks) * 100 : 0,
+        kes_received: total_kes,
+      },
+    }
+  } catch (error) {
+    console.error('Failed to fetch payment intake volume:', error)
+    return {
+      rows: [],
+      period_label: 'Error',
+      computed_at: new Date().toISOString(),
+      totals: {
+        total_webhooks: 0, matched_stp: 0, resolved_later: 0, captured_unmatched: 0,
+        match_rate_pct: 0, straight_through_rate_pct: 0, manual_intervention_rate_pct: 0,
+        rejection_rate_pct: 0, kes_received: 0,
+      },
+    }
+  }
+}
+
+// 2. Unmatched Payment Backlog
+export type BacklogBucket = {
+  bucket_key: '0-24h' | '24-48h' | '48-72h' | '72h+'
+  label: string
+  count: number
+  kes_value: number
+  pct_of_backlog: number
+  oldest_item_age_hours: number
+}
+
+export type UnmatchedBacklogResult = {
+  buckets: BacklogBucket[]
+  computed_at: string
+  totals: {
+    count: number
+    kes_value: number
+    oldest_item_age_hours: number
+    breached_72h_count: number
+  }
+  oldest_item: { bank_reference: string; age_hours: number } | null
+}
+
+export async function getUnmatchedBacklog(): Promise<UnmatchedBacklogResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    if (!isNationalLevel(dbUser.role)) throw new Error('Forbidden')
+
+    const pending = await prisma.unmatchedPayment.findMany({
+      where: { status: 'Pending' },
+      select: { created_at: true, amount: true, bank_reference: true },
+    })
+
+    const now = new Date()
+    const buckets: BacklogBucket[] = [
+      { bucket_key: '0-24h', label: '0-24 hours', count: 0, kes_value: 0, pct_of_backlog: 0, oldest_item_age_hours: 0 },
+      { bucket_key: '24-48h', label: '24-48 hours', count: 0, kes_value: 0, pct_of_backlog: 0, oldest_item_age_hours: 0 },
+      { bucket_key: '48-72h', label: '48-72 hours', count: 0, kes_value: 0, pct_of_backlog: 0, oldest_item_age_hours: 0 },
+      { bucket_key: '72h+', label: '72+ hours', count: 0, kes_value: 0, pct_of_backlog: 0, oldest_item_age_hours: 0 },
+    ]
+
+    let total_kes = 0
+    let oldest_age_hours = -1
+    let oldest_bank_ref: string | null = null
+
+    pending.forEach((u) => {
+      const ageH = hoursBetween(u.created_at, now)
+      const amt = Number(u.amount)
+      total_kes += amt
+
+      if (ageH > oldest_age_hours) {
+        oldest_age_hours = ageH
+        oldest_bank_ref = u.bank_reference
+      }
+
+      let b: BacklogBucket
+      if (ageH <= 24) b = buckets[0]
+      else if (ageH <= 48) b = buckets[1]
+      else if (ageH <= 72) b = buckets[2]
+      else b = buckets[3]
+
+      b.count += 1
+      b.kes_value += amt
+      if (ageH > b.oldest_item_age_hours) b.oldest_item_age_hours = ageH
+    })
+
+    const totalCount = pending.length
+    buckets.forEach((b) => {
+      b.pct_of_backlog = totalCount > 0 ? (b.count / totalCount) * 100 : 0
+    })
+
+    const oldest_item = oldest_bank_ref !== null
+      ? { bank_reference: oldest_bank_ref, age_hours: oldest_age_hours }
+      : null
+
+    return {
+      buckets,
+      computed_at: now.toISOString(),
+      totals: {
+        count: totalCount,
+        kes_value: total_kes,
+        oldest_item_age_hours: oldest_age_hours > 0 ? oldest_age_hours : 0,
+        breached_72h_count: buckets[3].count,
+      },
+      oldest_item,
+    }
+  } catch (error) {
+    console.error('Failed to fetch unmatched backlog:', error)
+    return {
+      buckets: [],
+      computed_at: new Date().toISOString(),
+      totals: { count: 0, kes_value: 0, oldest_item_age_hours: 0, breached_72h_count: 0 },
+      oldest_item: null,
+    }
+  }
+}
+
+// 3. Resolution SLA Aging
+export type SlaBucket = {
+  bucket_key: '0-24h' | '24-48h' | '48-72h' | '72h+'
+  label: string
+  resolved: number
+  rejected: number
+  written_off: number
+  total_actioned: number
+  avg_time_hours: number
+  sla_met: boolean
+}
+
+export type SlaAgingResult = {
+  buckets: SlaBucket[]
+  period_label: string
+  computed_at: string
+  totals: {
+    items_actioned: number
+    sla_met_pct: number
+    avg_resolution_hours: number
+    breached_count: number
+    kes_resolved: number
+  }
+}
+
+export async function getSlaAging(
+  periodDays: number | 'all' = 30
+): Promise<SlaAgingResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    if (!isNationalLevel(dbUser.role)) throw new Error('Forbidden')
+
+    const startDate = getPeriodStart(periodDays)
+
+    const actioned = await prisma.unmatchedPayment.findMany({
+      where: {
+        status: { in: ['Resolved', 'Rejected', 'WrittenOff'] },
+        ...(startDate ? { reviewed_at: { gte: startDate } } : {}),
+      },
+      select: { created_at: true, reviewed_at: true, status: true, amount: true },
+    })
+
+    const buckets: SlaBucket[] = [
+      { bucket_key: '0-24h', label: '0-24 hours', resolved: 0, rejected: 0, written_off: 0, total_actioned: 0, avg_time_hours: 0, sla_met: true },
+      { bucket_key: '24-48h', label: '24-48 hours', resolved: 0, rejected: 0, written_off: 0, total_actioned: 0, avg_time_hours: 0, sla_met: true },
+      { bucket_key: '48-72h', label: '48-72 hours', resolved: 0, rejected: 0, written_off: 0, total_actioned: 0, avg_time_hours: 0, sla_met: true },
+      { bucket_key: '72h+', label: '72+ hours', resolved: 0, rejected: 0, written_off: 0, total_actioned: 0, avg_time_hours: 0, sla_met: false },
+    ]
+
+    let total_hours_sum = 0
+    let items_actioned = 0
+    let kes_resolved = 0
+    let breached_count = 0
+    let sla_met_count = 0
+
+    actioned.forEach((u) => {
+      if (!u.reviewed_at) return // Should not happen given the query, but TS guard
+
+      const timeH = hoursBetween(u.created_at, u.reviewed_at)
+      const amt = Number(u.amount)
+      
+      kes_resolved += amt
+      total_hours_sum += timeH
+      items_actioned += 1
+
+      if (timeH <= 72) sla_met_count += 1
+      else breached_count += 1
+
+      let b: SlaBucket
+      if (timeH <= 24) b = buckets[0]
+      else if (timeH <= 48) b = buckets[1]
+      else if (timeH <= 72) b = buckets[2]
+      else b = buckets[3]
+
+      b.total_actioned += 1
+      b.avg_time_hours = ((b.avg_time_hours * (b.total_actioned - 1)) + timeH) / b.total_actioned
+
+      if (u.status === 'Resolved') b.resolved += 1
+      else if (u.status === 'Rejected') b.rejected += 1
+      else if (u.status === 'WrittenOff') b.written_off += 1
+    })
+
+    return {
+      buckets,
+      period_label: periodDays === 'all' ? 'All Time' : `Last ${periodDays} Days`,
+      computed_at: new Date().toISOString(),
+      totals: {
+        items_actioned,
+        sla_met_pct: items_actioned > 0 ? (sla_met_count / items_actioned) * 100 : 0,
+        avg_resolution_hours: items_actioned > 0 ? total_hours_sum / items_actioned : 0,
+        breached_count,
+        kes_resolved,
+      },
+    }
+  } catch (error) {
+    console.error('Failed to fetch SLA aging:', error)
+    return {
+      buckets: [],
+      period_label: 'Error',
+      computed_at: new Date().toISOString(),
+      totals: { items_actioned: 0, sla_met_pct: 0, avg_resolution_hours: 0, breached_count: 0, kes_resolved: 0 },
+    }
+  }
+}

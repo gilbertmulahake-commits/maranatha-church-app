@@ -7,7 +7,9 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
 - **Unit 18.2.2a: Arrears Aging — Drillable** — ✅ COMPLETE and MERGED (PR #53, merge commit `c9b05b2`). See `## Completed`.
-- **Unit 18.2.2b: Prepayment / Credit Position rollup** — ✅ COMPLETE and GATED (commit `45ed582`). See `## Completed`. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`). Next up: **18.3 (Reconciliation Reporting)**.
+- **Unit 18.2.2b: Prepayment / Credit Position rollup** — ✅ COMPLETE and MERGED (PR #54, merge commit `5200632`). See `## Completed`.
+- **Unit 18.3: Reconciliation Reporting — Payment Intake Health** — ✅ COMPLETE and GATED. See `## Completed`.
+- **Next unit:** Unit 19 (Guided Payment Flow / Pay Now Wizard). **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -216,20 +218,20 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Page branch:** `arrears-aging` branch added to `app/dashboard/reports/[report]/page.tsx` — pre-fetches `getArrearsAgingReport('Annual')` + `getRegionOptions()` in `Promise.all`.
   - **Verification:** `/dashboard/reports/arrears-aging` returns 200; hub card present in Analytics group; scope banner + `Computed:` timestamp + WO disclosure render; period toggle swaps without reload and resets sort; region filter hidden for non-National roles. All four visual checks passed.
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — new slug on the existing `[report]` route).
-- **Unit 18.2.2b: Prepayment / Credit Position rollup (Complete)** — Read-only National/Regional rollup. Extracted `getCreditPosition` to `lib/utils/financial.ts` (single source of truth; pure delegation to `isChurchCompliant` + `getCreditBalance`). Refactored church detail page and local dashboard action. Added `getPrepaymentCreditPosition` action, `PrepaymentCreditPositionTable` component, and registry entry. Adopted **Reading B** (only churches with credit > 0 are shown; this is a liability register, not a population snapshot). Defunct churches included in rows and footer totals (D1). Strict Bucket Isolation enforced (no combined total). Verified against independent UI oracle: CH001 (21,500 / 31,000) and CH007 (4,500 / 2,000) matched exactly.
+- **Unit 18.2.2b: Prepayment / Credit Position rollup (Complete, Merged PR #54)** — Read-only National/Regional rollup. Extracted `getCreditPosition` to `lib/utils/financial.ts` (single source of truth; pure delegation to `isChurchCompliant` + `getCreditBalance`). Refactored church detail page and local dashboard action. Added `getPrepaymentCreditPosition` action, `PrepaymentCreditPositionTable` component, and registry entry. Adopted **Reading B** (only churches with credit > 0 are shown; this is a liability register, not a population snapshot). Defunct churches included in rows and footer totals (D1). Strict Bucket Isolation enforced (no combined total). Verified against independent UI oracle: CH001 (21,500 / 31,000) and CH007 (4,500 / 2,000) matched exactly.
+- **Unit 18.3: Reconciliation Reporting — Payment Intake Health (Complete)** — Three National-only operational reports. Added `getPaymentIntakeVolume`, `getUnmatchedBacklog`, and `getSlaAging` actions. Added three components under `components/reports/reconciliation/`. Registered three new slugs (`payment-intake-volume`, `payment-unmatched-backlog`, `payment-sla-aging`). Added two preventive indexes on `UnmatchedPayment` (discovered `status+created_at` already existed). **Metrics:** STR (Straight-Through Rate), Manual Intervention Rate, Backlog Aging, 72h SLA compliance. Verified against real production-like data (backlog and SLA reports render correctly).
 
 ## In Progress
-None. Unit 18.2.2b is complete and merged (PR #54, merge commit `5200632`). Ready to start 18.3.
+None. Unit 18.3 is complete and gated. Ready to commit and merge.
 
 ## Next Up
+- **Unit 19: Guided Payment Flow (Pay Now Wizard).** PaymentIntent model, 5-step wizard, manual M-Pesa instructions with polling verification.
 - **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
   40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
   client clarification** - all three axes lack product definitions and weight
   ordering. Do not schedule until the client defines each axis and its 40/30/20/10
   weight. See `## Open Questions`.
-- **Then:** 18.3 (Reconciliation Reporting — **must include Payment Intake Health:
-  webhook volume, unmatched backlog, and resolution SLA aging**) → 19 (Pay Now Wizard)
-  → 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
+- **Then:** 20 (In-App Help) → 21/22 (Bank Sandbox, blocked on credentials) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -246,7 +248,7 @@ None. Unit 18.2.2b is complete and merged (PR #54, merge commit `5200632`). Read
 - **Container Queries:** `app/dashboard/layout.tsx` provides `@container/main`. KPI grids and cards respond to container width, not viewport width — sidebar state irrelevant to card layout.
 - **SYSTEM_ADMIN Role:** Reserved for vendor/platform owner. Protected via hardcoded allowlist in `lib/auth/protected-users.ts`. Cannot be deleted/deactivated by client's National Treasurer. Hidden from Users list unless viewer is also SYSTEM_ADMIN. Centralized RBAC in `lib/auth/roles.ts`.
 - **Dashboard V2 Architecture (Unit 15.10):** The National Dashboard is undergoing a major overhaul. We are moving from a generic "data reporting" layout to an "Executive Command Center." Key changes: dropping the redundant "This Period" KPI card, replacing the Doughnut chart with Arrears Aging (0-90+ days), moving the timeframe toggle to the page header (global state), and introducing an Action Center with a direct SMS CTA. The Hero card will track "Expected-to-Date" instead of Year-End Target for accurate schedule adherence.
-- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 ✅ → 18.1 ✅ → 18.2 ✅ → 18.2.1 (deferred) → 18.2.2a ✅ → 18.2.2b → 18.3 → 19 → 20/21 → polish.
+- **Post-deployment backlog structured into** table extraction (15h ✅) → 15.6 ✅ → 15i ✅ → 15.7 ✅ → 15.10 (V2 Dashboard ✅) → 16.1 ✅ → 16.2 ✅ → 16.3 ✅ → 16.5 ✅ → 17 (Merged PR #44 ✅) → 17.5 ✅ → 18.1 ✅ → 18.2 ✅ → 18.2.1 (deferred) → 18.2.2a ✅ → 18.2.2b ✅ → 18.3 ✅ → 19 → 20/21 → polish.
 - **Pastorate Reserved:** A `Pastorate` model is added to the schema as a nullable foreign key on `Church`. Excluded from all financial calculations. Can be activated or removed without migrations.
 - **Dynamic Fund Migration (V2):** The `PaymentType` enum will be migrated to a `Fund` table in V2. Enables admin-created payment categories without schema changes.
 - **Dual-Bank Adapter Pattern (V2):** Webhook handlers for KCB and Equity will normalize their payloads into a single `NormalizedTransaction` shape, fed into a unified Reconciliation Engine.
@@ -321,7 +323,7 @@ Update this table whenever a measurement changes — it is the living record of 
 
 ## Session Notes
 - **Current Branch:** `feat/18.2.2b-prepayment-credit-position` (spec commit `73495c1`) off `main` at `e52b661`. Feature branches deleted local + remote: `feat/18.2.2a-arrears-aging-drillable` (18.2.2a), `feat/18.2-reporting-analytics` (18.2), `feat/18.2-pre-payment-date-index` (18.2-pre) — the last one lingered on disk and remote despite prior "all deleted" tracking; cleaned up this session.
-- **Migration Head:** `20261118133648_add_payment_date_index`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy to apply the 18.2-pre index. All prior migrations (`20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`) are already applied to production. 18.2.2a added **no new migrations**. 18.2.2b Part 1 added **no new migrations**.
+- **Migration Head:** `20261120072651_add_unmatched_payment_indexes`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy. All prior migrations are already applied to production.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
 - **`@@index([payment_date])` on `Payment`:** Promoted from "deferred pre-launch" to **Unit 18.2-pre**. The old rationale ("not needed for 11 churches") is stale at 1,600+ churches and growing. Reports filter `Payment.payment_date` continuously — a missing index is a live table scan on an unbounded table. Implemented and merged (PR #51); see `## Completed`.
@@ -331,7 +333,7 @@ Update this table whenever a measurement changes — it is the living record of 
 - **Git Setup:** Remote origin is `https://github.com/gilbertmulahake-commits/maranatha-church-app.git`.
 - **Deployed on Vercel.** Production URL active. `prisma7 migrate deploy` has been run against production Supabase (except the pending 18.2-pre index).
 - **Browser Extension Warning:** Hydration mismatch occurs in normal browsers due to an extension injecting attributes. Harmless; use Incognito for development or add `suppressHydrationWarning` to `<html>`.
-- **Stable Stack (Do Not Blindly Upgrade):** Next.js 16.4.6 (caret range — see Architecture Decisions, re-pinning decision pending), Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
+- **Stable Stack (Do Not Blindly Upgrade):** Next.js 16.4.6 (pinned), Prisma 7, Tailwind v4, Base UI (shadcn). Do not run `npm update` without testing.
 - **Layout Collapse Fix:** Flexbox `min-width: auto` caused cards to collapse. The enterprise fix is `min-w-0` on the layout wrapper.
 - **Tailwind Merge Quirk:** `tailwind-merge` will silently drop custom classes (like `text-heading-1`) if they conflict with standard classes (like `text-foreground`). We extended `twMerge` in `lib/utils.ts` to register all our custom Figma typography and spacing tokens. Do not remove this configuration.
 - **Supabase Free Plan Backups:** No scheduled backups available. Use `pg_dump` locally before any destructive operation:
@@ -399,3 +401,4 @@ Update this table whenever a measurement changes — it is the living record of 
 - **Region & Status Filter Display Sweep (18.2.2b verification catch):** While verifying the region filter on the new report, we discovered Base UI's `<SelectValue>` renders the raw UUID value instead of the label. Fixed across all affected report components by explicitly overriding the `<SelectValue>` rendering to map the selected ID back to its name, or mapping the `'all'` string to its display label. Affected files: `prepayment-credit-position-table.tsx`, `arrears-aging-table.tsx`, `collections-summary-table.tsx`, `source-method-view.tsx`, `yoy-comparison-view.tsx`, `compliance-table.tsx` (both region and status filters). `allocation-breakdown-table.tsx` was unaffected because its only select uses human-readable year strings.
 - **Next.js `instant` warning resolved:** Added `export const instant = false` to `app/dashboard/reports/[report]/page.tsx` to resolve the pre-existing deferred item where `params` was awaited outside `<Suspense>`. 
 - **UI Label Quirk (Future candidate):** The Churches registry label format for Annual Credit (`Paid (N Years Prepaid)`) hides the exact KES if the credit is ≥ 5,000. This is confusing when the remainder is large (e.g., CH001's 1,500 remainder). Candidate for a future polish unit to append the exact credit or use a tooltip.
+- **18.3 complete (this session):** Implemented Payment Intake Health reports (Volume, Backlog, SLA). Migration created 2 preventive indexes on `UnmatchedPayment` (discovered `status+created_at` already existed from Unit 17). Backlog and SLA reports verified against live data. UI bug fixed in SLA table: empty buckets (0 actioned) now render an em-dash `—` instead of a misleading "Met" badge. Gate: `tsc` clean, `lint` 0, `build` 28/28.
