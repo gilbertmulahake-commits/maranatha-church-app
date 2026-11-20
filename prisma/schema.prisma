@@ -169,6 +169,8 @@ model UnmatchedPayment {
   assigned_payment     Payment? @relation("UnmatchedAssignedPayment", fields: [assigned_payment_id], references: [id])
 
   @@index([status, created_at])
+  @@index([created_at])
+  @@index([reviewed_at])
   @@index([raw_bill_ref])
   @@index([assigned_church_id])
 }

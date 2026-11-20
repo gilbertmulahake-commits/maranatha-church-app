@@ -27,6 +27,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getReportBySlug, getReportsForRole } from '@/lib/utils/report-registry'
 import { getPrepaymentCreditPosition } from '@/lib/actions/report-actions'
 import { PrepaymentCreditPositionTable } from '@/components/reports/analytics/prepayment-credit-position-table'
+import { getPaymentIntakeVolume, getUnmatchedBacklog, getSlaAging } from '@/lib/actions/report-actions'
+import { PaymentIntakeVolumeTable } from '@/components/reports/reconciliation/payment-intake-volume-table'
+import { UnmatchedBacklogTable } from '@/components/reports/reconciliation/unmatched-backlog-table'
+import { SlaAgingTable } from '@/components/reports/reconciliation/sla-aging-table'
 
 async function ReportContent({ report }: { report: string }) {
   await connection()
@@ -74,6 +78,15 @@ async function ReportContent({ report }: { report: string }) {
       getRegionOptions(),
     ])
     table = <PrepaymentCreditPositionTable initialResult={initialResult} regions={regions} />
+  } else if (report === 'payment-intake-volume') {
+    const initialResult = await getPaymentIntakeVolume(30)
+    table = <PaymentIntakeVolumeTable initialResult={initialResult} />
+  } else if (report === 'payment-unmatched-backlog') {
+    const initialResult = await getUnmatchedBacklog()
+    table = <UnmatchedBacklogTable initialResult={initialResult} />
+  } else if (report === 'payment-sla-aging') {
+    const initialResult = await getSlaAging(30)
+    table = <SlaAgingTable initialResult={initialResult} />
   } else if (report === 'compliance') {
     const data = await getComplianceReport()
     table = <ComplianceTable data={data} />

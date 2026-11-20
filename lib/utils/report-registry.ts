@@ -121,6 +121,30 @@ export const REPORTS: ReportEntry[] = [
     group: 'Financial',
     visibleTo: ['NATIONAL', 'REGIONAL'],
   },
+  {
+    slug: 'payment-intake-volume',
+    title: 'Payment Intake Volume',
+    description:
+      'Webhook flow per day — total received, straight-through vs captured, match rate. Straight-Through Rate is the headline reconciliation health metric.',
+    group: 'Reconciliation',
+    visibleTo: ['NATIONAL'],
+  },
+  {
+    slug: 'payment-unmatched-backlog',
+    title: 'Unmatched Payment Backlog',
+    description:
+      'Current-state snapshot of unresolved UnmatchedPayment items — count, KES value, 4-bucket aging, oldest item.',
+    group: 'Reconciliation',
+    visibleTo: ['NATIONAL'],
+  },
+  {
+    slug: 'payment-sla-aging',
+    title: 'Resolution SLA Aging',
+    description:
+      'Historical throughput — items actioned in the period, bucketed by time-to-action. 72h SLA target, Resolved/Rejected/WrittenOff split.',
+    group: 'Reconciliation',
+    visibleTo: ['NATIONAL'],
+  },
 ]
 
 export function getReportBySlug(slug: string): ReportEntry | undefined {
