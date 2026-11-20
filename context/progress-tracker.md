@@ -7,7 +7,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
 - **Unit 18.2.2a: Arrears Aging — Drillable** — ✅ COMPLETE and MERGED (PR #53, merge commit `c9b05b2`). See `## Completed`.
-- **Unit 18.2.2b: Prepayment / Credit Position rollup** — IN PROGRESS — read-only, no schema change, no product input required. **Part 1 complete** (refactor + gate 28/28); **Part 2 pending**. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
+- **Unit 18.2.2b: Prepayment / Credit Position rollup** — ✅ COMPLETE and GATED (commit `45ed582`). See `## Completed`. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`). Next up: **18.3 (Reconciliation Reporting)**.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -219,10 +219,9 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 18.2.2b: Prepayment / Credit Position rollup (Complete)** — Read-only National/Regional rollup. Extracted `getCreditPosition` to `lib/utils/financial.ts` (single source of truth; pure delegation to `isChurchCompliant` + `getCreditBalance`). Refactored church detail page and local dashboard action. Added `getPrepaymentCreditPosition` action, `PrepaymentCreditPositionTable` component, and registry entry. Adopted **Reading B** (only churches with credit > 0 are shown; this is a liability register, not a population snapshot). Defunct churches included in rows and footer totals (D1). Strict Bucket Isolation enforced (no combined total). Verified against independent UI oracle: CH001 (21,500 / 31,000) and CH007 (4,500 / 2,000) matched exactly.
 
 ## In Progress
-None. Unit 18.2.2b is complete and gated. Ready to commit and merge.
+None. Unit 18.2.2b is complete and merged (PR #54, merge commit `5200632`). Ready to start 18.3.
 
 ## Next Up
-- **Unit 18.2.2b (ACTIVE): Prepayment / Credit Position rollup.** — see `## In Progress`. Spec committed at `73495c1` (`context/specs/18.2.2b-prepayment-credit-position.md`). Branch `feat/18.2.2b-prepayment-credit-position` off `e52b661`; expected build stays 28/28 (one new slug on the existing `[report]` route). Part 1 done; next step is §2.1 (`report-actions.ts`).
 - **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
   40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
   client clarification** - all three axes lack product definitions and weight
