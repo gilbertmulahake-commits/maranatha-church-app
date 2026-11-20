@@ -29,6 +29,7 @@ A real-time financial and administrative management system for Maranatha Faith A
 - **Solutions Bank:** A self-improving pattern store. Every human resolution is remembered; the same messy reference is recognised on the next occurrence and suggested before any character-distance matching runs.
 - **Bank Adapter Pattern:** KCB and Equity payloads are normalised into a single `NormalizedTransaction` shape before reaching the reconciliation engine, so a second bank can be added without rewriting intake.
 - **Mock KCB Simulator:** A development UI for firing signed webhook payloads against the system.
+- **STK Push Initiation (Unit 19c, Sandbox):** The in-app Pay Now wizard can trigger an M-Pesa STK Push against the client's **bank-issued** paybill (KCB or Equity), not a Safaricom-issued one. KCB Buni and Equity Jenga are the initiation providers. The `Payment` ledger is written only by the bank's confirmation channel — never by an initiation response or a client button. The manual channel (19b) stays permanent as the fallback when a provider is down or credentials are pending.
 
 ### Financial Ledger & Allocation
 - **The Allocation Engine:** Splits lump-sum payments across past-year arrears, current-year dues, and future prepayments using a strict FIFO priority model. Payment records remain immutable 1:1 bank ledger entries; attribution lives in the allocation table.
@@ -66,6 +67,8 @@ A real-time financial and administrative management system for Maranatha Faith A
 ### In Scope
 - Role-based access across National, Regional, and Local tiers, with server-enforced separation of duties.
 - Bank webhook intake (currently mocked; adapter layer ready for real sandbox credentials).
+- **KCB Buni API (Sandbox)** — STK Push initiation for KCB-issued paybills; production on Go-Live approval.
+- **Equity Jenga API (Sandbox)** — STK Push initiation and IPN confirmation for Equity-issued paybills; production on Live Onboarding approval.
 - Africa's Talking SMS integration (sandbox configured for UAT).
 - Automated compliance calculation and regional incentive tiers.
 - Reconciliation subsystem: unmatched queue, manual entry, write-offs, four-eyes approval, Solutions Bank.
@@ -80,7 +83,7 @@ A real-time financial and administrative management system for Maranatha Faith A
 - Binary file uploads for manual-entry attachments (a reference URL field only, for now).
 - Admin-authored Solutions Bank rules (patterns learn automatically from resolutions only).
 - Scheduled digest emails and cron-driven escalation.
-- Real KCB and Equity sandbox integration (blocked on client credentials).
+- KCB and Equity **production** go-live (sandbox is in-scope; production is blocked on the banks' Go-Live / Live Onboarding approvals).
 - The optional Pastorate organisational layer (schema reserved, dormant).
 - Configurable fund categories (Annual/Monthly are fixed; a dynamic Fund table is planned).
 - Two-factor authentication.
@@ -97,3 +100,4 @@ A real-time financial and administrative management system for Maranatha Faith A
 - National, Regional, and Local dashboards each report Annual and Monthly buckets independently.
 - The system accurately calculates the "Final Score" and "Incentive Tier" for a region based on the 40/30/20/10 weighted formula.
 - Any data table can be exported to CSV, Excel, or PDF, with correct behaviour for selected-versus-all rows.
+- A treasurer can initiate an STK Push against the client's KCB or Equity paybill from the Pay Now wizard; the resulting `Payment` row is written exactly once, by the bank's confirmation channel, with the M-Pesa receipt code as `Payment.transaction_id`. Duplicate callbacks from either bank are a no-op.

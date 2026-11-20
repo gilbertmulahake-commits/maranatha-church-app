@@ -88,6 +88,7 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   })
 
   const stats = {
+    churchId: church.id,
     churchName: church.church_name,
     churchCode: church.church_code,
     regionName: church.region?.name || 'Unassigned',

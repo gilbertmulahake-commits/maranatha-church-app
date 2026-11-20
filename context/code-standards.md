@@ -26,7 +26,7 @@
 - Verify webhook signatures immediately upon receiving a request.
 - Enforce auth and ownership before any mutation.
 - Return consistent, predictable response shapes.
-- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully. **Unit 17:** Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference` in the KCB webhook.
+- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully. **Unit 17:** Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference` in the KCB webhook. **Unit 19:** STK Push callbacks and status queries extend idempotency to `PaymentIntent.provider_request_id` and `PaymentIntent.provider_receipt`. A payment confirmed via STK Push and also via C2B webhook must produce exactly one `Payment` row. Enforce via database unique constraints, not application check-then-insert.
 - **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
 - **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
 - **Unmatched capture (Unit 17):** When a webhook cannot find its target church, do NOT return 404. Capture it in `UnmatchedPayment` with the top fuzzy suggestion, log `UNMATCHED_PAYMENT_CAPTURED`, and return HTTP 200 so the bank stops retrying.
@@ -64,6 +64,7 @@
 - **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
 - **Backfill discipline:** When adding a new field with a default (e.g., `Payment.source`), always document the required production backfill query in the migration folder or handoff doc. Never deploy without applying it.
 - **Cold-cache `tsc`:** On a fresh clone, `tsc --noEmit` alone cannot resolve Next.js's generated `LayoutProps<"/">`. Run `npx next typegen` (or `npm run build`) first to populate `.next/types/routes.d.ts`.
+- **Stale `tsc` after `prisma7 generate`:** Adding a new delegate (e.g. `PaymentIntent` in Unit 19) is invisible to `tsc` if `tsconfig.tsbuildinfo` from before the generate is still on disk — the incremental cache serves the pre-generate `PrismaClient` type. Symptom: `Property 'X' does not exist on type 'PrismaClient'` on the first file that references the new delegate, while `findstr` against `node_modules\.prisma\client\index.d.ts` shows the delegate is present. **Fix:** `del tsconfig.tsbuildinfo` (or `npx tsc --noEmit --incremental false` to confirm the diagnosis without deleting). Do **not** run `prisma7 generate` again — the client is already correct; the cache is the problem.
 
 ## Authentication & Protected Accounts
 - **SYSTEM_ADMIN role is reserved for the vendor/platform owner.** It has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation by other users.

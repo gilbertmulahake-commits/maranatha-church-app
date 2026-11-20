@@ -47,6 +47,16 @@ If a defect, drift, or unexpected behaviour appears:
 4. Execute the approved fix. Verify. Mark the issue resolved.
 5. Re-run the unit's verification checklist. If anything regressed, add a **new** issue — do not reopen the old one.
 
+## Never Defer Bugs or Fixes
+
+When a defect or an incomplete fix is found during implementation — whether pre-existing, newly introduced, or discovered at any stage of the current unit — **fix it now**. Do not defer to a later session, a later unit, or "post-ship".
+
+- **Bugs are fixed in the session they are found.** A bug that is diagnosed but deferred becomes a future tripwire that costs more than the fix.
+- **Incomplete fixes are completed, not band-aided.** The symptom-suppressing workaround (a `||` fallback to silence a type error, a cast to bypass a narrowing gap, an early return to skip a validation) is not a fix. If the proper fix is small and in scope, do it. If it is large and out of scope, **stop and resolve the scope** — do not paper over it.
+- **"Defer to after shipping" is not an acceptable plan.** The list of deferred items in `progress-tracker.md` is for **features, enhancements, and product decisions**, never for correctness bugs, type-safety defects, or incomplete fixes.
+
+The one exception is a **known limitation that has a real reason**: e.g. a report action's `catch → return []` shape where empty and error are indistinguishable, documented as a limitation with an explicit hardening trigger (per `progress-tracker.md` → "Architecture Decisions"). "Defer" is not the same word as "limitation" and must not be used as a synonym for it.
+
 ## Invariants — Check Before Closing Any Unit
 After implementing a unit and before running the closing gate, review the diff against the eight invariants in `context/architecture.md`. Pay particular attention to:
 - **Invariant 3 (Idempotency):** both `Payment.transaction_id` and `UnmatchedPayment.bank_reference`.
