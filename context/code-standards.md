@@ -64,6 +64,7 @@
 - **If drift is detected:** do NOT reset. Diagnose with `prisma7 migrate status` and follow the baseline-repair procedure.
 - **Backfill discipline:** When adding a new field with a default (e.g., `Payment.source`), always document the required production backfill query in the migration folder or handoff doc. Never deploy without applying it.
 - **Cold-cache `tsc`:** On a fresh clone, `tsc --noEmit` alone cannot resolve Next.js's generated `LayoutProps<"/">`. Run `npx next typegen` (or `npm run build`) first to populate `.next/types/routes.d.ts`.
+- **Stale `tsc` after `prisma7 generate`:** Adding a new delegate (e.g. `PaymentIntent` in Unit 19) is invisible to `tsc` if `tsconfig.tsbuildinfo` from before the generate is still on disk — the incremental cache serves the pre-generate `PrismaClient` type. Symptom: `Property 'X' does not exist on type 'PrismaClient'` on the first file that references the new delegate, while `findstr` against `node_modules\.prisma\client\index.d.ts` shows the delegate is present. **Fix:** `del tsconfig.tsbuildinfo` (or `npx tsc --noEmit --incremental false` to confirm the diagnosis without deleting). Do **not** run `prisma7 generate` again — the client is already correct; the cache is the problem.
 
 ## Authentication & Protected Accounts
 - **SYSTEM_ADMIN role is reserved for the vendor/platform owner.** It has the same capabilities as National Treasurer, plus protection from UI-level deletion/deactivation by other users.

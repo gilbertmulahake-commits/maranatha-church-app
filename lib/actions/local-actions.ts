@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getPeriodStatus, getCreditPosition } from '@/lib/utils/financial'
 
 export type LocalChurchStats = {
+  churchId: string
   churchName: string
   churchCode: string
   regionName: string
@@ -96,6 +97,7 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
     else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
 
     return {
+      churchId: church.id,
       churchName: church.church_name,
       churchCode: church.church_code,
       regionName: church.region.name,
