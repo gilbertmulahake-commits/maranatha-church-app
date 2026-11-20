@@ -7,7 +7,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 
 ## Current Goal
 - **Unit 18.2.2a: Arrears Aging — Drillable** — ✅ COMPLETE and MERGED (PR #53, merge commit `c9b05b2`). See `## Completed`.
-- **Next unit:** **18.2.2b** (Prepayment / Credit Position rollup) — read-only, no schema change, no product input required. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
+- **Unit 18.2.2b: Prepayment / Credit Position rollup** — IN PROGRESS — read-only, no schema change, no product input required. **18.2.1 is DEFERRED** pending client clarification of the three score axes (see `## Open Questions`).
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -218,10 +218,10 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Gate:** `tsc --noEmit` clean, `lint` 0 problems, `build` 28/28 pages (unchanged — new slug on the existing `[report]` route).
 
 ## In Progress
-_No unit currently in progress._ 18.2.2a complete, merged (PR #53), and branches cleaned. Ready to open 18.2.2b in a new session.
+- **Unit 18.2.2b: Prepayment / Credit Position rollup** — IN PROGRESS. Branch: `feat/18.2.2b-prepayment-credit-position` off `e52b661`. Spec committed (`73495c1`). Structure: Part 1 (extract `getCreditPosition` in `lib/utils/financial.ts`; migrate `app/dashboard/churches/[code]/page.tsx` + `lib/actions/local-actions.ts`) then Part 2 (new report). Baseline byte-identical verification gates Part 1 -> Part 2.
 
 ## Next Up
-- **Unit 18.2.2b (ACTIVE): Prepayment / Credit Position rollup.** — `annualCredit` / `monthlyCredit` are surfaced only on the Local dashboard; there is no National/Regional rollup of cash received against future years. Read-only aggregate over existing data; no schema change; no product input required. Spec not yet authored — target `context/specs/18.2.2b-prepayment-credit-position.md`. Branch off `main` at `c9b05b2`; expected build stays 28/28 (one new slug on the existing `[report]` route).
+- **Unit 18.2.2b (ACTIVE): Prepayment / Credit Position rollup.** — see `## In Progress`. Spec committed at `73495c1` (`context/specs/18.2.2b-prepayment-credit-position.md`). Branch `feat/18.2.2b-prepayment-credit-position` off `e52b661`; expected build stays 28/28 (one new slug on the existing `[report]` route).
 - **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
   40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
   client clarification** - all three axes lack product definitions and weight
@@ -319,7 +319,7 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `main` (at `c9b05b2` — merge of PR #53 for 18.2.2a). Feature branches deleted local + remote: `feat/18.2.2a-arrears-aging-drillable` (this unit), `feat/18.2-reporting-analytics` (18.2), `feat/18.2-pre-payment-date-index` (18.2-pre).
+- **Current Branch:** `feat/18.2.2b-prepayment-credit-position` (spec commit `73495c1`) off `main` at `e52b661`. Feature branches deleted local + remote: `feat/18.2.2a-arrears-aging-drillable` (18.2.2a), `feat/18.2-reporting-analytics` (18.2), `feat/18.2-pre-payment-date-index` (18.2-pre) — the last one lingered on disk and remote despite prior "all deleted" tracking; cleaned up this session.
 - **Migration Head:** `20261118133648_add_payment_date_index`. **Production deploy status:** pending — `prisma7 migrate deploy` will run on the next Vercel deploy to apply the 18.2-pre index. All prior migrations (`20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_payment_method`) are already applied to production. 18.2.2a added **no new migrations**.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
