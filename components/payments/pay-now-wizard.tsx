@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import {
   PAYMENT_INTENT_AMOUNT_CEILING,
@@ -26,7 +26,6 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { TableShell } from '@/components/ui/table-shell'
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -91,16 +90,31 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
-  // Countdown tick — interval callback does the setState, not the effect body.
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      if (!newOpen) {
+        setStep(1)
+        setBucket(null)
+        setAmount('')
+        setIntentId(null)
+        setExpiresAt(null)
+        setPollingActive(false)
+        setResult(null)
+        setError(null)
+      }
+      onOpenChange(newOpen)
+    },
+    [onOpenChange]
+  )
+
   useEffect(() => {
-    if (!expiresAt || step !== 4) return
+    if (!open || !expiresAt || step !== 4) return
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [expiresAt, step])
+  }, [open, expiresAt, step])
 
-  // Polling — active only after "I have paid" click.
   useEffect(() => {
-    if (!pollingActive || !intentId) return
+    if (!open || !pollingActive || !intentId) return
     let cancelled = false
     const tick = async () => {
       const r = await pollPaymentIntent(intentId)
@@ -108,12 +122,18 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
       if (r.status === 'Matched') {
         setResult({ kind: 'Matched', payment: r.payment })
         setStep(5)
+        setPollingActive(false)
       } else if (r.status === 'Unmatched') {
         setResult({ kind: 'Unmatched' })
         setStep(5)
+        setPollingActive(false)
       } else if (r.status === 'Expired') {
         setResult({ kind: 'Expired' })
         setStep(5)
+        setPollingActive(false)
+      } else if (r.status === 'Abandoned') {
+        setPollingActive(false)
+        handleOpenChange(false)
       }
     }
     const id = setInterval(tick, PAYMENT_INTENT_POLL_INTERVAL_MS)
@@ -122,7 +142,7 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
       cancelled = true
       clearInterval(id)
     }
-  }, [pollingActive, intentId])
+  }, [open, pollingActive, intentId, handleOpenChange])
 
   const sortedBuckets = useMemo(() => {
     const list = [
@@ -175,13 +195,12 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
 
     setIntentId(r.intentId)
     setExpiresAt(new Date(r.expiresAt))
-    // 19b: STK Push not yet implemented — skip step 3 entirely
     setStep(4)
   }
 
   async function handleCancel() {
     if (intentId) await abandonPaymentIntent(intentId)
-    onOpenChange(false)
+    handleOpenChange(false)
   }
 
   const secondsLeft = expiresAt
@@ -191,7 +210,7 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
   const seconds = secondsLeft % 60
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[95vw] sm:w-full sm:max-w-[600px] p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-heading-2 font-bold tracking-tight">
@@ -430,28 +449,26 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
                 </div>
                 {result.payment.allocations.length > 0 && (
                   <TableShell>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Year</TableHead>
-                          <TableHead>Month</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead>Month</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.payment.allocations.map((a, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-paragraph-small">{a.type}</TableCell>
+                          <TableCell className="text-paragraph-small tabular-nums">{a.year}</TableCell>
+                          <TableCell className="text-paragraph-small">{a.month ?? '—'}</TableCell>
+                          <TableCell className="text-paragraph-small text-right font-medium tabular-nums">
+                            {formatCurrency(a.amount)}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {result.payment.allocations.map((a, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-paragraph-small">{a.type}</TableCell>
-                            <TableCell className="text-paragraph-small tabular-nums">{a.year}</TableCell>
-                            <TableCell className="text-paragraph-small">{a.month ?? '—'}</TableCell>
-                            <TableCell className="text-paragraph-small text-right font-medium tabular-nums">
-                              {formatCurrency(a.amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                      ))}
+                    </TableBody>
                   </TableShell>
                 )}
               </>
@@ -500,7 +517,7 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
         <DialogFooter className="pt-4 gap-2 flex-col-reverse sm:flex-row">
           {step === 1 && (
             <>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
               <Button
@@ -574,7 +591,7 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
               )}
               <Button
                 type="button"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
                 className="bg-primary hover:bg-primary/90"
               >
                 Close

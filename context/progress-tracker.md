@@ -225,13 +225,13 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 19: Guided Payment Flow (Pay Now Wizard)** — started 2026-11-20.
   - Branch: `feat/19-payment-intent`
   - **19a (Schema)** — complete, committed (`51fbe76`). Gate: tsc clean, lint clean, build 28/28.
-  - **19b (Manual wizard)** — code complete, gate passing (tsc/lint/build 28/28), pending commit.
+  - **19b (Manual wizard)** — base feature committed (`fa73244`). Two defects found during verification (polling leak after Cancel/X-close, `<TableShell>` double-`<table>` nesting) — fixes applied, gated (tsc/lint/build 28/28), pending commit.
   - **19c (STK Push)** — not started. Blocked on KCB Buni + Equity Jenga sandbox credential registration.
   - Spec: `context/specs/19-Guided Payment Flow - Pay Now Wizard.md`
   - Context patches applied: `project-overview.md`, `architecture.md` §1/§5/§8, `code-standards.md`, `00-build-plan.md`, `ai-workflow-rules.md` (new "Never Defer Bugs or Fixes" section).
 
 ## Next Up
-- **Unit 19: Guided Payment Flow (Pay Now Wizard).** PaymentIntent model, 5-step wizard, manual M-Pesa instructions with polling verification.
+- **Unit 19c: STK Push adapters (KCB Buni + Equity Jenga).** Blocked on sandbox credential registration. 19a and 19b are complete; 19c resumes after the fix commit merges.
 - **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Currently hardcoded placeholders in `scoring-actions.ts`; the
   40/30/20/10 formula is real but 60% of its input is synthetic. **Deferred pending
   client clarification** - all three axes lack product definitions and weight
@@ -434,3 +434,9 @@ Update this table whenever a measurement changes — it is the living record of 
 - **`ai-workflow-rules.md` → "Never Defer Bugs or Fixes" (added this session):** Bugs are fixed in the session they are found; incomplete fixes are completed rather than band-aided; "defer to after shipping" is not an acceptable plan for correctness, type-safety, or incomplete-fix issues. Precedent set by the audit-log fix (originally proposed to defer to post-19b; user correctly rejected and we fixed it inline).
 - **`LocalChurchStats` has two constructors (Open Question, tracked):** `getLocalChurchStats()` and the inline `stats` object in `app/dashboard/churches/[code]/page.tsx`. Adding `churchId` in 19b required edits to both sites. Trigger to refactor: next field addition, or a dedicated dedup unit. Not blocking.
 - **Process rule adopted (session precedent):** When a change spans more than one contiguous block in a file, deliver the **full file** rather than find/replace blocks. The `local-dashboard-client.tsx` Edit B silent-failure (imports added, body untouched) is the case that proved it.
+
+
+- **19b verification pass (this session):** Final drill run of Tests 4/5/6 all passed. Two defects found during verification, both fixed in the same session:
+  1. **Polling leak after Cancel/X-close:** `<PayNowWizard>` is rendered unconditionally by `LocalDashboardClient` with `open={wizardOpen}` — when the dialog closes, only `<DialogContent>` unmounts, not the wizard component. Its `pollPaymentIntent` interval kept firing after Cancel/X because neither `open` nor the polling deps changed. **Fix:** `handleOpenChange` (memoized `useCallback`) resets all wizard state on close (Cancel, X, and external); polling and countdown effects gate on `open`; `tick()` handles `Abandoned` by stopping and closing cleanly. Verified by Test 5 (Cancel → status Abandoned, no further poll calls) and Test 6 (X-close → status Active, no further poll calls).
+  2. **`<TableShell>` already wraps `<table>`:** The wizard step-5 allocation block wrapped `<Table>` inside `<TableShell>`, producing `<table><div><table>` — invalid HTML that threw a React hydration error and crashed the Matched render. **Fix:** removed `<Table>` from the wrapper (per `ui-context.md` § 6.2 pattern: `<TableShell>` renders the `<table>` and holds `<TableHeader>`/`<TableBody>` directly), removed the `Table` import. Verified by Test 4 (Matched renders without crash; allocation table appears below the green checkmark).
+- **Final drill results (session record):** Test 4 ✅ (Matched in ~3s, receipt `MOCK-…` matched, `matched_payment_id` non-null in DB, `PAYMENT_INTENT_MATCHED` audit row non-null), Test 5 ✅ (Cancel → polling stopped, status Abandoned, `PAYMENT_INTENT_ABANDONED` audit row present), Test 6 ✅ (X-close → polling stopped, status Active, `abandoned_at` null).
