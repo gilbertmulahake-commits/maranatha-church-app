@@ -140,11 +140,18 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Blocked: client must define each axis (business meaning, formula, data source, 40/30/20/10 weight) before any spec can be authored.
     - Do not schedule until those definitions are recorded in `progress-tracker.md` → `## Open Questions`.
 
-23.2. **Unit 18.2.2: Arrears Aging Drillable + Prepayment / Credit Position** (ACTIVE)
-    - Two read-only reports over existing data. No schema change.
-    - (a) Drillable Arrears Aging — per-church breakdown of the 0-30 / 31-60 / 61-90 / 90+ split the National dashboard currently shows only in aggregate.
-    - (b) Prepayment / Credit Position — National/Regional rollup of `annualCredit` / `monthlyCredit`, currently surfaced only on the Local dashboard.
-    - Registered as new slugs in `lib/utils/report-registry.ts`; no new page files. Build stays 28/28.
+23.2. **Unit 18.2.2: Arrears Aging Drillable + Prepayment / Credit Position** ✓
+    - (a) Drillable Arrears Aging — completed 18.2.2a, merged PR #53 (`c9b05b2`).
+    - (b) Prepayment / Credit Position — completed 18.2.2b, merged PR #54 (`5200632`).
+    - Both read-only, no schema change. Registered as new slugs in `lib/utils/report-registry.ts`; no new page files. Build stayed 28/28.
+
+23.3. **Unit 18.3: Reconciliation Reporting — Payment Intake Health** (NEXT)
+    - Three National-only reconciliation health reports over the `UnmatchedPayment` and `Payment` (source='Webhook'|'Resolved') tables.
+    - (a) `payment-intake-volume` — webhook flow per day, Straight-Through Rate, manual intervention rate, rejection rate.
+    - (b) `payment-unmatched-backlog` — current-state aging snapshot with KES value at risk.
+    - (c) `payment-sla-aging` — 72h SLA compliance over actioned items, bucketed by time-to-action.
+    - One additive migration: three preventive indexes on `UnmatchedPayment` (`created_at`, `reviewed_at`, `status+created_at`). No model changes.
+    - Registered as three new slugs on the existing `[report]` route. Build stays 28/28.
 
 
 24. **Unit 19: Guided Payment Flow (Pay Now Wizard)**
