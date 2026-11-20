@@ -13,6 +13,8 @@
 | Database Connection | Supavisor (Supabase) | Connection pooling to handle high traffic |
 | Integrations | KCB Bank API (Mocked for v1) | Listens for incoming payment webhooks (IPN) |
 | Integrations | Equity Bank API (Planned for v2) | Dual-bank support via Jenga API |
+| Integrations | KCB Buni STK Push (Sandbox) | STK Push initiation for KCB-issued paybills (Unit 19c) |
+| Integrations | Equity Jenga STK Push (Sandbox) | STK Push initiation + IPN confirmation for Equity-issued paybills (Unit 19c) |
 | Integrations | Africa's Talking SMS API (Sandbox configured) | Automated SMS reminders and receipts |
 | Exports | `xlsx`, `jspdf`, `jspdf-autotable` | Generates Excel and branded PDF reports |
 | Background Jobs | Supabase Edge Functions / Inngest | Process webhooks, send SMS, calculate scores async |
@@ -107,7 +109,7 @@
 ## 5. Invariants (Rules the code must NEVER violate)
 1. **Webhook Security:** Every incoming payment webhook from KCB must be verified using a secure secret/signature before processing.
 2. **Data Isolation (RLS):** A Regional Chairman must *never* be able to query or view data belonging to a church outside their assigned region. Enforced at the database level via RLS policies.
-3. **Idempotency:** If a KCB payment webhook is received twice, the system must not double-count the payment. Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference`.
+3. **Idempotency:** If a payment is received twice — via any channel (webhook, STK callback, STK Query, or manual reconciliation) — the system must not double-count it. Idempotency checks `Payment.transaction_id`, `UnmatchedPayment.bank_reference`, `PaymentIntent.provider_request_id`, **and** `PaymentIntent.provider_receipt`. A payment that settles via STK Push and is also confirmed by a bank C2B webhook must produce exactly one `Payment` row. Duplicate bank callbacks are a no-op enforced by database unique constraints, never by an application check-then-insert.
 4. **Async Processing:** Sending SMS messages and calculating heavy regional scores must *never* run in the main request-response cycle.
 5. **Reconciliation Mapping:** Every KCB payment must contain a `BillRefNumber` (Church ID). If the ID does not match an active church, the payment goes to the `UnmatchedPayment` table for HQ manual review, never discarded. The webhook returns HTTP 200 so the bank stops retrying.
 6. **Atomic Financial Mutations:** Any operation that modifies payment records, church totals, or regional scores must use database transactions (`prisma.$transaction`). If one step fails, all steps roll back.
@@ -180,9 +182,31 @@ Migrations: `20261116034805_add_reconciliation_and_writeoffs` + `add_cheque_paym
 
 Migration: `20261118133648_add_payment_date_index` — single `CREATE INDEX "Payment_payment_date_idx" ON "Payment"("payment_date")`. Reporting queries filter by `payment_date` continuously; without the index, each is a sequential scan on an unbounded table. Applied locally; production deploys via `prisma7 migrate deploy`. No other schema change. At current row count PostgreSQL correctly prefers a Seq Scan; the index is selected as the table grows.
 
-### PaymentIntent (Unit 19 — Planned)
+### PaymentIntent (Unit 19 — Planned, Sandbox for 19c)
 
-For the guided payment wizard to track in-progress payments and match them to incoming webhooks within a time window. Fields: `id`, `church_id`, `amount`, `payment_type`, `phone`, `status`, `matched_payment_id`, `created_by`, `expires_at`, `created_at`.
+For the guided payment wizard to track in-progress payments and match them to incoming bank confirmations within a time window. Tracks which **initiation channel** was used so the verification action knows where to query.
+
+**Fields:**
+- `id`, `church_id`, `amount`, `payment_type` (`Annual` | `Monthly`), `created_by`, `expires_at`, `created_at`
+- `channel` — `'Manual' | 'KCB_Buni' | 'Equity_Jenga'` (which initiation path produced this intent)
+- `provider_request_id` — provider-issued request ID (`MerchantRequestID` for KCB, `orderReference` for Jenga). `null` for `Manual`.
+- `provider_receipt` — M-Pesa receipt code once confirmed (`MpesaReceiptNumber`). `null` until settled; unique when non-null.
+- `provider_result_code` — last known result code from the provider (`"0"`, `"1032"`, `"5"`, etc.).
+- `raw_callback` — forensic JSON of the last callback received from the provider. `null` for `Manual`.
+- `status` — `'Active' | 'Matched' | 'Unmatched' | 'Expired' | 'Abandoned'`
+- `matched_payment_id`, `matched_unmatched_id`, `matched_at`, `abandoned_at` (audit trail)
+- `raw_bill_ref_entered` — what the user was instructed to type (typo detection for the `Manual` channel)
+
+**Indexes:** `@@index([church_id, status])`, `@@index([expires_at])`, `@@unique([provider_receipt])` (sparse — many null, one non-null per receipt).
+
+**Truth path per channel:**
+| Channel | Truth source for `Payment` write |
+|---|---|
+| `Manual` | Existing C2B webhook (`Payment.transaction_id` = `TransID`) |
+| `KCB_Buni` | KCB STK callback (sandbox query is unreliable; callback-first in UAT). Unknown status → `Pending`, never `Failed`. |
+| `Equity_Jenga` | Jenga **IPN** (complete callback), **not** the STK callback. Jenga itself recommends this. Jenga query endpoint is usable as fallback. |
+
+**Never** write a `Payment` from: an STK Push initiation response, a client "I have paid" button, or a status query that returns anything other than `Paid`.
 
 ### Unit 17.5 — System UI Wiring & Polish — ✅ COMPLETE (No Schema)
 

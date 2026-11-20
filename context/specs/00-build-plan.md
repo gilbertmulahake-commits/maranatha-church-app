@@ -155,7 +155,10 @@ Not originally planned, but necessary to fix production bugs discovered after de
 
 
 24. **Unit 19: Guided Payment Flow (Pay Now Wizard)**
-    - `PaymentIntent` model, 5-step wizard, manual M-Pesa instructions with polling verification.
+    - **19a — Schema:** `PaymentIntent` v2 with `channel`, `provider_request_id`, `provider_receipt`, `provider_result_code`, `raw_callback`; composite indexes; extend Invariant 3. No external dependency.
+    - **19b — Manual wizard:** 5-step wizard with payment priority (FIFO arrears → current → prepayment), manual instructions for M-Pesa Paybill / KCB app / Equity app, and polling verification against `Payment` / `UnmatchedPayment`. No bank API call. Permanent fallback channel.
+    - **19c — STK Push (sandbox):** `lib/payments/providers/kcb-buni.ts` and `equity-jenga.ts` behind a shared adapter; `initiateStkPush` server action; `app/api/webhooks/payments/[provider]/stk-callback/route.ts`; Jenga status query fallback; KCB callback-first fallback. Both providers verified in their sandboxes. KCB query 500 → `Pending`, never `Failed`. Jenga truth = IPN, not STK callback.
+    - **19d (Unit 19.5) — Go-live:** Production credentials, `PAYMENT_PROVIDER_MODE=live`, IP-allowlist callbacks, rate-limit monitoring. Blocked on KCB Go-Live and Equity Live Onboarding approvals.
 
 **Onboarding & Support**
 25. **Unit 20: In-App Help & Onboarding**

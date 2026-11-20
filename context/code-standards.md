@@ -26,7 +26,7 @@
 - Verify webhook signatures immediately upon receiving a request.
 - Enforce auth and ownership before any mutation.
 - Return consistent, predictable response shapes.
-- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully. **Unit 17:** Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference` in the KCB webhook.
+- **Idempotency:** Always query the database to check if a `transaction_id` already exists before inserting a new payment. Ignore duplicates gracefully. **Unit 17:** Idempotency checks BOTH `Payment.transaction_id` AND `UnmatchedPayment.bank_reference` in the KCB webhook. **Unit 19:** STK Push callbacks and status queries extend idempotency to `PaymentIntent.provider_request_id` and `PaymentIntent.provider_receipt`. A payment confirmed via STK Push and also via C2B webhook must produce exactly one `Payment` row. Enforce via database unique constraints, not application check-then-insert.
 - **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
 - **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
 - **Unmatched capture (Unit 17):** When a webhook cannot find its target church, do NOT return 404. Capture it in `UnmatchedPayment` with the top fuzzy suggestion, log `UNMATCHED_PAYMENT_CAPTURED`, and return HTTP 200 so the bank stops retrying.
