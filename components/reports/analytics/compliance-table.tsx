@@ -288,7 +288,9 @@ export function ComplianceTable({ data }: { data: ComplianceRow[] }) {
             {regionOptions.length > 1 && (
               <Select value={regionFilter} onValueChange={(v) => { if (v) setRegionFilter(v) }}>
                 <SelectTrigger className="w-full sm:w-[180px] h-9 bg-card text-xs">
-                  <SelectValue />
+                  <SelectValue>
+                    {regionFilter === 'all' ? 'All Regions' : regionFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
@@ -302,7 +304,9 @@ export function ComplianceTable({ data }: { data: ComplianceRow[] }) {
             )}
             <Select value={statusFilter} onValueChange={(v) => { if (v) setStatusFilter(v as StatusFilter) }}>
               <SelectTrigger className="w-full sm:w-[160px] h-9 bg-card text-xs">
-                <SelectValue />
+                <SelectValue>
+                  {statusFilter === 'all' ? 'All Statuses' : statusFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>

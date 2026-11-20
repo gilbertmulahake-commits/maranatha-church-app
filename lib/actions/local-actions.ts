@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
+import { getPeriodStatus, getCreditPosition } from '@/lib/utils/financial'
 
 export type LocalChurchStats = {
   churchName: string
@@ -73,25 +73,10 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
     const church = dbUser.church
     const now = new Date()
 
-    let annualPaid = 0
-    let monthlyPaid = 0
-
-    church.payments.forEach((p) => {
-      if (p.allocations.length === 0) {
-        const amount = Number(p.amount_paid)
-        if (p.payment_type === 'Annual') annualPaid += amount
-        else monthlyPaid += amount
-      } else {
-        p.allocations.forEach((a) => {
-          const amount = Number(a.amount)
-          if (a.allocation_type === 'Annual') annualPaid += amount
-          else monthlyPaid += amount
-        })
-      }
-    })
+    const credit = getCreditPosition(church, now)
+    const { annualPaid, monthlyPaid, expectedAnnual, expectedMonthly } = credit
 
     const totalPaid = annualPaid + monthlyPaid
-    const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(church.created_at, now)
 
     const annualOutstanding = Math.max(0, expectedAnnual - annualPaid)
     const monthlyOutstanding = Math.max(0, expectedMonthly - monthlyPaid)

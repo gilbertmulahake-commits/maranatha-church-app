@@ -113,6 +113,14 @@ export const REPORTS: ReportEntry[] = [
     group: 'Financial',
     visibleTo: ['NATIONAL', 'REGIONAL'],
   },
+  {
+    slug: 'prepayment-credit-position',
+    title: 'Prepayment / Credit Position',
+    description:
+      'Per-church Annual and Monthly credit balances (cash received above accrued expectation), rolled up by scope. Defunct churches included.',
+    group: 'Financial',
+    visibleTo: ['NATIONAL', 'REGIONAL'],
+  },
 ]
 
 export function getReportBySlug(slug: string): ReportEntry | undefined {

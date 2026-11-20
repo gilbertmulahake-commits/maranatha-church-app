@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { verifyReportsAccess } from '@/lib/auth/guards'
 import { buildChurchWhere, buildPaymentWhere } from '@/lib/utils/report-scope'
-import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding, getAgingBuckets, type AgingBuckets } from '@/lib/utils/financial'
+import { getExpectedUpToDate, sumApprovedWriteOffs, getNetOutstanding, getAgingBuckets, getCreditPosition, type AgingBuckets } from '@/lib/utils/financial'
 import { isNationalLevel } from '@/lib/auth/roles'
 import { isChurchCompliant } from '@/lib/utils/financial'
 import { scopeByRole } from '@/lib/utils/report-scope'
@@ -921,6 +921,141 @@ export async function getArrearsAgingReport(
       computed_at: new Date().toISOString(),
       total_written_off_in_scope: 0,
       churches_with_write_offs: 0,
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Prepayment / Credit Position (Unit 18.2.2b)
+// Per-church Annual and Monthly credit balances (cash received above accrued
+// expectation), rolled up by scope. Strict Bucket Isolation applies.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type CreditPositionRow = {
+  church_id: string
+  church_code: string
+  church_name: string
+  region_name: string
+  is_defunct: boolean
+  annual_credit: number
+  monthly_credit: number
+}
+
+export type CreditPositionResult = {
+  rows: CreditPositionRow[]
+  scope_label: string
+  computed_at: string
+  total_annual_credit: number
+  total_monthly_credit: number
+  churches_with_annual_credit: number
+  churches_with_monthly_credit: number
+  churches_in_scope: number
+}
+
+export async function getPrepaymentCreditPosition(
+  regionId?: string
+): Promise<CreditPositionResult> {
+  try {
+    const { dbUser } = await verifyReportsAccess()
+    const churchWhere = buildChurchWhere(dbUser)
+    const where: Prisma.ChurchWhereInput = {
+      ...churchWhere,
+      // National roles may narrow by region; Regional/Local callers already
+      // fail closed via buildChurchWhere, so regionId is ignored for them.
+      ...(isNationalLevel(dbUser.role) && regionId ? { region_id: regionId } : {}),
+    }
+
+    const churches = await prisma.church.findMany({
+      where,
+      include: {
+        region: true,
+        payments: {
+          where: { status: 'Paid' },
+          include: { allocations: true },
+        },
+      },
+      orderBy: { church_code: 'asc' },
+    })
+
+    const now = new Date()
+    const rows: CreditPositionRow[] = []
+
+    churches.forEach((church) => {
+      const credit = getCreditPosition(church, now)
+
+      // Reading B: filter to churches holding credit in either bucket.
+      // This is a credit liability register, not a full population snapshot.
+      // Fully-paid/arrears-only churches at 0/0 are excluded.
+      if (credit.annualCredit === 0 && credit.monthlyCredit === 0) return
+
+      rows.push({
+        church_id: church.id,
+        church_code: church.church_code,
+        church_name: church.church_name,
+        region_name: church.region.name,
+        is_defunct: church.is_defunct,
+        annual_credit: credit.annualCredit,
+        monthly_credit: credit.monthlyCredit,
+      })
+    })
+
+    let total_annual_credit = 0
+    let total_monthly_credit = 0
+    let churches_with_annual_credit = 0
+    let churches_with_monthly_credit = 0
+
+    rows.forEach((r) => {
+      total_annual_credit += r.annual_credit
+      total_monthly_credit += r.monthly_credit
+      if (r.annual_credit > 0) churches_with_annual_credit++
+      if (r.monthly_credit > 0) churches_with_monthly_credit++
+    })
+
+    // Scope label — matches getArrearsAgingReport convention
+    let scope_label: string
+    if (isNationalLevel(dbUser.role)) {
+      if (regionId) {
+        const region = await prisma.region.findUnique({
+          where: { id: regionId },
+          select: { name: true },
+        })
+        scope_label = region ? `Region: ${region.name}` : 'All Regions'
+      } else {
+        scope_label = 'All Regions'
+      }
+    } else {
+      const isLocalRole =
+        dbUser.role === 'LOCAL_PASTOR' || dbUser.role === 'CHURCH_TREASURER'
+      if (isLocalRole) {
+        scope_label =
+          churches.length > 0 ? `Church: ${churches[0].church_code}` : 'Your Church'
+      } else {
+        scope_label =
+          churches.length > 0 ? `Region: ${churches[0].region.name}` : 'Your Region'
+      }
+    }
+
+    return {
+      rows,
+      scope_label,
+      computed_at: now.toISOString(),
+      total_annual_credit,
+      total_monthly_credit,
+      churches_with_annual_credit,
+      churches_with_monthly_credit,
+      churches_in_scope: rows.length,
+    }
+  } catch (error) {
+    console.error('Failed to fetch prepayment credit position:', error)
+    return {
+      rows: [],
+      scope_label: 'Unknown',
+      computed_at: new Date().toISOString(),
+      total_annual_credit: 0,
+      total_monthly_credit: 0,
+      churches_with_annual_credit: 0,
+      churches_with_monthly_credit: 0,
+      churches_in_scope: 0,
     }
   }
 }

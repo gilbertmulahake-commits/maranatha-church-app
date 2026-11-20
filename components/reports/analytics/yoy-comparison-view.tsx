@@ -128,7 +128,9 @@ export function YoYComparisonView({
             {regions.length > 0 && (
               <Select value={regionId ?? 'all'} onValueChange={handleRegionChange}>
                 <SelectTrigger className="w-full sm:w-[200px] h-9 bg-card text-xs">
-                  <SelectValue placeholder="All Regions" />
+                  <SelectValue placeholder="All Regions">
+                    {regionId ? regions.find((r) => r.id === regionId)?.name : 'All Regions'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
