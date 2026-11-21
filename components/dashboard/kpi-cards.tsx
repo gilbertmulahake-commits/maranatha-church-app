@@ -11,6 +11,8 @@ import Link from 'next/link'
 
 import { KpiGrid } from '@/components/ui/kpi-grid'
 import { KpiValue } from '@/components/ui/kpi-value'
+import { InfoTooltip } from '@/components/help/info-tooltip'
+import { INFO_TOOLTIPS } from '@/lib/help/content'
 
 interface KpiCardsProps {
   stats: {
@@ -137,8 +139,12 @@ export function KpiCards({ stats }: KpiCardsProps) {
       <Link href="/dashboard/regions" className="block">
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
-            <CardDescription className="text-xs font-medium text-muted-foreground">
+            <CardDescription className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
               Compliance Snapshot
+              <InfoTooltip
+                label="Compliance Snapshot"
+                content={INFO_TOOLTIPS.complianceSnapshot}
+              />
             </CardDescription>
             <KpiValue className="text-foreground">
               {stats.compliantChurches} / {stats.totalChurches}

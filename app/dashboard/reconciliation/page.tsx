@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { IconAlertTriangle, IconClock, IconScale, IconFilePlus } from '@tabler/icons-react'
+import { InfoTooltip } from '@/components/help/info-tooltip'
+import { INFO_TOOLTIPS } from '@/lib/help/content'
 
 async function ReconciliationContent() {
   await connection()
@@ -137,7 +139,13 @@ export default function ReconciliationPage() {
   return (
     <div className="space-y-xl">
       <div>
-        <h1 className="text-heading-2 font-bold text-foreground">Reconciliation</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-heading-2 font-bold text-foreground">Reconciliation</h1>
+          <InfoTooltip
+            label="Four-Eyes Approval"
+            content={INFO_TOOLTIPS.fourEyes}
+          />
+        </div>
         <p className="mt-xs text-paragraph-small text-muted-foreground">
           Handle unmatched payments, manual entries, and write-offs.
         </p>

@@ -10,6 +10,7 @@ import { prisma } from '@/lib/prisma'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUnresolvedCounts } from '@/lib/actions/reconciliation-actions'
 import { isFinanceAdmin } from '@/lib/auth/roles'
+import { HelpDrawerProvider } from '@/components/help/help-drawer-provider'
 
 async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   await connection()
@@ -47,30 +48,35 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <SidebarProvider
-      style={
-        {
-          '--sidebar-width': '16rem',
-          '--header-height': '4rem',
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar
-        role={role}
-        userEmail={user.email}
-        unresolvedCount={unresolvedCount}
-      />
+    <HelpDrawerProvider role={role}>
+      <SidebarProvider
+        style={
+          {
+            '--sidebar-width': '16rem',
+            '--header-height': '4rem',
+          } as React.CSSProperties
+        }
+      >
+        <AppSidebar
+          role={role}
+          userEmail={user.email}
+          unresolvedCount={unresolvedCount}
+        />
 
-      <SidebarInset className="flex-1 min-w-0 flex flex-col h-svh overflow-hidden">
-        <SiteHeader />
+        <SidebarInset className="flex-1 min-w-0 flex flex-col h-svh overflow-hidden">
+          <SiteHeader />
 
-        <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto">
-          <div className="@container/main mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-            {children}
-          </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+          <main
+            data-tour="main-content"
+            className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto"
+          >
+            <div className="@container/main mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </HelpDrawerProvider>
   )
 }
 
