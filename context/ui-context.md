@@ -197,6 +197,11 @@ We strictly use shadcn/ui (Base UI variant).
 - **Icons:** Lucide React. Stroke width `2` (default). Sizes: `h-4 w-4` inline, `h-5 w-5` for buttons, `h-3 w-3` inside badges.
 - **Alignment & Positioning:** All dropdowns must be explicitly aligned to their trigger button. Use `align="end"` for right-aligned actions (e.g., table row menus, profile menus). Use `align="start"` for left-aligned actions. Use `side="bottom"` and `sideOffset={4}` to ensure the dropdown sits perfectly top-aligned with the button's bottom edge without awkward floating gaps.
 
+### Contextual Tooltips (`<InfoTooltip>`)
+- **Inline Help:** Use `<InfoTooltip label="…" content="…" />` from `components/help/info-tooltip.tsx` for all inline contextual help.
+- **Bubble Guard:** The wrapper automatically applies `e.preventDefault()` + `e.stopPropagation()` to a wrapping `<span>` to prevent parent `<Link>` navigation. Do not add `onClick` directly to the inner `<button>`; the Base UI `TooltipTrigger` composition intercepts it.
+- **Sizing:** The icon is `h-3.5 w-3.5` (sub-inline) to align correctly next to `text-xs` or `text-paragraph-small` labels.
+
 ## 8. Data Visualization (Recharts)
 - **Compliance Charts:** Where a compliance breakdown chart is used (Regional and Local dashboards), it displays Church Compliance (Paid, Partial, Overdue, N/A) as a Doughnut, NOT Payment Methods. **On the National dashboard, this chart has been replaced by Arrears Aging — see Section 5.3, Tier 3.** Do not reintroduce a Doughnut into the National Tier 3 slot.
 - **Arrears Aging:** A stacked bar chart with four buckets (0-30, 31-60, 61-90, 90+ days). The 90+ bucket carries an escalation warning badge when its share exceeds 25%.
