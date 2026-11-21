@@ -409,8 +409,16 @@ export function RegionalTable({
                     >
                       {church.church_name}
                     </Link>
-                    <div className="font-mono text-paragraph-mini text-muted-foreground">
+                    <div className="font-mono text-paragraph-mini text-muted-foreground flex items-center gap-2">
                       {church.church_code}
+                      {church.is_defunct && (
+                        <Badge
+                          variant="outline"
+                          className="bg-gray-100 text-gray-700 border-gray-200"
+                        >
+                          Defunct
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

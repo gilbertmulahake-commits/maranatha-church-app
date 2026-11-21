@@ -175,8 +175,8 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - **20.6a (Phase A) Soft Delete Foundation:** `Church.deleted_at DateTime?` replaces hard delete in `deleteChurch`. Migration `20261121145153_add_church_soft_delete`. Soft-delete filter swept across 13 files. Financial disclosure registers (Write-Off, Defunct) preserve deleted churches with `church_deleted` annotation (IFRS 9 / IPSAS 29). Money-ledger views preserve deleted-church payments via `buildPaymentWhere` (deliberately unfiltered). `deleteChurch` preconditions match Phase B approval path (no Pending staging). Pre-existing "Edit Church" bug in `regional-table.tsx` fixed in-session. Build count 29/29.
     - **20.6b (Phase B) Request Workflow + Approval Queue:** Regional Chairman / Regional Treasurer submit deletion requests; National Operations Admin / System Admin / National Treasurer approve or reject. New `ChurchDeletionRequest` model. Four-eyes, atomic claim, enum-plus-OTHER reason taxonomy. New page `/dashboard/church-deletion-requests`. Pending - gated on Phase A committing.
 
-25.6.1. **Unit 20.6.1: Regional Dashboard Compliance Alignment** - queued
-    - `regional-actions.ts` still computes compliance via combined totals (pre-18.2 rule). Must align with `scoring-actions.ts` and `isChurchCompliant` (strict-bucket). Fix committed separately from 20.6a per Never Defer. Caught during A3.10 sweep.
+25.6.1. **Unit 20.6.1: Regional Dashboard Compliance Alignment** - ✅ COMPLETE
+    - `regional-actions.ts` combined-totals compliance replaced with strict-bucket via `isChurchCompliant`. `is_defunct` excluded from counters and denominator; `Defunct` badge added to `regional-table.tsx`. Same fix applied to `region-actions.ts` (`getRegionsWithStats`, `getRegionStats`, `getSingleRegionStats`), which also received the missing Phase A `deleted_at: null` sweep filter (Phase A gap). Three files, zero migrations. Gate 29/29. Commit 2 after Phase A (`7083ffa`).
 
 **Breakthrough — Real Bank Sandbox**
 26. **Unit 21: KCB Sandbox Integration** (Blocked on client credentials)
