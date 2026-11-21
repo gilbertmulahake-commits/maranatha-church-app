@@ -157,6 +157,12 @@ Never re-implement these — always use the component:
 
 If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
 
+### Base UI `Sheet` Collapse Bug
+- The protected `components/ui/sheet.tsx` primitive lacks default width/background classes for its right-side variant. When building a drawer that must be forced open, apply inline styles (`style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--background)' }}`) to guarantee the panel does not collapse to a sliver. Do not modify the primitive itself.
+
+### InfoTooltip Parent-Link Guard
+- When placing an `<InfoTooltip>` inside a clickable parent (like a KPI `<Link>`), you must use the wrapper from `components/help/info-tooltip.tsx`. It applies `e.preventDefault()` and `e.stopPropagation()` to a wrapping `<span>`. Base UI's `TooltipTrigger.render` intercepts events on the inner `<button>`, so an `onClick` placed directly on the button will not stop the link navigation.
+
 ## SMS Safety Invariant (Preserve During Refactors)
 - `safeLogSms()` in `lib/actions/sms-actions.ts` swallows `SmsLog` DB write failures so that a **successful Africa's Talking send always returns `{ success: true }`**.
 - Never change this: **DB log failure must not surface as SMS-send failure**. If it does, the UI retries and sends duplicate messages to the pastor.
