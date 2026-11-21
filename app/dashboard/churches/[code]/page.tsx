@@ -3,10 +3,8 @@ import { connection } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EntityBackButton } from '@/components/shared/entity-back-button'
 import { ChurchProfileClient } from '@/components/churches/church-profile-client'
 import { getPeriodStatus, getCreditPosition } from '@/lib/utils/financial'
 import { KpiGrid } from '@/components/ui/kpi-grid'
@@ -118,11 +116,7 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
     <div className="space-y-xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-sm">
-          <Link href="/dashboard/churches">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <EntityBackButton fallbackHref="/dashboard/churches" />
           <div>
             <h1 className="text-heading-2 font-bold text-foreground">{church.church_name}</h1>
             <p className="mt-xs text-paragraph-small text-muted-foreground">

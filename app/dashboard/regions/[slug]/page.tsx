@@ -5,10 +5,8 @@ import { notFound } from 'next/navigation'
 import { getSingleRegionStats } from '@/lib/actions/region-actions'
 // IMPORT the exact client component used on the Chairman's main dashboard
 import { RegionalDashboardClient } from '@/components/regional/regional-dashboard-client'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EntityBackButton } from '@/components/shared/entity-back-button'
 
 import { KpiGrid } from '@/components/ui/kpi-grid'
 
@@ -40,11 +38,7 @@ async function RegionDetailContent({ params }: { params: Promise<{ slug: string 
   return (
     <div className="space-y-xl">
       <div className="flex items-center gap-sm">
-        <Link href="/dashboard/regions">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <EntityBackButton fallbackHref="/dashboard/regions" />
         <div>
           <h1 className="text-heading-2 font-bold text-foreground">{stats.regionName} Region</h1>
           <p className="text-paragraph-small text-muted-foreground">

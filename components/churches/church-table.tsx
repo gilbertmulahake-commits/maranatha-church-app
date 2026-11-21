@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
+import { ArrowUpDown, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { deleteChurch } from '@/lib/actions/church-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { EditChurchDialog } from './edit-church-dialog'
+import { ViewChurchDialog } from './view-church-dialog'
 import { InfoTooltip } from '@/components/help/info-tooltip'
 import { INFO_TOOLTIPS } from '@/lib/help/content'
 
@@ -89,6 +90,7 @@ export function ChurchTable({
   const [isBulkLoading, setIsBulkLoading] = useState(false)
   const [churchToDelete, setChurchToDelete] = useState<ChurchRow | null>(null)
   const [churchToEdit, setChurchToEdit] = useState<ChurchRow | null>(null)
+  const [viewingChurch, setViewingChurch] = useState<ChurchRow | null>(null)
   const [pendingAction, setPendingAction] = useState<{ type: 'print' | 'export', format?: 'csv' | 'excel' | 'pdf' } | null>(null)
 
   const sortedData = useMemo(() => {
@@ -435,6 +437,12 @@ export function ChurchTable({
                             Actions
                           </DropdownMenuLabel>
                         </DropdownMenuGroup>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                          onClick={() => setViewingChurch(church)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" /> View Details
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setChurchToEdit(church)} className="cursor-pointer text-paragraph-small whitespace-nowrap">
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
@@ -482,6 +490,13 @@ export function ChurchTable({
         <EditChurchDialog
           church={churchToEdit}
           onClose={() => setChurchToEdit(null)}
+        />
+      )}
+
+      {viewingChurch && (
+        <ViewChurchDialog
+          church={viewingChurch}
+          onClose={() => setViewingChurch(null)}
         />
       )}
 

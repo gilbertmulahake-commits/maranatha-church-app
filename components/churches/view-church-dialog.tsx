@@ -1,7 +1,17 @@
 'use client'
 
+import Link from 'next/link'
+import { ExternalLink } from 'lucide-react'
 import { ChurchRow } from './church-table'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
@@ -76,6 +86,18 @@ export function ViewChurchDialog({ church, onClose }: { church: ChurchRow | null
             </div>
           </div>
         </div>
+
+        <DialogFooter className="pt-4 gap-2 flex-col-reverse sm:flex-row">
+          <Button variant="outline" onClick={onClose} className="h-9">
+            Close
+          </Button>
+          <Link href={`/dashboard/churches/${church.church_code}`}>
+            <Button className="h-9 bg-primary hover:bg-primary/90">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Go to Church Page
+            </Button>
+          </Link>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
