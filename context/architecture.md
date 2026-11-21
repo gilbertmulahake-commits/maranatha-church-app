@@ -62,7 +62,7 @@
 - `lib/constants.ts` — Project-wide constants including `FOUR_EYES_THRESHOLD` (KES 20,000) and `PRISMA_TRANSACTION_TIMEOUT`.
 - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF, Print).
 - `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein fuzzy matching + pattern learning). Patterns short-circuit fuzzy matching when present.
-- `lib/utils/financial.ts` — Cumulative ledger, `getExpectedUpToDate`, `getPeriodStatus`, `getCreditBalance`, `getNetOutstanding`, `sumApprovedWriteOffs`, `isActiveChurch`, `filterActiveChurches`, `isChurchCompliant` (Unit 18.2 — single source of the Strict Bucket Isolation compliance rule).
+- `lib/utils/financial.ts` — Cumulative ledger, `getExpectedUpToDate`, `getPeriodStatus`, `getCreditBalance`, `getNetOutstanding`, `sumApprovedWriteOffs`, `isActiveChurch` (defunct-only), `isNotDeleted` (Unit 20.6a — soft-delete-only; deliberately distinct from `isActiveChurch`), `filterActiveChurches`, `isChurchCompliant` (Unit 18.2 — single source of the Strict Bucket Isolation compliance rule).
 - `lib/utils/report-scope.ts` — Strict role-based Prisma where clauses (`buildChurchWhere`, `buildPaymentWhere` with optional `regionId`) and `scopeByRole` for rank-preserving post-sort filtering (Unit 18.1 + 18.2).
 - `lib/utils/report-registry.ts` — Single source of truth for report slug/title/description/group/role visibility; three consumers (hub, `[report]` resolver, `<ReportSelector>`) (Unit 18.2).
 - `prisma/` — Database schema and migrations.
@@ -217,8 +217,53 @@ For the guided payment wizard to track in-progress payments and match them to in
 - **Formatters:** Centralized `formatCurrency`, `formatDate`, and `formatDateTime` into `lib/utils.ts` with explicit `Africa/Nairobi` timezone support.
 - **Layouts & Logic:** Added `is_defunct` guard to `getSuggestedAllocations`. Removed the duplicate `?tab=pending` hub card.
 - **Orphaned Unmatched Payments Fixed:** `rejectPendingPayment` now resets the linked `UnmatchedPayment` back to `Pending`. `approvePendingPayment` marks it as `Resolved` and links the new `Payment`.
-- **Source Tagging Fixed:** `approvePendingPayment` sets `Payment.source` to `'Resolved'` if it originated from an unmatched queue, or `'Manual'` otherwise.
+- - **Source Tagging Fixed:** `approvePendingPayment` sets `Payment.source` to `'Resolved'` if it originated from an unmatched queue, or `'Manual'` otherwise.
 - No models, fields, or migrations were added.
+
+### Church Soft Delete (Unit 20.6a) — ✅ COMPLETE
+
+Migration: `20261121145153_add_church_soft_delete` — single `ALTER TABLE "Church" ADD COLUMN "deleted_at" TIMESTAMP(3);`. Purely additive, no backfill needed (`deleted_at` is nullable, defaults `NULL`).
+
+**Field:** `Church.deleted_at DateTime?` — null means active. Set by `softDeleteChurchTx` (below).
+
+**Why soft delete is the only viable path.** `Payment.church_id`, `WriteOff.church_id`, `PendingPayment.church_id`, and `PaymentIntent.church_id` are all **required** FKs with Prisma's default `Restrict` on PostgreSQL. A hard `prisma.church.delete` on any realistic church fails at the FK boundary — exactly the case the pre-20.6 `deleteChurch` catch clause named ("They may have linked payments"). Cascading deletes would violate Invariant 5 (reconciliation preservation) and destroy audit-log traceability. So the pre-20.6 `deleteChurch` was effectively dead code for 90% of churches, and 20.6 replaces it with soft delete + user deactivation, atomically, inside `prisma.$transaction`.
+
+**What soft-deleting a church does:**
+1. Sets `Church.deleted_at = now()`.
+2. Sets `is_active = false` on every attached `User` (`church_id` matches, `is_active = true`).
+3. Does **not** delete `Payment`, `WriteOff`, `PendingPayment`, `PaymentIntent`, `UnmatchedPayment`, `User`, or `AuditLog` rows — all FKs remain intact, all history traceable.
+
+**"Defunct ≠ deleted":** `Church.is_defunct` (Unit 17) marks a church whose full outstanding has been written off — such churches **remain in financial reports** (gross arrears, write-off register, defunct register) because their write-offs are financial disclosure events. `Church.deleted_at` (Unit 20.6a) removes a church from **active operational views** — the church no longer exists as an operating entity, but its financial trail stays queryable via the audit log and (for the two disclosure registers) via targeted queries that strip `deleted_at` from the filter. Do **not** merge these states into one predicate. `isActiveChurch` (defunct-only) and `isNotDeleted` (deleted-only) are deliberately distinct.
+
+**Where soft-deleted churches are excluded — via `buildChurchWhere` (single filter, all reports inherit):**
+- Church registry (`getChurches`), church stats (`getChurchStats`)
+- Region dashboard (`regional-actions.ts` — nested `churches` relation)
+- National dashboard (`dashboard-actions.ts` — the `churches` aggregate; `recentTransactions` deliberately excluded, see below)
+- Scoring engine (`scoring-actions.ts` — nested `churches` relation)
+- Reports that route through `buildChurchWhere`: Arrears, Compliance, Arrears Aging, Prepayment / Credit Position, Inactive Churches
+- Every church dropdown (resolve unmatched, manual entry, propose write-off, payment intent wizard) — all entry points reject a deleted church with an explicit error, and their pickers exclude via `deleted_at: null` on the query
+- SMS recipient sets — recipients are built by callers from already-filtered sources (`getChurches`, `getArrearsReport`, `regional-actions.ts`); `sms-actions.ts` itself is transport-only
+- Church detail page (`/dashboard/churches/[code]`) — `notFound()` guard
+- Local dashboard (`getLocalChurchStats`) — returns `{ error: 'This church has been deleted.' }`
+
+**Where soft-deleted churches are deliberately preserved (financial disclosure):**
+
+| Surface | Why preserve | Mechanism |
+|---|---|---|
+| **Write-Off Register** (`getWriteOffRegister`) | IFRS 9 / IPSAS 29: a write-off is a recognized financial loss. Deleting the church does not un-recognize it. Auditors must be able to trace every write-off. | Strip `deleted_at` from `churchWhere` via destructure; add `church_deleted: boolean` per row |
+| **Defunct Register** (`getDefunctChurchRegister`) | Same as above — carries write-off amounts, is a disclosure register | Same pattern |
+| **Cashbook, Collections Summary, YoY, Allocation Breakdown, Source/Method, Intake Volume, Unmatched Backlog, SLA Aging** | The money moved. `Payment.transaction_id` is an immutable ledger entry; the church's existence state does not change whether the payment happened. | `buildPaymentWhere` is **not** filtered by church deletion state (A0 decision) |
+| **Live Feed (`recentTransactions` on National Dashboard)** | Money-ledger view; same principle as Cashbook | Not filtered — real transactions stay visible, attributed to the (soft-deleted) church |
+
+**Deletion preconditions (both paths):**
+
+Both the direct National `deleteChurch` and the Phase B approval path (`approveChurchDeletionRequest`) block deletion when the church has any **Pending** `PendingPayment`, `WriteOff`, or `UnmatchedPayment`. This prevents orphaning staging records against a deleted church, which would later block their approval or corrupt defunct-flag computation. The precondition check is identical on both paths, matching enterprise-grade consistency (SAP / NetSuite: preconditions must apply uniformly to every state-transition route).
+
+**`softDeleteChurchTx` helper:** defined locally (non-exported) in `lib/actions/church-actions.ts`, mirroring `computeChurchOutstanding`'s inline-in-actions-file house style. Signature: `(tx: Prisma.TransactionClient, churchId: string) => Promise<{ deactivatedUserIds: string[] }>`. Must be called inside `prisma.$transaction`. Does **not** log audit — callers log after the transaction commits, per § 8 "AuditLog".
+
+**Audit trail:**
+- Direct `deleteChurch` — one event: `CHURCH_DELETED` with `metadata.soft_delete = true`, `after_data.deleted_at`, `after_data.deactivated_user_ids`.
+- Phase B `approveChurchDeletionRequest` — two events: `CHURCH_DELETED` (with `metadata.source = 'deletion_request'`, `metadata.request_id`) and `CHURCH_DELETION_APPROVED` (on the request entity). Two distinct lifecycle events, both visible in the audit viewer.
 
 ### LoginHistory (Unit 16.4 — Optional, Not Yet Scheduled)
 

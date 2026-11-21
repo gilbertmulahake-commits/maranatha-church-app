@@ -3,19 +3,32 @@ import { isNationalLevel } from '@/lib/auth/roles'
 
 const FAIL_CLOSED_ID = '00000000-0000-0000-0000-000000000000'
 
+/**
+ * Builds the church-visibility where clause for reports and read-side views.
+ *
+ * Unit 20.6a: soft-deleted churches are excluded here. Every report that
+ * consumes `buildChurchWhere` inherits the filter. The fail-closed branch
+ * deliberately omits the filter — the impossible UUID `FAIL_CLOSED_ID`
+ * already matches nothing, and adding `deleted_at: null` there would only
+ * dilute the signal that the UUID is the guard.
+ *
+ * `buildPaymentWhere` (below) does NOT filter by church deletion state:
+ * a soft-deleted church's payments remain part of the historical ledger
+ * (see architecture.md § 8 "Church Soft Delete").
+ */
 export function buildChurchWhere(dbUser: User | null): Prisma.ChurchWhereInput {
   if (!dbUser) return { id: FAIL_CLOSED_ID }
 
   if (isNationalLevel(dbUser.role)) {
-    return {}
+    return { deleted_at: null }
   }
 
   if (dbUser.role === 'REGIONAL_CHAIRMAN' || dbUser.role === 'REGIONAL_TREASURER') {
-    return { region_id: dbUser.region_id ?? FAIL_CLOSED_ID }
+    return { region_id: dbUser.region_id ?? FAIL_CLOSED_ID, deleted_at: null }
   }
 
   if (dbUser.role === 'LOCAL_PASTOR' || dbUser.role === 'CHURCH_TREASURER') {
-    return { id: dbUser.church_id ?? FAIL_CLOSED_ID }
+    return { id: dbUser.church_id ?? FAIL_CLOSED_ID, deleted_at: null }
   }
 
   return { id: FAIL_CLOSED_ID }

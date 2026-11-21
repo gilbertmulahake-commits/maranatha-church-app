@@ -47,7 +47,11 @@ async function computeChurchOutstanding(churchId: string): Promise<{ total: numb
       write_offs: { where: { status: 'Approved' } },
     },
   })
-  if (!church) return { total: 0, annual: 0, monthly: 0 }
+  // Unit 20.6a: a deleted church has no collectable outstanding from the
+  // app's perspective. Returning 0 here makes approveWriteOff's re-check
+  // correctly fail with the existing "Cannot approve: current outstanding
+  // is KES 0, but write-off is KES X" path — no new branch needed.
+  if (!church || church.deleted_at) return { total: 0, annual: 0, monthly: 0 }
 
   let annualPaid = 0
   let monthlyPaid = 0
@@ -151,6 +155,9 @@ export async function proposeWriteOff(formData: FormData) {
       where: { id: data.church_id },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: deleted churches cannot receive new write-offs. Checked
+    // before the defunct guard because "deleted" is the stronger, later state.
+    if (church.deleted_at) return { error: 'Church is deleted' }
     if (church.is_defunct) return { error: 'Church is already marked defunct' }
 
     const outstanding = await computeChurchOutstanding(data.church_id)

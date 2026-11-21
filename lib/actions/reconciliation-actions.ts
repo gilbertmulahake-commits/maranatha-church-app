@@ -96,7 +96,10 @@ async function compute90PlusArrears(churchId: string): Promise<number> {
       payments: { where: { status: 'Paid' }, include: { allocations: true } },
     },
   })
-  if (!church) return 0
+  // Unit 20.6a: deleted churches are not arrears-relevant. Defensive return 0
+  // in case the caller-side guard is bypassed; resolveUnmatched also blocks
+  // resolution to a deleted church before this is reached.
+  if (!church || church.deleted_at) return 0
 
   let paidBeforeCritical = 0
   church.payments.forEach((p) => {
@@ -146,6 +149,10 @@ export async function resolveUnmatched(params: {
       where: { id: params.churchId },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: a deleted church cannot be a resolution target.
+    if (church.deleted_at) {
+      return { error: 'Cannot resolve to a deleted church.' }
+    }
 
     const amount = Number(unmatched.amount)
     const needsApproval = await requiresTreasurerApproval(params.churchId, amount)
@@ -453,6 +460,9 @@ export async function getSuggestedAllocations(
       },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: deleted churches cannot receive allocations. Checked before
+    // the defunct guard so the error message names the stronger state.
+    if (church.deleted_at) return { error: 'Cannot compute allocations for a deleted church' }
     if (church.is_defunct) return { error: 'Cannot compute allocations for a defunct church' }
 
     const transDate = new Date()

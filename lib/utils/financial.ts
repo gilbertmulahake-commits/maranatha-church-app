@@ -92,14 +92,21 @@ export function getNetOutstanding(
 }
 
 /**
- * Filters out defunct churches.
- * 
+ * Returns true when the church is NOT defunct.
+ *
  * Defunct churches are excluded from:
  *   - Compliance percentage denominators
  *   - Regional incentive scoring
  *   - SMS reminder lists
- * 
+ *
  * They remain visible in financial reports (gross arrears, write-off register).
+ *
+ * IMPORTANT (Unit 20.6a): This predicate does NOT check `deleted_at`. A church
+ * can be non-defunct AND soft-deleted. Soft-deleted churches must be excluded
+ * at the Prisma query layer (`where: { deleted_at: null }`) — that is the
+ * canonical filter, applied via `buildChurchWhere` for reports and by each
+ * actions file during the Phase A sweep. Use `isNotDeleted()` only when
+ * filtering an already-loaded in-memory list.
  */
 export function isActiveChurch(
   church: { is_defunct?: boolean | null }
@@ -107,6 +114,32 @@ export function isActiveChurch(
   return !church.is_defunct
 }
 
+/**
+ * Returns true when the church is NOT soft-deleted (Unit 20.6a).
+ *
+ * Mirror of `isActiveChurch` for the `deleted_at` field. The canonical filter
+ * is still the Prisma query layer (`where: { deleted_at: null }`); this helper
+ * exists for cases where a church list is already loaded and an in-memory
+ * check is clearer than a second query.
+ *
+ * Do NOT merge `isNotDeleted` and `isActiveChurch` into one predicate —
+ * "defunct" (written off to zero, still in financial reports) and "deleted"
+ * (removed from active views, historical records preserved) are distinct
+ * states. See architecture.md § 8.
+ */
+export function isNotDeleted(
+  church: { deleted_at?: Date | string | null }
+): boolean {
+  return church.deleted_at === null || church.deleted_at === undefined
+}
+
+/**
+ * Filters out defunct churches. Delegates to `isActiveChurch`.
+ *
+ * Does NOT filter soft-deleted churches — the query layer is expected to have
+ * already applied `where: { deleted_at: null }`. If you have a mixed list that
+ * may contain soft-deleted churches, chain `.filter(isNotDeleted)`.
+ */
 export function filterActiveChurches<
   T extends { is_defunct?: boolean | null }
 >(churches: T[]): T[] {

@@ -74,6 +74,11 @@ export async function createManualEntry(formData: FormData) {
       where: { id: data.church_id },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: deleted churches cannot receive payments. Checked before
+    // the defunct guard because "deleted" is the stronger, later state.
+    if (church.deleted_at) {
+      return { error: 'Cannot create payments for a deleted church' }
+    }
     if (church.is_defunct) {
       return { error: 'Cannot create payments for a defunct church' }
     }
@@ -471,6 +476,16 @@ export async function getManualEntryAllocations(
       },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: mirror getSuggestedAllocations — reject deleted and defunct
+    // before computing a preview. Deleted is checked first (stronger state).
+    if (church.deleted_at) {
+      return { error: 'Cannot compute allocations for a deleted church' }
+    }
+    // Pre-existing inconsistency fixed in-session (Never Defer Bugs): the
+    // defunct guard was present in getSuggestedAllocations but missing here.
+    if (church.is_defunct) {
+      return { error: 'Cannot compute allocations for a defunct church' }
+    }
 
     const transDate = new Date()
 

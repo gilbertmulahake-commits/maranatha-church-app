@@ -10,7 +10,14 @@ import {
 
 export async function getDashboardStats() {
   try {
+    // Unit 20.6a: soft-deleted churches are excluded from every
+    // church-based aggregate below (KPIs, compliance counts, aging,
+    // payment-type mix, method mix, church totals). Payment-level views
+    // (`recentTransactions` further down) are NOT filtered — the money
+    // moved, and the ledger view preserves that history even after the
+    // church is soft-deleted. See architecture.md § 8.
     const churches = await prisma.church.findMany({
+      where: { deleted_at: null },
       include: {
         payments: {
           where: { status: 'Paid' },

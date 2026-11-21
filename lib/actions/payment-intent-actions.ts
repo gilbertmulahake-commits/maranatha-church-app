@@ -72,9 +72,16 @@ export async function createPaymentIntent(
 
     const church = await prisma.church.findUnique({
       where: { id: churchId },
-      select: { church_code: true },
+      select: { church_code: true, deleted_at: true, is_defunct: true },
     })
     if (!church) return { error: 'Church not found' }
+    // Unit 20.6a: deleted churches cannot receive new payment intents.
+    // Checked before the defunct guard because "deleted" is the stronger,
+    // later state.
+    if (church.deleted_at) return { error: 'Church is deleted' }
+    // Pre-existing gap fixed in-session (Never Defer Bugs): createManualEntry
+    // rejects defunct churches but the wizard accepted them. Same policy.
+    if (church.is_defunct) return { error: 'Church is marked defunct' }
 
     if (
       (CHURCH_SCOPED_ROLES as readonly string[]).includes(auth.actorRole) &&

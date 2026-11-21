@@ -163,6 +163,20 @@ Not originally planned, but necessary to fix production bugs discovered after de
 **Onboarding & Support**
 25. **Unit 20: In-App Help & Onboarding**
     - Tooltips, contextual help cards, `react-joyride` tour, `/help` page, help drawer.
+    - Status: ✅ COMPLETE. First-party Guided Tour (no react-joyride); Help drawer built on protected Sheet primitive with inline styles bypass.
+
+### Phase 4.5: Post-Unit-20 Enhancements
+
+25.5. **Unit 20.5: Navigation Parity & Cross-Linking** - ✅ COMPLETE
+    - Regional table church names become links to `/dashboard/churches/[code]`. National church table gains "View Details" dialog with "Go to Church Page" CTA. `EntityBackButton` (`router.back()` with list-page fallback) replaces hardcoded `<Link>` back buttons on region and church detail pages. Fixes leaderboard -> region -> Back navigation.
+    - No schema change. Build count 29/29.
+
+25.6. **Unit 20.6: Regional Church Deletion Requests** - Phase A ✅ COMPLETE, Phase B pending
+    - **20.6a (Phase A) Soft Delete Foundation:** `Church.deleted_at DateTime?` replaces hard delete in `deleteChurch`. Migration `20261121145153_add_church_soft_delete`. Soft-delete filter swept across 13 files. Financial disclosure registers (Write-Off, Defunct) preserve deleted churches with `church_deleted` annotation (IFRS 9 / IPSAS 29). Money-ledger views preserve deleted-church payments via `buildPaymentWhere` (deliberately unfiltered). `deleteChurch` preconditions match Phase B approval path (no Pending staging). Pre-existing "Edit Church" bug in `regional-table.tsx` fixed in-session. Build count 29/29.
+    - **20.6b (Phase B) Request Workflow + Approval Queue:** Regional Chairman / Regional Treasurer submit deletion requests; National Operations Admin / System Admin / National Treasurer approve or reject. New `ChurchDeletionRequest` model. Four-eyes, atomic claim, enum-plus-OTHER reason taxonomy. New page `/dashboard/church-deletion-requests`. Pending - gated on Phase A committing.
+
+25.6.1. **Unit 20.6.1: Regional Dashboard Compliance Alignment** - queued
+    - `regional-actions.ts` still computes compliance via combined totals (pre-18.2 rule). Must align with `scoring-actions.ts` and `isChurchCompliant` (strict-bucket). Fix committed separately from 20.6a per Never Defer. Caught during A3.10 sweep.
 
 **Breakthrough — Real Bank Sandbox**
 26. **Unit 21: KCB Sandbox Integration** (Blocked on client credentials)

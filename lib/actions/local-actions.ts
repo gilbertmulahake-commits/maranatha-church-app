@@ -67,11 +67,19 @@ export async function getLocalChurchStats(): Promise<LocalChurchStats | { error:
       }
     })
 
-    if (!dbUser || !dbUser.church) {
+if (!dbUser || !dbUser.church) {
       return { error: 'No church assigned to this user.' }
     }
 
     const church = dbUser.church
+
+    // Unit 20.6a: a soft-deleted church has no active dashboard. The
+    // attached users are deactivated by softDeleteChurchTx and blocked at
+    // the dashboard layout, but this guard is defense-in-depth for stale
+    // sessions or races against a just-committed deletion.
+    if (church.deleted_at) {
+      return { error: 'This church has been deleted.' }
+    }
     const now = new Date()
 
     const credit = getCreditPosition(church, now)

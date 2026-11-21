@@ -69,6 +69,12 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       where: { id: dbUser.region_id },
       include: { 
         churches: { 
+          // Unit 20.6a: soft-deleted churches are excluded from the Regional
+          // dashboard (church list, compliance denominators, totals,
+          // drill-downs, and — critically — the recipient set that flows
+          // into sendBulkReminders / SendReminderButton). Defunct churches
+          // remain in this list; "defunct" and "deleted" are distinct states.
+          where: { deleted_at: null },
           include: { 
             payments: { include: { allocations: true } } 
           } 
