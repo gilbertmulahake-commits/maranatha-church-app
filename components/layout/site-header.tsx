@@ -5,6 +5,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
+import { HelpTrigger } from '@/components/help/help-trigger'
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -47,6 +48,10 @@ export function SiteHeader() {
             )
           })}
         </nav>
+
+        <div className="ml-auto flex items-center gap-2">
+          <HelpTrigger data-tour="help-trigger" />
+        </div>
       </div>
     </header>
   )

@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { EditChurchDialog } from './edit-church-dialog'
+import { InfoTooltip } from '@/components/help/info-tooltip'
+import { INFO_TOOLTIPS } from '@/lib/help/content'
 
 export type ChurchRow = {
   id: string
@@ -263,6 +265,10 @@ export function ChurchTable({
             >
               Yearly
             </Button>
+            <InfoTooltip
+              label="Strict Bucket Isolation"
+              content={INFO_TOOLTIPS.strictBucketIsolation}
+            />
           </div>
         }
 

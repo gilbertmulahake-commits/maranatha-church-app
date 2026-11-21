@@ -49,6 +49,8 @@ import { EditChurchDialog } from '@/components/churches/edit-church-dialog'
 import type { ChurchRow } from '@/components/churches/church-table'
 import { formatPrepaidStatus } from '@/lib/utils/format'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
+import { InfoTooltip } from '@/components/help/info-tooltip'
+import { INFO_TOOLTIPS } from '@/lib/help/content'
 
 interface Props {
   churches: RegionalChurchData[]
@@ -278,6 +280,10 @@ export function RegionalTable({
             >
               Yearly
             </Button>
+            <InfoTooltip
+              label="Strict Bucket Isolation"
+              content={INFO_TOOLTIPS.strictBucketIsolation}
+            />
           </div>
         }
 

@@ -13,6 +13,7 @@ import {
   IconBuildingBank,
   IconHistory,
   IconScale,
+  IconHelp,
 } from '@tabler/icons-react'
 import {
   Sidebar,
@@ -94,7 +95,10 @@ export function AppSidebar({
     ]
   }
 
-  navSecondary = [{ title: 'Settings', url: '/dashboard/settings', icon: IconSettings }]
+  navSecondary = [
+    { title: 'Settings', url: '/dashboard/settings', icon: IconSettings },
+    { title: 'Help', url: '/dashboard/help', icon: IconHelp },
+  ]
 
   const user = {
     name: userEmail?.split('@')[0] || 'User',
