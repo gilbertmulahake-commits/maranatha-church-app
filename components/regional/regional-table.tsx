@@ -9,6 +9,7 @@ import {
   Send,
   Loader2
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -402,9 +403,12 @@ export function RegionalTable({
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium text-foreground text-paragraph-small">
+                    <Link
+                      href={`/dashboard/churches/${church.church_code}`}
+                      className="font-medium text-foreground text-paragraph-small hover:underline"
+                    >
                       {church.church_name}
-                    </div>
+                    </Link>
                     <div className="font-mono text-paragraph-mini text-muted-foreground">
                       {church.church_code}
                     </div>

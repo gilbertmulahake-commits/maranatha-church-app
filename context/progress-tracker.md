@@ -232,16 +232,21 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Help Drawer:** `components/help/help-drawer.tsx` built on the protected `Sheet` primitive, but uses explicit inline styles to prevent a base primitive flexbox collapse bug.
   - **Page:** `app/dashboard/help/page.tsx` (Server Component) renders all three tiers, current tier first. Build count 28/28 → **29/29**.
   - **Verification:** Full manual QA passed (Tour T1–T16, Drawer D1–D6, InfoTooltip). Focus trap edge-case limitation logged in `current-issues.md`. Gate: `tsc` clean, `lint` 0, `build` 29/29.
+- **Unit 20.5: Navigation Parity & Cross-Linking (Complete, Merged PR #TBD)**
+  - **Cross-Linking:** Regional table church names are now clickable `<Link>`s to `/dashboard/churches/[code]`. National church table action menu now includes "View Details" (opening `ViewChurchDialog`). `ViewChurchDialog` now has a "Go to Church Page" CTA in its footer.
+  - **Back Navigation:** Created `EntityBackButton` (`components/shared/entity-back-button.tsx`). Replaced the hardcoded `<Link>` back buttons on both `regions/[slug]/page.tsx` and `churches/[code]/page.tsx`. Back buttons now use `router.back()` for history-aware navigation, falling back to the list page only on a fresh tab (no history). Fixes the leaderboard → region page → Back flow.
+  - **Verification:** `tsc` clean, `lint` 0, `build` 29/29. Manual tests A–F passed. D5b behavior (dialog reopening on Back) confirmed as standard Next.js App Router history restoration.
+  - **No schema change. No protected files touched.**
 
 ## In Progress
-*(None)*
+- None
 
 ## Next Up
-- **Unit 20.5: Navigation Parity & Cross-Linking.** (UI-only). Implement region/church cross-links, action dropdowns, back-button behavior fixes. Needs diagnostic spec.
 - **Unit 20.6: Regional Church Deletion Requests.** (DB + RBAC + Approval Queue). Regional Chairman submits deletion requests for National Treasurer/Operations Admin approval. Needs schema and server actions.
 - **Unit 19c: STK Push adapters (KCB Buni + Equity Jenga).** Blocked on sandbox credential registration. 19a and 19b are complete.
-- **Unit 18.2.1 (DEFERRED 2026-11-19): Instrument Timeliness / Accuracy / Engagement score axes.** Deferred pending client clarification.
-- **Then:** 21/22 (Bank Sandbox, blocked on credentials) → polish.
+- **Unit 18.2.1 (DEFERRED):** Instrument Timeliness / Accuracy / Engagement score axes. Deferred pending client clarification.
+- **Unit 20.7: Fee, Due-Date & Deadline Constants.** Extract monthly (500), annual (5,000), and the due-date/deadline definitions into `lib/constants.ts`. **Diagnostic required** at spec time. Wire `lib/help/content.ts` (currently hardcodes "KES 5,000/yr" and "KES 500/mo" in three user-facing strings) to the extracted constants. **Not a bug today** — values are correct. A maintenance hazard and future-flexibility concern.
+- **Then:** 21/22 (Bank Sandbox, blocked on credentials) → Unit 23 (Settings UI split) → polish.
 
 ## Open Questions
 - **Pastorate Adoption:** The `Pastorate` model is reserved but dormant. The Ministry will decide after a few months of operation whether to activate this organizational layer.
@@ -253,6 +258,8 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **`LocalChurchStats` has two constructors (deferred, Unit 19 verification catch):** `getLocalChurchStats()` in `lib/actions/local-actions.ts` is the canonical producer. `app/dashboard/churches/[code]/page.tsx` builds a `stats` object inline at line ~95. **Trigger to act:** the next field addition to `LocalChurchStats`, or a dedicated deduplication unit.
 - **Navigation Parity & Cross-Linking (Unit 20.5):** Needs spec. Resolved QA: Keep flat `/dashboard/churches/[church_code]` route. Add cross-links from region pages. Resolved QB: Request-only for regional users (submit for National approval); direct delete remains National-only.
 - **Regional Church Deletion Requests (Unit 20.6):** Needs schema, migration, RBAC, and approval queue. Separate unit.
+- **Settings split (reframes planned Unit 23):** Separate **Profile settings** (personal: name, contact, password, notifications, avatar — every role) from **System settings** (org-level: fees, due dates, feature flags, SMS templates, protected accounts — restricted roles). Enterprise UI/UX standard: per-section save, unsaved-changes guards, audit-logged changes, section jump nav. Reframe Unit 23 as 23 (Profile) + 23.5 (System Config) at spec time.
+- **Feature subscriptions (directional only, no unit scheduled):** A subscription-based feature-access model is under consideration. This is a full architectural layer (feature flags, subscription state, gated UI, billing, audit trail). Noted for direction only; do not build toward it speculatively.
 
 ## Architecture Decisions
 - **KPI Grid — `<KpiGrid>`:** All KPI rows wrap in `<KpiGrid>` from `components/ui/kpi-grid.tsx`. Never inline `grid grid-cols-*` for a KPI row. 3-tier: 1 col < 600px container, 2 cols 600–1100px, 4 cols > 1100px. 
