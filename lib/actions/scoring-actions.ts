@@ -26,6 +26,11 @@ export async function getRegionalScores(): Promise<RegionalScoreData[]> {
     const regions = await prisma.region.findMany({
       include: {
         churches: {
+          // Unit 20.6a: soft-deleted churches are excluded from scoring.
+          // Defunct churches remain in this list and are excluded later
+          // by the `if (church.is_defunct) return` guard — those are two
+          // distinct states (see architecture.md § 8).
+          where: { deleted_at: null },
           include: {
             payments: {
               where: { status: 'Paid' },

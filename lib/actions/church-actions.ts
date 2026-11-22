@@ -3,9 +3,11 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import type { Prisma } from '@prisma/client'
 import { getExpectedUpToDate, getPeriodStatus } from '@/lib/utils/financial'
 import { logAudit } from '@/lib/actions/audit-actions'
 import { verifyOperationsAccess } from '@/lib/auth/guards'
+import { PRISMA_TRANSACTION_TIMEOUT } from '@/lib/constants'
 
 const churchSchema = z.object({
   church_code: z.string().min(1, 'Church Code is required'),
@@ -20,6 +22,7 @@ const churchSchema = z.object({
 export async function getChurches() {
   try {
     const churches = await prisma.church.findMany({
+      where: { deleted_at: null },
       include: {
         region: true,
         payments: {
@@ -113,6 +116,7 @@ export async function getChurches() {
 export async function getChurchStats() {
   try {
     const churches = await prisma.church.findMany({
+      where: { deleted_at: null },
       include: {
         payments: {
           where: { status: 'Paid' },
@@ -288,17 +292,69 @@ export async function updateChurch(id: string, formData: FormData) {
   }
 }
 
+/**
+ * Soft-delete a church and deactivate all attached users, atomically.
+ * MUST be called inside `prisma.$transaction`. Does NOT log audit events —
+ * callers log after the transaction commits (per architecture.md § 8
+ * "AuditLog" — logAudit must never run inside the transaction).
+ *
+ * Unit 20.6a: replaces the previous hard `prisma.church.delete`. Hard delete
+ * is FK-blocked by Payment / WriteOff / PendingPayment / PaymentIntent
+ * (required relations default to Restrict). Soft delete preserves the
+ * financial trail and audit-log traceability while removing the church from
+ * active views.
+ */
+async function softDeleteChurchTx(
+  tx: Prisma.TransactionClient,
+  churchId: string
+): Promise<{ deactivatedUserIds: string[] }> {
+  await tx.church.update({
+    where: { id: churchId },
+    data: { deleted_at: new Date() },
+  })
+  const users = await tx.user.findMany({
+    where: { church_id: churchId, is_active: true },
+    select: { id: true },
+  })
+  if (users.length > 0) {
+    await tx.user.updateMany({
+      where: { id: { in: users.map((u) => u.id) } },
+      data: { is_active: false },
+    })
+  }
+  return { deactivatedUserIds: users.map((u) => u.id) }
+}
+
 export async function deleteChurch(id: string) {
   try {
     // RBAC GUARD
     await verifyOperationsAccess()
 
-    const beforeChurch = await prisma.church.findUnique({
-      where: { id },
-    })
+const beforeChurch = await prisma.church.findUnique({ where: { id } })
     if (!beforeChurch) return { error: 'Church not found.' }
+    if (beforeChurch.deleted_at) return { error: 'Church is already deleted.' }
 
-    await prisma.church.delete({ where: { id } })
+    // Unit 20.6a — consistency with approveChurchDeletionRequest (Phase B):
+    // a church with unresolved financial staging cannot be deleted via ANY
+    // path (direct or request-based). Otherwise we orphan PendingPayment /
+    // WriteOff / UnmatchedPayment rows against a deleted church, which would
+    // later block their approval or corrupt defunct-flag computation.
+    const [pendingPayments, pendingWriteOffs, pendingUnmatched] = await Promise.all([
+      prisma.pendingPayment.count({ where: { church_id: id, status: 'Pending' } }),
+      prisma.writeOff.count({ where: { church_id: id, status: 'Pending' } }),
+      prisma.unmatchedPayment.count({ where: { assigned_church_id: id, status: 'Pending' } }),
+    ])
+    if (pendingPayments + pendingWriteOffs + pendingUnmatched > 0) {
+      return {
+        error:
+          'This church has unresolved financial exceptions. Resolve them before deleting.',
+      }
+    }
+
+    const result = await prisma.$transaction(
+      (tx) => softDeleteChurchTx(tx, id),
+      { timeout: PRISMA_TRANSACTION_TIMEOUT }
+    )
 
     await logAudit({
       action: 'CHURCH_DELETED',
@@ -314,17 +370,24 @@ export async function deleteChurch(id: string) {
         contact_phone: beforeChurch.contact_phone,
         created_at: beforeChurch.created_at.toISOString(),
       },
-      afterData: null,
+      afterData: {
+        deleted_at: new Date().toISOString(),
+        deactivated_user_ids: result.deactivatedUserIds,
+      },
       metadata: {
+        soft_delete: true,
         church_code: beforeChurch.church_code,
         church_name: beforeChurch.church_name,
       },
     })
 
+    revalidatePath('/dashboard')
     revalidatePath('/dashboard/churches')
+    revalidatePath('/dashboard/regions')
+    revalidatePath('/dashboard/regional')
     return { success: true }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete church. They may have linked payments.'
+    const message = error instanceof Error ? error.message : 'Failed to delete church.'
     return { error: message }
   }
 }

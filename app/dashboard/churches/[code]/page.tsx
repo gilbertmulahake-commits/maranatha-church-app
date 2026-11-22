@@ -29,7 +29,12 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
     },
   })
 
-  if (!church) return notFound()
+ // Unit 20.6a: a soft-deleted church's detail page 404s. The row still
+  // exists (financial trail preserved), but it is not an active entity —
+  // same treatment as a missing code. Phase B adds a "pending deletion
+  // request" banner above this for active churches with an in-flight
+  // request; that banner sits on the not-deleted path.
+  if (!church || church.deleted_at) return notFound()
 
   const now = new Date()
   const credit = getCreditPosition(church, now)

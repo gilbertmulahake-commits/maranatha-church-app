@@ -13,6 +13,7 @@ export type RegionalChurchData = {
   treasurer_name: string
   contact_phone: string
   status: 'Paid' | 'Partial' | 'Overdue'
+  is_defunct: boolean // Unit 20.6.1 - defunct churches shown with badge, excluded from compliance counters
   annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A'
   monthlyStatus: 'Paid' | 'Partial' | 'Overdue'
   amountPaid: number
@@ -69,6 +70,12 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       where: { id: dbUser.region_id },
       include: { 
         churches: { 
+          // Unit 20.6a: soft-deleted churches are excluded from the Regional
+          // dashboard (church list, compliance denominators, totals,
+          // drill-downs, and — critically — the recipient set that flows
+          // into sendBulkReminders / SendReminderButton). Defunct churches
+          // remain in this list; "defunct" and "deleted" are distinct states.
+          where: { deleted_at: null },
           include: { 
             payments: { include: { allocations: true } } 
           } 
@@ -100,6 +107,10 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
     let compliantChurches = 0
     let partialChurches = 0
     let overdueChurches = 0
+    // Unit 20.6.1: active church count excludes defunct churches, matching
+    // dashboard-actions.ts and scoring-actions.ts. Used as the compliance
+    // denominator below so defunct churches do not dilute the percentage.
+    let activeChurchCount = 0
 
     const churchesData: RegionalChurchData[] = region.churches.map((church) => {
       let churchTotalPaid = 0
@@ -148,15 +159,30 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       const arrearsBroughtForward = Math.max(0, churchExpectedLastMonth - churchPaidLastMonth)
       thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
 
-      const overallStatus = getPeriodStatus(churchTotalPaid, churchExpectedToday)
       let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'
 
-      if (overallStatus === 'Paid') compliantChurches++
-      else if (overallStatus === 'Partial') partialChurches++
-      else overdueChurches++
+      // Unit 20.6.1: overallStatus derived from the two buckets, not from
+      // combined totals. Matches scoring-actions.ts and dashboard-actions.ts.
+      // Previously used getPeriodStatus(churchTotalPaid, churchExpectedToday),
+      // which over-counted churches whose combined payments were enough but
+      // whose buckets were unbalanced (e.g., double-paid annual, overdue
+      // monthly). Strict Bucket Isolation applies to compliance classification.
+      let overallStatus: 'Paid' | 'Partial' | 'Overdue' = 'Partial'
+      if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+
+      // Unit 20.6.1: defunct churches are excluded from compliance counters.
+      // Their past payments still contribute to the financial totals above;
+      // only the classification skips them, matching dashboard-actions.ts.
+      if (!church.is_defunct) {
+        activeChurchCount++
+        if (overallStatus === 'Paid') compliantChurches++
+        else if (overallStatus === 'Partial') partialChurches++
+        else overdueChurches++
+      }
 
       outstanding += Math.max(0, churchExpectedToday - churchTotalPaid)
       outstandingAnnual += Math.max(0, expectedAnnual - annualPaid)
@@ -176,6 +202,7 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
         status: overallStatus,
+        is_defunct: church.is_defunct,
         annualStatus,
         monthlyStatus,
         amountPaid: churchTotalPaid,
@@ -190,7 +217,10 @@ export async function getRegionalStats(): Promise<RegionalStatsSuccess | Regiona
       }
     })
 
-    const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
+    // Unit 20.6.1: denominator is active (non-defunct) churches, matching
+    // the numerator's universe. Previously divided by region.churches.length,
+    // which included defunct churches and diluted the percentage.
+    const compliancePct = activeChurchCount > 0 ? (compliantChurches / activeChurchCount) * 100 : 0
     const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
     const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0
 

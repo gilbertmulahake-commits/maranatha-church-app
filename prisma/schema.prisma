@@ -62,6 +62,13 @@ model Church {
 
   // Unit 17: Reconciliation & Write-Offs
   is_defunct            Boolean  @default(false)
+
+  // Unit 20.6a: Soft delete — removes church from active views without
+  // breaking FK integrity on Payment / WriteOff / PendingPayment / PaymentIntent.
+  // Defunct ≠ deleted: defunct churches remain in financial reports; deleted
+  // churches do not. See architecture.md § 8.
+  deleted_at            DateTime?
+
   unmatched_suggested   UnmatchedPayment[] @relation("UnmatchedSuggestedChurch")
   unmatched_assigned    UnmatchedPayment[] @relation("UnmatchedAssignedChurch")
   write_offs            WriteOff[]

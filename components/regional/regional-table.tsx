@@ -409,8 +409,16 @@ export function RegionalTable({
                     >
                       {church.church_name}
                     </Link>
-                    <div className="font-mono text-paragraph-mini text-muted-foreground">
+                    <div className="font-mono text-paragraph-mini text-muted-foreground flex items-center gap-2">
                       {church.church_code}
+                      {church.is_defunct && (
+                        <Badge
+                          variant="outline"
+                          className="bg-gray-100 text-gray-700 border-gray-200"
+                        >
+                          Defunct
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -485,12 +493,18 @@ export function RegionalTable({
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem
-                          className="cursor-pointer text-paragraph-small whitespace-nowrap"
-                          onClick={() => setEditingChurch(mapToChurchRow(church))}
-                        >
-                          <Edit className="mr-2 h-4 w-4" /> Edit Church
-                        </DropdownMenuItem>
+                        {/* Unit 20.6a: Regional roles cannot edit churches
+                            (updateChurch is verifyOperationsAccess-gated).
+                            Previously this menu item was shown for both roles;
+                            Regional users got a server error on click. */}
+                        {userRole === 'NATIONAL' && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                            onClick={() => setEditingChurch(mapToChurchRow(church))}
+                          >
+                            <Edit className="mr-2 h-4 w-4" /> Edit Church
+                          </DropdownMenuItem>
+                        )}
 
                         <DropdownMenuSeparator />
 

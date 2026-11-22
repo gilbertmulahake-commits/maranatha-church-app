@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getExpectedUpToDate, getCreditBalance, getPeriodStatus } from '@/lib/utils/financial'
+import { getExpectedUpToDate, getCreditBalance, getPeriodStatus, isChurchCompliant } from '@/lib/utils/financial'
 import { logAudit } from '@/lib/actions/audit-actions'
 import { verifyOperationsAccess } from '@/lib/auth/guards'
 
@@ -25,7 +25,15 @@ export async function getRegions() {
 export async function getRegionsWithStats() {
   try {
     const regions = await prisma.region.findMany({
-      include: { churches: { include: { payments: true } } },
+      include: {
+        // Unit 20.6.1: Phase A sweep gap - this action was missing from the
+        // original 20.6a list. Soft-deleted churches must not appear in
+        // counts, totals, or compliance numerators/denominators.
+        churches: {
+          where: { deleted_at: null },
+          include: { payments: true },
+        },
+      },
       orderBy: { name: 'asc' },
     })
 
@@ -34,17 +42,40 @@ export async function getRegionsWithStats() {
     return regions.map((region) => {
       let compliantChurches = 0
       let totalCollected = 0
+      // Unit 20.6.1: active-only denominator. `churchCount` stays for the
+      // response shape (total churches including defunct, for display).
+      let activeChurchCount = 0
       const churchCount = region.churches.length
 
       region.churches.forEach((church) => {
         const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
         totalCollected += totalPaid
-        
-        const { totalExpected: churchExpected } = getExpectedUpToDate(church.created_at, now)
-        if (getPeriodStatus(totalPaid, churchExpected) === 'Paid') compliantChurches++
+
+        // Unit 20.6.1: strict-bucket compliance via isChurchCompliant.
+        // Pre-18.2 combined-totals rule over-counted churches whose annual
+        // bucket alone covered total expected (e.g., double annual paid,
+        // monthly overdue). Payments here are loaded without allocations,
+        // so the helper falls back to payment_type - same as the previous
+        // pre-18.2 fallback logic.
+        const compliance = isChurchCompliant(
+          {
+            created_at: church.created_at,
+            payments: church.payments.map(p => ({
+              amount_paid: p.amount_paid,
+              payment_type: p.payment_type,
+              allocations: [],
+            })),
+          },
+          now
+        )
+
+        if (!church.is_defunct) {
+          activeChurchCount++
+          if (compliance.compliant) compliantChurches++
+        }
       })
 
-      const compliancePct = churchCount > 0 ? (compliantChurches / churchCount) * 100 : 0
+      const compliancePct = activeChurchCount > 0 ? (compliantChurches / activeChurchCount) * 100 : 0
 
       return {
         id: region.id,
@@ -65,7 +96,13 @@ export async function getRegionsWithStats() {
 export async function getRegionStats() {
   try {
     const regions = await prisma.region.findMany({
-      include: { churches: { include: { payments: { where: { status: 'Paid' } } } } },
+      include: {
+        churches: {
+          // Unit 20.6.1: Phase A sweep gap fix.
+          where: { deleted_at: null },
+          include: { payments: { where: { status: 'Paid' } } },
+        },
+      },
     })
 
     const now = new Date()
@@ -87,7 +124,8 @@ export async function getRegionStats() {
       let regionCollectedMonthly = 0
       let regionExpectedAnnual = 0
       let regionExpectedMonthly = 0
-      const churchCount = region.churches.length
+      // Unit 20.6.1: active-only denominator.
+      let activeChurchCount = 0
 
       region.churches.forEach((church) => {
         church.payments.forEach(p => {
@@ -95,13 +133,30 @@ export async function getRegionStats() {
           if (p.payment_type === 'Annual') regionCollectedAnnual += amt
           else regionCollectedMonthly += amt
         })
-        
-        const { expectedAnnual, expectedMonthly, totalExpected: churchExpected } = getExpectedUpToDate(church.created_at, now)
+
+        const { expectedAnnual, expectedMonthly } = getExpectedUpToDate(church.created_at, now)
         regionExpectedAnnual += expectedAnnual
         regionExpectedMonthly += expectedMonthly
 
-        const totalPaid = church.payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
-        if (getPeriodStatus(totalPaid, churchExpected) === 'Paid') compliantChurches++
+        // Unit 20.6.1: strict-bucket compliance via isChurchCompliant.
+        // Pre-18.2 combined-totals rule over-counted. Payments loaded
+        // without allocations, so fallback path applies.
+        const compliance = isChurchCompliant(
+          {
+            created_at: church.created_at,
+            payments: church.payments.map(p => ({
+              amount_paid: p.amount_paid,
+              payment_type: p.payment_type,
+              allocations: [],
+            })),
+          },
+          now
+        )
+
+        if (!church.is_defunct) {
+          activeChurchCount++
+          if (compliance.compliant) compliantChurches++
+        }
       })
 
       totalCollectedAnnual += regionCollectedAnnual
@@ -114,7 +169,8 @@ export async function getRegionStats() {
       totalArrearsMonthly += regionArrearsMonthly
       totalArrears += (regionArrearsAnnual + regionArrearsMonthly)
 
-      const compliancePct = churchCount > 0 ? (compliantChurches / churchCount) * 100 : 0
+      // Unit 20.6.1: active-only denominator.
+      const compliancePct = activeChurchCount > 0 ? (compliantChurches / activeChurchCount) * 100 : 0
       totalCompliancePct += compliancePct
 
       if (compliancePct < 50) regionsAtRisk++
@@ -152,12 +208,14 @@ export async function getSingleRegionStats(regionId: string) {
   try {
     const region = await prisma.region.findUnique({
       where: { id: regionId },
-      include: { 
-        churches: { 
-          include: { 
-            payments: { include: { allocations: true } } 
-          } 
-        } 
+      include: {
+        churches: {
+          // Unit 20.6.1: Phase A sweep gap fix.
+          where: { deleted_at: null },
+          include: {
+            payments: { include: { allocations: true } }
+          }
+        }
       },
     })
 
@@ -186,6 +244,8 @@ export async function getSingleRegionStats(regionId: string) {
     let compliantChurches = 0
     let partialChurches = 0
     let overdueChurches = 0
+    // Unit 20.6.1: active-only denominator.
+    let activeChurchCount = 0
 
     const churchesData = region.churches.map((church) => {
       let churchTotalPaid = 0
@@ -224,15 +284,24 @@ export async function getSingleRegionStats(regionId: string) {
       const arrearsBroughtForward = Math.max(0, churchExpectedLastMonth - churchPaidLastMonth)
       thisMonthExpected += (churchExpectedThisMonth + arrearsBroughtForward)
 
-      const overallStatus = getPeriodStatus(churchTotalPaid, churchExpectedToday)
       let annualStatus: 'Paid' | 'Partial' | 'Overdue' | 'N/A' = getPeriodStatus(annualPaid, expectedAnnual)
       const monthlyStatus = getPeriodStatus(monthlyPaid, expectedMonthly)
 
       if (expectedAnnual === 0 && annualPaid === 0) annualStatus = 'N/A'
 
-      if (overallStatus === 'Paid') compliantChurches++
-      else if (overallStatus === 'Partial') partialChurches++
-      else overdueChurches++
+      // Unit 20.6.1: strict-bucket compliance. Pre-18.2 combined-totals rule
+      // over-counted churches whose annual bucket alone covered total expected.
+      let overallStatus: 'Paid' | 'Partial' | 'Overdue' = 'Partial'
+      if (annualStatus === 'Paid' && monthlyStatus === 'Paid') overallStatus = 'Paid'
+      else if (annualStatus === 'Overdue' && monthlyStatus === 'Overdue') overallStatus = 'Overdue'
+
+      // Unit 20.6.1: defunct churches excluded from compliance counters.
+      if (!church.is_defunct) {
+        activeChurchCount++
+        if (overallStatus === 'Paid') compliantChurches++
+        else if (overallStatus === 'Partial') partialChurches++
+        else overdueChurches++
+      }
 
       // GROSS ARREARS CALCULATION (Per Church)
       outstanding += Math.max(0, churchExpectedToday - churchTotalPaid)
@@ -253,6 +322,7 @@ export async function getSingleRegionStats(regionId: string) {
         treasurer_name: church.treasurer_name,
         contact_phone: church.contact_phone,
         status: overallStatus,
+        is_defunct: church.is_defunct,
         annualStatus,
         monthlyStatus,
         amountPaid: churchTotalPaid,
@@ -267,7 +337,8 @@ export async function getSingleRegionStats(regionId: string) {
       }
     })
 
-    const compliancePct = region.churches.length > 0 ? (compliantChurches / region.churches.length) * 100 : 0
+    // Unit 20.6.1: active-only denominator.
+    const compliancePct = activeChurchCount > 0 ? (compliantChurches / activeChurchCount) * 100 : 0
     const thisMonthCollected = thisMonthCollectedAnnual + thisMonthCollectedMonthly
     const thisMonthCollectionPct = thisMonthExpected > 0 ? (thisMonthCollected / thisMonthExpected) * 100 : 0
 
@@ -276,10 +347,10 @@ export async function getSingleRegionStats(regionId: string) {
       chairmanName: region.chairman_name,
       totalCollected, totalCollectedAnnual, totalCollectedMonthly,
       totalExpectedAnnual, totalExpectedMonthly, totalExpected,
-      
+
       // Gross Arrears
       outstanding, outstandingAnnual, outstandingMonthly,
-      
+
       thisMonthCollectedAnnual, thisMonthCollectedMonthly, thisMonthExpected, thisMonthCollectionPct,
       compliancePct, compliantChurches, partialChurches, overdueChurches,
       churches: churchesData,

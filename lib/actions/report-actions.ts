@@ -164,6 +164,10 @@ export type WriteOffRow = {
   proposed_at: string
   approved_at: string | null
   status: string
+  // Unit 20.6a: true when the church has been soft-deleted. Financial
+  // disclosure registers preserve deleted churches (IFRS 9 / audit);
+  // Phase B renders a `(deleted)` badge based on this flag.
+  church_deleted: boolean
 }
 
 export async function getWriteOffRegister(): Promise<WriteOffRow[]> {
@@ -171,10 +175,19 @@ export async function getWriteOffRegister(): Promise<WriteOffRow[]> {
     const { dbUser } = await verifyReportsAccess()
     const churchWhere = buildChurchWhere(dbUser)
 
+    // Unit 20.6a: write-off register is a financial-disclosure register
+    // (IFRS 9 / IPSAS 29). Deleted churches' write-offs remain visible so
+    // auditors can trace every write-off without reconstructing from the
+    // audit log. Strip the soft-delete filter from the inherited scope and
+    // annotate each row with `church_deleted` — the UI renders a badge in
+    // Phase B (see architecture.md § 8).
+    const { deleted_at: _unused_deleted_at, ...churchWhereForDisclosure } = churchWhere
+    void _unused_deleted_at
+
     const writeOffs = await prisma.writeOff.findMany({
       where: {
         status: 'Approved',
-        church: churchWhere
+        church: churchWhereForDisclosure
       },
       include: { church: true },
       orderBy: { approved_at: 'desc' }
@@ -188,7 +201,8 @@ export async function getWriteOffRegister(): Promise<WriteOffRow[]> {
       reason: w.reason,
       proposed_at: w.proposed_at.toISOString(),
       approved_at: w.approved_at ? w.approved_at.toISOString() : null,
-      status: w.status
+      status: w.status,
+      church_deleted: w.church.deleted_at !== null,
     }))
   } catch (error) {
     console.error('Failed to fetch write-off register:', error)
@@ -203,6 +217,11 @@ export type DefunctRow = {
   region_name: string
   total_written_off: number
   date_marked_defunct: string | null
+  // Unit 20.6a: true when the church has been soft-deleted. Same rationale
+  // as WriteOffRow — this register carries write-off amounts, so it is a
+  // disclosure register and preserves deleted churches. Phase B renders
+  // a `(deleted)` badge based on this flag.
+  church_deleted: boolean
 }
 
 export async function getDefunctChurchRegister(): Promise<DefunctRow[]> {
@@ -210,9 +229,15 @@ export async function getDefunctChurchRegister(): Promise<DefunctRow[]> {
     const { dbUser } = await verifyReportsAccess()
     const churchWhere = buildChurchWhere(dbUser)
 
+    // Unit 20.6a: defunct register carries write-off amounts, so it is a
+    // financial-disclosure register. Same preservation rule as the write-off
+    // register — strip the soft-delete filter and annotate rows.
+    const { deleted_at: _unused_deleted_at, ...churchWhereForRegister } = churchWhere
+    void _unused_deleted_at
+
     const churches = await prisma.church.findMany({
       where: {
-        ...churchWhere,
+        ...churchWhereForRegister,
         is_defunct: true
       },
       include: {
@@ -231,7 +256,8 @@ export async function getDefunctChurchRegister(): Promise<DefunctRow[]> {
       church_name: c.church_name,
       region_name: c.region.name,
       total_written_off: sumApprovedWriteOffs(c.write_offs),
-      date_marked_defunct: c.write_offs[0]?.approved_at?.toISOString() || null
+      date_marked_defunct: c.write_offs[0]?.approved_at?.toISOString() || null,
+      church_deleted: c.deleted_at !== null,
     }))
   } catch (error) {
     console.error('Failed to fetch defunct register:', error)
