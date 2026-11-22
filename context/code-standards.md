@@ -36,6 +36,7 @@
 - Use Prisma ORM for all database queries.
 - Metadata and relational data belong in Supabase (PostgreSQL).
 - **Atomic Transactions:** When a single action updates multiple tables (e.g., creating a payment record and updating a church status), use `prisma.$transaction` to ensure all changes succeed or fail together.
+- **Shared Types - Enumerate Producers Before Extending:** Types consumed by more than one server action frequently have two independent constructors. Adding a required field to such a type compiles on one producer and breaks the other at `tsc` time. Before extending a shared type, run `findstr /S /C:"<TypeName>" lib\actions\ components\ app\` and enumerate every producer. Precedent: `LocalChurchStats` (Unit 19), `RegionalChurchData` (Unit 20.6.1).
 
 ## File Organisation
 - `app/` — routes, layouts, page-level composition.
