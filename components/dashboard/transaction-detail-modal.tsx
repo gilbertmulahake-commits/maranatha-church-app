@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Split, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { formatCurrency, formatDateTime } from '@/lib/utils'
 
 export interface Transaction {
   id: string
@@ -32,17 +33,9 @@ interface TransactionDetailModalProps {
 export function TransactionDetailModal({ transaction, onClose }: TransactionDetailModalProps) {
   if (!transaction) return null
 
-  function formatCurrency(amount: number) {
-    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-  }
-
-  function formatDate(dateString: string) {
-    return new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateString))
-  }
-
   return (
     <Dialog open={!!transaction} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95vw] sm:w-full sm:max-w-[500px] p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-heading-2 font-bold tracking-tight">Transaction Details</DialogTitle>
           <DialogDescription>
@@ -77,7 +70,7 @@ export function TransactionDetailModal({ transaction, onClose }: TransactionDeta
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Date & Time</p>
-              <p className="text-sm text-foreground">{formatDate(transaction.payment_date)}</p>
+              <p className="text-sm text-foreground">{formatDateTime(transaction.payment_date)}</p>
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Type</p>

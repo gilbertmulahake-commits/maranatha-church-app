@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Activity, Split } from 'lucide-react'
 import { TransactionDetailModal, type Transaction } from './transaction-detail-modal'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency, formatDateTime } from '@/lib/utils'
 
 // --- SUB-COMPONENT: The Row Architecture ---
 interface LiveFeedRowProps {
@@ -14,22 +14,6 @@ interface LiveFeedRowProps {
 }
 
 function LiveFeedRow({ tx, onClick }: LiveFeedRowProps) {
-  function formatCurrency(amount: number) {
-    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
-  }
-
-  function formatDateTime(dateString: string) {
-    const d = new Date(dateString)
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' })
-    const dd = String(d.getDate()).padStart(2, '0')
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const yy = String(d.getFullYear()).slice(-2)
-    const hh = String(d.getHours()).padStart(2, '0')
-    const min = String(d.getMinutes()).padStart(2, '0')
-    
-    return `${weekday}, ${dd}.${mm}.${yy} ${hh}:${min}`
-  }
-
   return (
     <div 
       onClick={() => onClick(tx)}
