@@ -10,6 +10,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 18.2.1 (Instrument Timeliness / Accuracy / Engagement score axes)** — **DEFERRED** pending client clarification (see `## Open Questions`).
 - **Unit 19c (STK Push adapters)** and **19d (go-live)** remain **BLOCKED** on sandbox credentials and bank Go-Live approvals.
 - **Unit 20.6b (Phase B — request workflow + approval queue)** — ✅ **COMPLETE + MERGED** (PR #62, `60b82fd`). Gate clean (`tsc`, `lint`, `build` 30/30). Unit 20.6 fully closed on `main`. See `## Completed` and `## Session Notes`.
+- **Current work:** Post-merge UI hotfixes on `main` (Live Feed modal collapse fixed in `41d4f44`). Awaiting next unit (20.7 or 23).
 - **Then:** 21/22 (Bank Sandbox, blocked) → Unit 23 (Settings UI split) → polish.
 
 ## Completed
@@ -405,7 +406,7 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `main` at `60b82fd` (PR #62 merged: 20.6b Phase B). 20.6a (`7083ffa`) + 20.6.1 (`31c0122`) + 20.6b (`f475822`) all merged — **Unit 20.6 fully closed**.
+- **Current Branch:** `main` at `41d4f44` (post-PR #62 UI hotfix: Live Feed modal collapse + formatter cleanup).
 - **Migration Head:** `20261123010107_add_church_deletion_request` (advanced from `20261121145153_add_church_soft_delete` in B1 commit `7d2fc87`). **Production deploy status:** applied via Vercel auto-`migrate deploy` on merge of PR #62 (`60b82fd`). Verified post-merge: 13 migrations, up to date.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.
@@ -499,3 +500,6 @@ Update this table whenever a measurement changes — it is the living record of 
   - **Migration** — `20261123010107_add_church_deletion_request`. Tracker text "migration not yet run" was stale by the time this session resumed — `migrate dev` reported "already in sync" and `migrate status` confirmed 13 migrations, up to date. No action needed; commit `7d2fc87` already had the migration tracked.
   - **Em-dash mojibake `ÔÇö`** — confirmed as CMD codepage display artifact (PowerShell UTF-8 read showed `'—'` correctly). Not file corruption. This unit's `architecture.md` rewrite uses proper UTF-8 throughout to prevent future recurrence.
   - **Next step:** commit working tree changes and open PR. `feat/20.6b-church-deletion-requests` merges to `main`. Post-merge, do the standard post-merge doc-sync (update `Session Notes` current branch / migration head, verify `migrate status` against production, delete branch locally).
+- **UI Hotfix complete (`41d4f44`, this session):** Fixed the dashboard Live Feed transaction modal collapsing to a 40px sliver. Applied the standard `w-[95vw] sm:w-full sm:max-w-[500px] p-6` to `<DialogContent>` (per `code-standards.md` § Standardized Dialog Widths). Also removed inline `Intl.NumberFormat` / `Intl.DateTimeFormat` from `recent-payments.tsx` and `transaction-detail-modal.tsx` — now routing through `formatCurrency` / `formatDateTime` from `lib/utils.ts` (Global Formatters rule). Gate: `tsc` clean, `lint` 0/0, `build` 30/30.
+- **Local Dev Runtime Prisma Cache Issue (encountered this session):** After pulling the new `ChurchDeletionRequest` schema from `main`, the local dev server threw `PrismaClientValidationError: Unknown field 'deletion_requests'`. `tsc` and `build` passed because the `.d.ts` types were current, but Turbopack cached the old runtime Prisma `.js` client. **Fix:** Stop the dev server (`Ctrl+C`), run `npx prisma7 generate`, `del tsconfig.tsbuildinfo`, `rmdir /s /q .next`, then restart dev. (If the dev server is running, `.next` cannot be deleted due to file locks.)
+
