@@ -19,6 +19,14 @@ export const ARREARS_CRITICAL_DAYS = 90
 export const SLA_YELLOW_DAYS = 7
 export const SLA_RED_DAYS = 30
 
+// SLA Limits for Church Deletion Approval Queue (Unit 20.6b)
+// Different domain from reconciliation: a two-role approval cycle should be
+// resolved within a business week, not a month. Do NOT merge with
+// SLA_YELLOW_DAYS — reconciliation aging measures money-in-limbo; deletion
+// aging measures approval throughput. Single source of truth per domain.
+export const CHURCH_DELETION_SLA_YELLOW_DAYS = 3
+export const CHURCH_DELETION_SLA_RED_DAYS = 7
+
 
 // Payment Intent (Unit 19) — guided wizard lifecycle
 export const PAYMENT_INTENT_EXPIRY_MINUTES = 30

@@ -32,11 +32,9 @@
   - Production deploys use `prisma7 migrate deploy` (never `migrate dev` on prod).
   - **NEVER** run `prisma7 migrate reset` against a database containing real data.
 - **Backup Policy:** Supabase Free Plan does **not** include scheduled backups. Use `pg_dump` locally before any destructive operation. Store dumps outside the repo (`.gitignore` should exclude `*.sql`).
-- **Pastorate Layer (LIVE, DORMANT):** The `Pastorate` model was added in Unit 15 Phase 1. The `Church.pastorate_id` FK is nullable and the layer is **not used** in any financial calculation or UI. It exists to support an optional `National → Region → Pastorate → Church` hierarchy if the Ministry adopts it. Do not build UI or business logic against it without an explicit spec.
-- **User Bio-Data (LIVE):** The `User` model now has `first_name`, `last_name`, `phone`, `profile_photo_url`, and `bio` — all nullable. Profile UI (Phase 5) will consume these. Do not add non-null constraints or defaults without an explicit migration.
+- **Pastorate Layer (LIVE, DORMANT):** The `Pastorate` model was added in Unit 15 Phase 1. The `Church.pastorate_id` FK is nullable and the layer is **not used** in any financial calculation or UI. It exists to support an optional `National → Region → Pastorate → Church` hierarchy if the Ministry adopts it. Do not build UI or business logic against it without an explicit spec.- **User Bio-Data (LIVE):** The `User` model now has `first_name`, `last_name`, `phone`, `profile_photo_url`, and `bio` — all nullable. Profile UI (Phase 5) will consume these. Do not add non-null constraints or defaults without an explicit migration.
 - **Church Profile Fields (LIVE):** The `Church` model now has `physical_address` (String?) and `membership_count` (Int?), both nullable. Reserved for future reporting features.
-- **Bank Adapter Pattern (Future):** The system is architected to support dual-bank webhooks (KCB + Equity). Both will normalize their payloads into a standard `NormalizedTransaction` shape before hitting the Reconciliation Engine.
-- **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
+- **Bank Adapter Pattern (Future):** The system is architected to support dual-bank webhooks (KCB + Equity). Both will normalize their payloads into a standard `NormalizedTransaction` shape before hitting the Reconciliation Engine.- **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
 - **Dynamic Fund & Channel Architecture (Future):** The current `PaymentType` and `PaymentMethod` enums will be migrated to `Fund` and `PaymentChannel` tables in V2. This enables admin-created payment categories without code changes.
 - **Payment Source Backfill (Unit 17):** Production DB requires `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` before deployment. This preserves existing payments as webhook-originated.
 - **`FOUR_EYES_THRESHOLD` (Unit 17):** Defined once in `lib/constants.ts` and imported by `reconciliation-actions.ts` and `manual-entry-actions.ts`. Single source of truth — change it in one place to update every four-eyes gate project-wide. Do not reintroduce local copies.
@@ -52,14 +50,18 @@
 - `app/dashboard/reconciliation/` — Five reconciliation pages (hub, unmatched, manual-entry, pending-approvals, write-offs). Server Components with `<Suspense>` + `await connection()`; RBAC gated via `verifyReconciliationAccess()`.
 - `app/dashboard/reports/` — Reporting hub (`/dashboard/reports`) plus a single dynamic sub-route (`/dashboard/reports/[report]`) that resolves 11 report slugs via the registry (Unit 18.1 + 18.2).
 - `app/dashboard/audit-logs/` — National-level audit viewer with forensic snapshots.
+- `app/dashboard/church-deletion-requests/` — National approval queue for Regional church deletion requests (Unit 20.6b). Server Component; RBAC gated via `verifyOperationsAccess()`; renders `<ChurchDeletionRequestsTable>` with Approve/Reject dialogs. Deliberately **no** `<TableToolbar>`, no checkbox column, no export — this is an **action queue**, not a report (deviation justified at § 8 ChurchDeletionRequest).
 - `components/` — Reusable UI components (tables, charts, KPI cards).
 - `components/reconciliation/` — Unmatched table, resolve dialog, manual entry form, pending approvals table, write-off table, propose-write-off dialog, reject dialog, SLA badge.
 - `components/reports/` — Report shell, registry-driven selector, 18.1 core report tables (arrears, cashbook, write-off register, defunct register, inactive churches).
 - `components/reports/analytics/` — Six 18.2 analytics tables (collections-summary, compliance, regional-scores, yoy-comparison view + chart, allocation-breakdown, source-method).
+- `components/churches/` — Church registry table + profile client; **Unit 20.6b:** `church-deletion-requests-table.tsx`, `approve-church-deletion-dialog.tsx`, `reject-church-deletion-dialog.tsx`, `request-church-deletion-dialog.tsx`.
+- `components/regional/` — Regional dashboard shell, KPI cards, church table, propose-write-off dialog wiring, **Unit 20.6b** `my-deletion-requests-table.tsx`.
 - `lib/` — Server helpers, Prisma client, and API clients (KCB/SMS).
-- `lib/actions/` — Server Actions grouped by domain (`reconciliation-actions.ts`, `manual-entry-actions.ts`, `writeoff-actions.ts`, `audit-actions.ts`, `dashboard-actions.ts`, `scoring-actions.ts`, `local-actions.ts`, `user-actions.ts`, `sms-actions.ts`, `report-actions.ts`).
-- `lib/auth/` — Centralized authorization: `roles.ts` (role predicates + `toReportRole`), `guards.ts` (gates: `verifyOperationsAccess`, `verifyFinanceAccess`, `verifyReconciliationAccess`, `verifyTreasurerAuthority`, `verifyReportsAccess`), `protected-users.ts` (vendor account allowlist).
-- `lib/constants.ts` — Project-wide constants including `FOUR_EYES_THRESHOLD` (KES 20,000) and `PRISMA_TRANSACTION_TIMEOUT`.
+- `lib/actions/` — Server Actions grouped by domain (`reconciliation-actions.ts`, `manual-entry-actions.ts`, `writeoff-actions.ts`, `audit-actions.ts`, `dashboard-actions.ts`, `scoring-actions.ts`, `local-actions.ts`, `user-actions.ts`, `sms-actions.ts`, `report-actions.ts`, `church-deletion-request-actions.ts`).
+- `lib/auth/` — Centralized authorization: `roles.ts` (role predicates + `toReportRole`), `guards.ts` (gates: `verifyOperationsAccess`, `verifyFinanceAccess`, `verifyReconciliationAccess`, `verifyTreasurerAuthority`, `verifyReportsAccess`, `verifyChurchDeletionRequestAccess`), `protected-users.ts` (vendor account allowlist).
+- `lib/constants.ts` — Project-wide constants including `FOUR_EYES_THRESHOLD` (KES 20,000), `PRISMA_TRANSACTION_TIMEOUT`, and `CHURCH_DELETION_SLA_YELLOW_DAYS` / `CHURCH_DELETION_SLA_RED_DAYS` (Unit 20.6b — 3 / 7).
+- `lib/church/` — Shared church helpers. `soft-delete-tx.ts` (Unit 20.6b) — `softDeleteChurchTx` soft-delete helper, single source of truth used by both the direct `deleteChurch` path (Phase A) and `approveChurchDeletionRequest` (Phase B). See § 8 Church Soft Delete for the deviation-from-spec rationale.
 - `lib/utils/export-advanced.ts` — Enterprise export engine (CSV, Excel, PDF, Print).
 - `lib/utils/matching.ts` — Unit 17 Solutions Bank (Levenshtein fuzzy matching + pattern learning). Patterns short-circuit fuzzy matching when present.
 - `lib/utils/financial.ts` — Cumulative ledger, `getExpectedUpToDate`, `getPeriodStatus`, `getCreditBalance`, `getNetOutstanding`, `sumApprovedWriteOffs`, `isActiveChurch` (defunct-only), `isNotDeleted` (Unit 20.6a — soft-delete-only; deliberately distinct from `isActiveChurch`), `filterActiveChurches`, `isChurchCompliant` (Unit 18.2 — single source of the Strict Bucket Isolation compliance rule).
@@ -72,7 +74,7 @@
 - `app/dashboard/help/` — Full Help reference page.
 
 ## 3. Storage Model
-- **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, Regional Scores, `PaymentAllocation`, `UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`, and `AuditLog`.
+- **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, Regional Scores, `PaymentAllocation`, `UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`, `ChurchDeletionRequest`, and `AuditLog`.
 - **No Blob Storage Needed:** All data is structured and relational. (Manual entry attachments via URL field only — blob upload deferred).
 
 ## 4. Auth and Access Model
@@ -84,10 +86,10 @@
 | :--- | :--- | :--- |
 | **SYSTEM_ADMIN** (Vendor/Owner) | All tabs | Full access + Protected User Management. Cannot be edited/deleted by anyone else via UI. Hidden from Users list unless viewer is also SYSTEM_ADMIN. |
 | **FINANCE_ADMIN** | Dashboard, Payments, Reconciliation, Mock KCB, Reports, Settings, Audit Logs | Full financial oversight, reconciliation, write-off proposals. Cannot manage Users/Registry. |
-| **OPERATIONS_ADMIN** | Dashboard, Regions, Churches, Users, Reports, Settings, Audit Logs | Registry and User management. Cannot access Payments, Mock KCB, or Reconciliation. |
-| **NATIONAL_TREASURER** | Dashboard, Regions, Churches, Payments, Users, Reconciliation, Mock KCB, Reports, Settings, Audit Logs | Ultimate financial authority. Can approve write-offs and high-value four-eyes resolutions. |
+| **OPERATIONS_ADMIN** | Dashboard, Regions, Churches, Deletion Requests, Users, Reports, Settings, Audit Logs | Registry and User management. Approves/rejects Regional church deletion requests. Cannot access Payments, Mock KCB, or Reconciliation. |
+| **NATIONAL_TREASURER** | Dashboard, Regions, Churches, Deletion Requests, Payments, Users, Reconciliation, Mock KCB, Reports, Settings, Audit Logs | Ultimate financial authority. Can approve write-offs and high-value four-eyes resolutions. Also approves/rejects Regional church deletion requests (Operations-domain authority covers church mutation). |
 | **NATIONAL_OVERSEER** | Dashboard, Regions, Churches, Payments, Users, Reconciliation, Reports, Settings, Audit Logs | Read-heavy oversight role. Same visibility as Treasurer but limited mutation capabilities. |
-| **REGIONAL_CHAIRMAN / REGIONAL_TREASURER** | Regional Dashboard, Regional Payments, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. |
+| **REGIONAL_CHAIRMAN / REGIONAL_TREASURER** | Regional Dashboard, Regional Payments, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. May propose (and cancel) church deletion requests for churches in their **own region** — Regional dashboard's "My Deletion Requests" tab. |
 | **LOCAL_PASTOR / CHURCH_TREASURER** | Local Dashboard, Reports, Settings | Personal church compliance, exact bucket status, and payment history. |
 
 ### Protected Accounts (SYSTEM_ADMIN)
@@ -101,10 +103,12 @@
 - `FINANCE_ADMIN` controls money; `OPERATIONS_ADMIN` controls registry and users. Neither can perform the other's function.
 - Enforced at the server-action boundary by `verifyFinanceAccess()` and `verifyOperationsAccess()`, not merely by hiding UI elements.
 - `SYSTEM_ADMIN` may perform both. `NATIONAL_TREASURER` has the finance authority plus approval rights.
+- **Registry deletion requests (Unit 20.6b) follow registry authority, not finance authority.** A church deletion request is a **registry** operation — it removes the church from active operational views, not from financial history. The workflow is proposed by a Regional role (Chairman or Treasurer, region-scoped) and reviewed by a National Operations-domain role (`OPERATIONS_ADMIN`, `SYSTEM_ADMIN`, `NATIONAL_TREASURER`) via `verifyOperationsAccess()`. This is deliberately distinct from **financial** write-off authority, which requires Treasurer approval under Invariant 8. A church can be financially written off (defunct) without being deleted, and vice versa — see § 8 Church Soft Delete: "Defunct ≠ deleted".
 
 ### Four-Eyes Principle (Reconciliation)
 - The proposer of a financial item can never approve it. Enforced in `approvePendingPayment`, `rejectPendingPayment`, `approveWriteOff`, and `rejectWriteOff` via `if (proposed_by === actorId)`.
 - `FOUR_EYES_THRESHOLD = 20000` (from `lib/constants.ts`) governs when Treasurer approval is required. Write-offs always require Treasurer approval regardless of amount. Any item touching 90+ day arrears also requires Treasurer approval.
+- **Unit 20.6b extension:** the "proposer ≠ approver" rule applies to `approveChurchDeletionRequest` and `rejectChurchDeletionRequest` — a Regional Chairman or Treasurer who proposed a deletion request cannot approve or reject it. Enforced via `if (proposed_by === actorId)`. Unreachable by role in practice (proposer is Regional; approver is National) but present as a hard backstop, matching the write-off pattern. **The KES 20,000 threshold does not gate deletion requests** — the four-eyes threshold is a financial concept, and deletion is a registry action. Only the "proposer ≠ approver" invariant applies here.
 
 ### Communication Identity (SMS)
 - **Universal Capability, Contextual Identity:** All authorized roles (National, Regional) can send SMS reminders. However, the SMS message body must reflect the sender's role.
@@ -130,8 +134,7 @@
 - **Strict Bucket Isolation:** KPIs must display Annual and Monthly buckets as independent entities. A combined "Total Collected" KPI hides which bucket is failing.
 
 ## 7. Financial Ledger & Strict Bucket Isolation
-- **Cumulative Ledger:** The system calculates expected amounts cumulatively from a church's `created_at` date. Year-end arrears do not vanish on Jan 1st.
-- **Strict Bucket Isolation:** Annual contributions (KES 5,000) and Monthly contributions (KES 500) are treated as completely separate ledgers. An overpayment in one bucket does not cover a shortfall in the other.
+- **Cumulative Ledger:** The system calculates expected amounts cumulatively from a church's `created_at` date. Year-end arrears do not vanish on Jan 1st.- **Strict Bucket Isolation:** Annual contributions (KES 5,000) and Monthly contributions (KES 500) are treated as completely separate ledgers. An overpayment in one bucket does not cover a shortfall in the other.
 - **Dynamic Statuses:** A church's status is evaluated per bucket (`annualStatus` vs `monthlyStatus`). The UI dynamically swaps the badge and KPI counts based on the active `periodView`.
 - **Carry-Forward & Prepayments:** Handled implicitly via the cumulative math. The UI explicitly surfaces `annualCredit` and `monthlyCredit`.
 - **Allocation Engine:** Payment records remain immutable 1:1 bank ledger entries. Annual/Monthly attribution is handled purely via the `PaymentAllocation` table.
@@ -197,8 +200,7 @@ For the guided payment wizard to track in-progress payments and match them to in
 - `provider_receipt` — M-Pesa receipt code once confirmed (`MpesaReceiptNumber`). `null` until settled; unique when non-null.
 - `provider_result_code` — last known result code from the provider (`"0"`, `"1032"`, `"5"`, etc.).
 - `raw_callback` — forensic JSON of the last callback received from the provider. `null` for `Manual`.
-- `status` — `'Active' | 'Matched' | 'Unmatched' | 'Expired' | 'Abandoned'`
-- `matched_payment_id`, `matched_unmatched_id`, `matched_at`, `abandoned_at` (audit trail)
+- `status` — `'Active' | 'Matched' | 'Unmatched' | 'Expired' | 'Abandoned'`- `matched_payment_id`, `matched_unmatched_id`, `matched_at`, `abandoned_at` (audit trail)
 - `raw_bill_ref_entered` — what the user was instructed to type (typo detection for the `Manual` channel)
 
 **Indexes:** `@@index([church_id, status])`, `@@index([expires_at])`, `@@index([channel, status])`, `@@index([provider_request_id])`, `@@unique([provider_receipt])` (sparse — many null, one non-null per receipt), `@@unique([matched_payment_id])`, `@@unique([matched_unmatched_id])`.
@@ -259,11 +261,53 @@ Migration: `20261121145153_add_church_soft_delete` — single `ALTER TABLE "Chur
 
 Both the direct National `deleteChurch` and the Phase B approval path (`approveChurchDeletionRequest`) block deletion when the church has any **Pending** `PendingPayment`, `WriteOff`, or `UnmatchedPayment`. This prevents orphaning staging records against a deleted church, which would later block their approval or corrupt defunct-flag computation. The precondition check is identical on both paths, matching enterprise-grade consistency (SAP / NetSuite: preconditions must apply uniformly to every state-transition route).
 
-**`softDeleteChurchTx` helper:** defined locally (non-exported) in `lib/actions/church-actions.ts`, mirroring `computeChurchOutstanding`'s inline-in-actions-file house style. Signature: `(tx: Prisma.TransactionClient, churchId: string) => Promise<{ deactivatedUserIds: string[] }>`. Must be called inside `prisma.$transaction`. Does **not** log audit — callers log after the transaction commits, per § 8 "AuditLog".
+**`softDeleteChurchTx` helper:** exported from `lib/church/soft-delete-tx.ts` (Unit 20.6b refactor). Both the direct `deleteChurch` path (Phase A) and `approveChurchDeletionRequest` (Phase B) import it.
+
+**Deviation from Phase A spec, documented:** the spec said "defined locally (non-exported) in `lib/actions/church-actions.ts`, mirroring `computeChurchOutstanding`'s inline-in-actions-file house style". When Phase B was implemented, `church-deletion-request-actions.ts` needed the same logic — duplicating it would violate the single-source rule, and importing from `church-actions.ts` risked a circular import chain (the request-actions file already imports guards and audit-actions, which sit upstream of the actions layer). The helper was therefore extracted into `lib/church/soft-delete-tx.ts`. This stays within the "no new `lib/utils/*`" constraint (it is `lib/church/`, not `lib/utils/`) and preserves single-source-of-truth. Recorded under Architecture Decisions in `progress-tracker.md`.
+
+Signature: `(tx: Prisma.TransactionClient, churchId: string) => Promise<{ deactivatedUserIds: string[] }>`. Must be called inside `prisma.$transaction`. Does **not** log audit — callers log after the transaction commits, per § 8 "AuditLog".
 
 **Audit trail:**
 - Direct `deleteChurch` — one event: `CHURCH_DELETED` with `metadata.soft_delete = true`, `after_data.deleted_at`, `after_data.deactivated_user_ids`.
 - Phase B `approveChurchDeletionRequest` — two events: `CHURCH_DELETED` (with `metadata.source = 'deletion_request'`, `metadata.request_id`) and `CHURCH_DELETION_APPROVED` (on the request entity). Two distinct lifecycle events, both visible in the audit viewer.
+
+### ChurchDeletionRequest (Unit 20.6b) — ✅ COMPLETE
+
+Migration: `20261123010107_add_church_deletion_request` — creates the `ChurchDeletionRequest` table and its four indexes. Follows the `PendingPayment` / `UnmatchedPayment` precedent: `String` status (no Prisma enum), review-workflow field naming (`reviewed_by` / `reviewed_at`), and audit via `logAudit`.
+
+**Purpose:** Registry-side request/approval workflow for church deletion. A Regional Chairman or Regional Treasurer proposes deletion for a church in their own region; a National Operations-domain role (`OPERATIONS_ADMIN`, `SYSTEM_ADMIN`, `NATIONAL_TREASURER`) approves or rejects. **Approval** soft-deletes the church (`Church.deleted_at`, from 20.6a) and deactivates its users atomically. **Rejection** preserves the church. The proposer can withdraw a `Pending` request before National review.
+
+**Model fields:** `id`, `church_id`, `church` (relation), `reason` (String — `'DISSOLVED' | 'MERGED' | 'DUPLICATE' | 'OTHER'`), `notes` (String?), `status` (String — `'Pending' | 'Approved' | 'Rejected'`), `proposed_by`, `proposed_at`, `reviewed_by` (String?), `reviewed_at` (DateTime?), `rejection_reason` (String?), `resulted_in_deletion` (Boolean, default `false`).
+
+**Indexes:** `@@index([church_id])`, `@@index([status])`, `@@index([proposed_by])`, `@@index([status, proposed_at])`.
+
+**Back-relation on `Church`:** `deletion_requests ChurchDeletionRequest[]`.
+
+**Reason taxonomy (enum-plus-`OTHER`, matching `WriteOff`'s String precedent — no Prisma enum):**
+- `DISSOLVED` / `MERGED` / `DUPLICATE` — **standard**: known handling path, `notes` optional (`max 500`). Audit log emits `after_data.reason_category = 'standard'`.
+- `OTHER` — **non-standard**: requires `min 100` / `max 500` characters of justification (`notes` field). Audit log emits `reason_category = 'non_standard'`. Surfaced in the approval queue with an amber **"Needs review"** badge next to the reason label — this is not a gate, it is a signal that the request needs concentrated approver attention. `OTHER` covers cases with no laid-down handling path: fraud, permanent relocation, legal intervention, leadership removal.
+
+**Approver scope is uniform across all four reasons** — `verifyOperationsAccess()` on both approve and reject. Escalating `OTHER` to Treasurer-only was considered and rejected: it would weaken Operations Admin's registry authority. If the client later wants `OTHER` to require Treasurer, that's a one-line guard change plus a spec amendment — logged in `progress-tracker.md` → Open Questions.
+
+**Proposer guard:** `verifyChurchDeletionRequestAccess(churchId)` — Regional roles only (`REGIONAL_CHAIRMAN` / `REGIONAL_TREASURER`), enforced `dbUser.region_id === church.region_id` server-side. National roles refused — they already have direct `deleteChurch` and should not be forced through the request workflow. Local roles refused.
+
+**Four-eyes:** `proposed_by !== reviewed_by` on **both** approve and reject — returns `{ error }`, matching `approveWriteOff` / `rejectWriteOff` / `approvePendingPayment` / `rejectPendingPayment` precedent. Unreachable by role in practice (proposer is Regional; approver is National) but present as a hard backstop (see § 4 Four-Eyes Principle — Unit 20.6b extension).
+
+**Atomic claim:** both approve and reject use `updateMany({ where: { id, status: 'Pending' } })` inside the surrounding `$transaction`; `claimed.count === 0` throws. Prevents double-click and concurrent double-approve, matching `approveWriteOff`.
+
+**Approval-time blocking check:** if the church has any `Pending` `PendingPayment`, `Pending` `WriteOff`, or `Pending` `UnmatchedPayment`, approval returns `{ error: 'This church has unresolved financial exceptions. Resolve them before deleting.' }`. Prevents orphaning staging records against a deleted church — matches direct `deleteChurch` preconditions (see § 8 Church Soft Delete, "Deletion preconditions (both paths)").
+
+**SLA thresholds (deletion-specific):** `CHURCH_DELETION_SLA_YELLOW_DAYS = 3`, `CHURCH_DELETION_SLA_RED_DAYS = 7`, from `lib/constants.ts`. **Deliberately tighter than the reconciliation SLA (7 / 30)** — a registry deletion request queued for 30 days is a governance liability (the church sits in limbo: users locked out of working workflows but still technically active), whereas a reconciliation item is a financial accounting question where a longer SLA is defensible. The queue renders `<SlaBadge status={...} ageDays={days_old} />` reusing the same primitive as reconciliation.
+
+**Audit events (four new `AuditLog.action` values):**
+- `CHURCH_DELETION_REQUESTED` — on propose. `after_data` includes `church_code`, `church_name`, `reason`, `reason_category`, `notes`.
+- `CHURCH_DELETION_CANCELLED` — on proposer withdrawal. `after_data` includes `church_code`, `reason`.
+- `CHURCH_DELETION_APPROVED` — on approve. `metadata` includes `request_id`, `church_code`, `approved_by_email`. Fires **alongside** `CHURCH_DELETED` (emitted by the 20.6a-rewritten `deleteChurch` via `softDeleteChurchTx`). Two distinct lifecycle events, both visible in the audit viewer.
+- `CHURCH_DELETION_REJECTED` — on reject. `after_data` includes `rejection_reason`, `request_id`; `metadata` includes `church_code`, `rejected_by_email`.
+
+**Deletion path on approval:** calls `softDeleteChurchTx` (imported from `lib/church/soft-delete-tx.ts` — see § 8 Church Soft Delete) inside `prisma.$transaction`. The transaction atomically: (a) claims the request via `updateMany`, (b) soft-deletes the church + deactivates its users. Audit events fire **after** the transaction commits, per § 8 "AuditLog" invariant.
+
+**Approval-queue UI deviation:** the queue is an **action queue**, not a report. It deliberately omits `<TableToolbar>`, checkbox column, and export controls per `ui-context.md` § 6.1. This is documented as an intentional deviation from the report-table convention: mixing "approve this" with "select all 15 and export to Excel" invites the wrong interaction model. Regional "My Deletion Requests" tab follows the same constraint.
 
 ### LoginHistory (Unit 16.4 — Optional, Not Yet Scheduled)
 

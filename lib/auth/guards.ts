@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-import { isOperationsAdmin, isFinanceAdmin } from '@/lib/auth/roles'
+import { isOperationsAdmin, isFinanceAdmin, isRegionalLevel } from '@/lib/auth/roles'
 import type { Role } from '@prisma/client'
 
 export async function verifyOperationsAccess() {
@@ -106,4 +106,47 @@ export async function verifyChurchPaymentAccess(churchId: string) {
     return { actorId: user.id, actorEmail: user.email, actorRole: dbUser.role, dbUser }
   }
   throw new Error('Forbidden: Requires church-scoped or finance-level access')
+}
+
+/**
+ * Guard for church deletion requests (Unit 20.6b).
+ * Regional Chairman / Regional Treasurer only — scoped to their own region.
+ * National roles refused — they have direct delete and should not be forced
+ * through the request workflow. Also refuses for churches already soft-deleted.
+ */
+export async function verifyChurchDeletionRequestAccess(churchId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+  if (!dbUser) throw new Error('User not found')
+
+  if (!isRegionalLevel(dbUser.role)) {
+    throw new Error('Forbidden: Only regional roles may request church deletion')
+  }
+
+  const church = await prisma.church.findUnique({
+    where: { id: churchId },
+    select: {
+      id: true,
+      church_name: true,
+      church_code: true,
+      region_id: true,
+      deleted_at: true,
+    },
+  })
+  if (!church) throw new Error('Church not found')
+  if (church.deleted_at) throw new Error('Church is already deleted')
+  if (dbUser.region_id !== church.region_id) {
+    throw new Error('Forbidden: Can only request deletion for churches in your region')
+  }
+
+  return {
+    actorId: user.id,
+    actorEmail: user.email,
+    actorRole: dbUser.role,
+    dbUser,
+    church,
+  }
 }

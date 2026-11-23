@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUnresolvedCounts } from '@/lib/actions/reconciliation-actions'
+import { getPendingChurchDeletionCount } from '@/lib/actions/church-deletion-request-actions'
 import { isFinanceAdmin } from '@/lib/auth/roles'
 import { HelpDrawerProvider } from '@/components/help/help-drawer-provider'
 
@@ -47,6 +48,9 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
     unresolvedCount = counts.total
   }
 
+  // Unit 20.6b: Pending church deletion requests (self-guarded, returns 0 on failure)
+  const pendingDeletionCount = await getPendingChurchDeletionCount()
+
   return (
     <HelpDrawerProvider role={role}>
       <SidebarProvider
@@ -61,6 +65,7 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
           role={role}
           userEmail={user.email}
           unresolvedCount={unresolvedCount}
+          pendingDeletionCount={pendingDeletionCount}
         />
 
         <SidebarInset className="flex-1 min-w-0 flex flex-col h-svh overflow-hidden">

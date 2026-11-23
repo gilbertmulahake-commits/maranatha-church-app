@@ -7,6 +7,7 @@ import {
   Eye,
   Edit,
   Send,
+  Trash2,
   Loader2
 } from 'lucide-react'
 import Link from 'next/link'
@@ -47,6 +48,7 @@ import { sendBulkReminders } from '@/lib/actions/sms-actions'
 import { SendReminderButton } from '@/components/dashboard/send-reminder-button'
 import { ViewChurchDialog } from '@/components/churches/view-church-dialog'
 import { EditChurchDialog } from '@/components/churches/edit-church-dialog'
+import { RequestChurchDeletionDialog } from '@/components/churches/request-church-deletion-dialog'
 import type { ChurchRow } from '@/components/churches/church-table'
 import { formatPrepaidStatus } from '@/lib/utils/format'
 import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export-advanced'
@@ -65,6 +67,7 @@ interface Props {
   userRole?: 'NATIONAL' | 'REGIONAL'
   periodView: 'month' | 'year'
   setPeriodView: (val: 'month' | 'year') => void
+  pendingDeletions?: Record<string, { id: string; daysOld: number }>
 }
 
 function formatCurrency(amount: number) {
@@ -87,6 +90,7 @@ export function RegionalTable({
   userRole = 'REGIONAL',
   periodView,
   setPeriodView,
+  pendingDeletions = {},
 }: Props) {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof RegionalChurchData
@@ -96,6 +100,7 @@ export function RegionalTable({
 
   const [viewingChurch, setViewingChurch] = useState<ChurchRow | null>(null)
   const [editingChurch, setEditingChurch] = useState<ChurchRow | null>(null)
+  const [deletionTarget, setDeletionTarget] = useState<RegionalChurchData | null>(null)
   const [selectedChurches, setSelectedChurches] = useState<string[]>([])
   const [isBulkSending, setIsBulkSending] = useState(false)
 
@@ -258,7 +263,7 @@ export function RegionalTable({
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search churches..."
-        
+
         toggle={
           <div className="flex items-center gap-1 bg-muted rounded-md p-1 h-9 w-full @[450px]:w-auto">
             <Button
@@ -289,8 +294,8 @@ export function RegionalTable({
         }
 
         sort={
-          <Select 
-            value={statusFilter} 
+          <Select
+            value={statusFilter}
             onValueChange={(val) => { if (val) setStatusFilter(val) }}
           >
             <SelectTrigger className="h-9 w-full bg-card text-xs">
@@ -308,7 +313,7 @@ export function RegionalTable({
           <div className="flex items-center gap-2 w-full @[600px]:w-auto justify-end">
             <PrintButton onClick={handleGlobalPrint} disabled={churches.length === 0} />
             <div className="shrink-0">
-              <ExportDropdown 
+              <ExportDropdown
                 onExportCsv={() => handleGlobalExport('csv')}
                 onExportExcel={() => handleGlobalExport('excel')}
                 onExportPdf={() => handleGlobalExport('pdf')}
@@ -519,6 +524,26 @@ export function RegionalTable({
                             monthlyOutstanding={church.monthlyOutstanding}
                           />
                         )}
+
+                        {/* Unit 20.6b: Regional-only action. National roles
+                            have direct delete on the church table and are
+                            deliberately not routed through the request
+                            workflow (see spec § Design → Propose). */}
+                        {userRole === 'REGIONAL' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              disabled={pendingDeletions[church.id] !== undefined}
+                              className="cursor-pointer text-paragraph-small whitespace-nowrap"
+                              onClick={() => setDeletionTarget(church)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                              {pendingDeletions[church.id]
+                                ? `Deletion pending · ${pendingDeletions[church.id].daysOld}d`
+                                : 'Request Deletion'}
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -540,8 +565,23 @@ export function RegionalTable({
 
       <ViewChurchDialog church={viewingChurch} onClose={() => setViewingChurch(null)} />
       <EditChurchDialog church={editingChurch} onClose={() => setEditingChurch(null)} />
-      
-      <ExportConfirmDialog 
+      <RequestChurchDeletionDialog
+        church={
+          deletionTarget
+            ? {
+                id: deletionTarget.id,
+                church_code: deletionTarget.church_code,
+                church_name: deletionTarget.church_name,
+              }
+            : null
+        }
+        open={!!deletionTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeletionTarget(null)
+        }}
+      />
+
+      <ExportConfirmDialog
         open={!!pendingAction}
         onOpenChange={(open) => !open && setPendingAction(null)}
         actionType={pendingAction?.type || 'export'}

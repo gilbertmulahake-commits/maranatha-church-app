@@ -2,6 +2,10 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { getRegionalStats } from '@/lib/actions/regional-actions'
+import {
+  getPendingDeletionsForMyRegion,
+  getMyChurchDeletionRequests,
+} from '@/lib/actions/church-deletion-request-actions'
 import { RegionalDashboardClient } from '@/components/regional/regional-dashboard-client'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -10,7 +14,11 @@ import { KpiGrid } from '@/components/ui/kpi-grid'
 async function RegionalContent() {
   await connection()
 
-  const stats = await getRegionalStats()
+  const [stats, pendingDeletions, myDeletionRequests] = await Promise.all([
+    getRegionalStats(),
+    getPendingDeletionsForMyRegion(),
+    getMyChurchDeletionRequests(),
+  ])
 
   if ('error' in stats) {
     redirect('/dashboard')
@@ -25,7 +33,12 @@ async function RegionalContent() {
         </p>
       </div>
 
-      <RegionalDashboardClient stats={stats} />
+      <RegionalDashboardClient
+        stats={stats}
+        userRole="REGIONAL"
+        pendingDeletions={pendingDeletions}
+        myDeletionRequests={myDeletionRequests}
+      />
     </div>
   )
 }
