@@ -9,7 +9,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 20: In-App Help & Onboarding** — ✅ COMPLETE and MERGED. See `## Completed`.
 - **Unit 18.2.1 (Instrument Timeliness / Accuracy / Engagement score axes)** — **DEFERRED** pending client clarification (see `## Open Questions`).
 - **Unit 19c (STK Push adapters)** and **19d (go-live)** remain **BLOCKED** on sandbox credentials and bank Go-Live approvals.
-- **Current work:** Unit 20.6 Phase A + 20.6.1 merged to `main` at `f4aeaf4` (PR #61). Phase B (approval workflow + queue UI) is next - begins in a new session per `ai-workflow-rules.md` Per-Unit Loop step 12.
+- **Current work:** Unit 20.6b (Phase B — request workflow + approval queue) — **IN PROGRESS** on branch `feat/20.6b-church-deletion-requests`. Phase A (`7083ffa`) and 20.6.1 (`31c0122`) merged at `f4aeaf4` (PR #61). Spec: `context/specs/20.6-Regional Church Deletion Requests.md` § Phase B.
 - **Then:** 21/22 (Bank Sandbox, blocked) → Unit 23 (Settings UI split) → polish.
 
 ## Completed
@@ -244,7 +244,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 20.6.1: Regional Dashboard Compliance Alignment (Complete, committed 31c0122, merged f4aeaf4)** - Three-file code fix, zero new migrations. **(a) `lib/actions/regional-actions.ts`** — `is_defunct: boolean` added to `RegionalChurchData` type, `overallStatus` derived from strict-bucket (`annualStatus === 'Paid' && monthlyStatus === 'Paid'`), `activeChurchCount` denominator excludes defunct, `is_defunct: church.is_defunct` added to mapper return. **(b) `components/regional/regional-table.tsx`** — `Defunct` gray badge (`bg-gray-100 text-gray-700 border-gray-200`, per `ui-context.md` §2 N/A palette) added next to church code so chairmen do not chase written-off churches. **(c) `lib/actions/region-actions.ts`** — same strict-bucket + defunct-exclusion + `is_defunct` mapper applied to `getRegionsWithStats`, `getRegionStats`, and `getSingleRegionStats`; all three functions also received the missing Phase A `where: { deleted_at: null }` sweep filter (Phase A gap — soft-deleted churches were leaking into National region list, National dashboard aggregates, and region detail view). Gate: `tsc --noEmit` clean, `lint` 0/0, `build` 29/29 unchanged (no new routes). **Recurring defect class noted**: two-constructor anti-pattern for shared types (`LocalChurchStats` Unit 19, now `RegionalChurchData` 20.6.1) — see Architecture Decisions.
 
 ## In Progress
-- **Unit 20.6b: Phase B (approval workflow + queue UI)** — next after 20.6.1 close. Scope already specified in `context/specs/20.6-Regional Church Deletion Requests.md` § "Phase B". Pre-step reads per spec B0: `app/dashboard/regional/page.tsx`, `components/layout/app-sidebar.tsx`, `components/reconciliation/write-off-table.tsx`, `propose-writeoff-dialog.tsx`.
+- **Unit 20.6b: Phase B (approval workflow + queue UI)** — **IN PROGRESS** on branch `feat/20.6b-church-deletion-requests`. Scope: `context/specs/20.6-Regional Church Deletion Requests.md` § "Phase B". Pre-step reads per spec B0: `app/dashboard/regional/page.tsx`, `components/layout/app-sidebar.tsx`, `components/reconciliation/write-off-table.tsx`, `propose-writeoff-dialog.tsx`. Progress: B1 (schema `ChurchDeletionRequest` + migration) — schema edits applied and validated; migration not yet run. A1/A2/A3 rulings pending before B4.
 
 ## Next Up
 - **Unit 19c: STK Push adapters (KCB Buni + Equity Jenga).** Blocked on sandbox credential registration. 19a and 19b are complete.
