@@ -10,8 +10,8 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **Unit 18.2.1 (Instrument Timeliness / Accuracy / Engagement score axes)** — **DEFERRED** pending client clarification (see `## Open Questions`).
 - **Unit 19c (STK Push adapters)** and **19d (go-live)** remain **BLOCKED** on sandbox credentials and bank Go-Live approvals.
 - **Unit 20.6b (Phase B — request workflow + approval queue)** — ✅ **COMPLETE + MERGED** (PR #62, `60b82fd`). Gate clean (`tsc`, `lint`, `build` 30/30). Unit 20.6 fully closed on `main`. See `## Completed` and `## Session Notes`.
-- **Current work:** Post-merge UI hotfixes on `main` (Live Feed modal collapse fixed in `41d4f44`). Awaiting next unit (20.7 or 23).
-- **Then:** 21/22 (Bank Sandbox, blocked) → Unit 23 (Settings UI split) → polish.
+- **Current work:** Unit 23 (Profile Settings) — spec authored at `context/specs/23-profile-settings.md`, doc-sync in progress, implementation next. Unit 23.5 (System Configuration) is the follow-on unit; its spec will be authored after 23 ships.
+- **Then:** Unit 23.5 (System Configuration) → 21/22 (Bank Sandbox, blocked) → polish.
 
 ## Completed
 - **Unit 01: Database Initialization** — Supabase + Prisma ORM (`@prisma/prisma7`). Schema: `Region`, `Church`, `Payment`, `RegionalScore`.
@@ -279,7 +279,10 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
 - **`LocalChurchStats` has two constructors (deferred, Unit 19 verification catch):** `getLocalChurchStats()` in `lib/actions/local-actions.ts` is the canonical producer. `app/dashboard/churches/[code]/page.tsx` builds a `stats` object inline at line ~95. **Trigger to act:** the next field addition to `LocalChurchStats`, or a dedicated deduplication unit.
 - **Navigation Parity & Cross-Linking (Unit 20.5):** Needs spec. Resolved QA: Keep flat `/dashboard/churches/[church_code]` route. Add cross-links from region pages. Resolved QB: Request-only for regional users (submit for National approval); direct delete remains National-only.
 
-- **Settings split (reframes planned Unit 23):** Separate **Profile settings** (personal: name, contact, password, notifications, avatar — every role) from **System settings** (org-level: fees, due dates, feature flags, SMS templates, protected accounts — restricted roles). Enterprise UI/UX standard: per-section save, unsaved-changes guards, audit-logged changes, section jump nav. Reframe Unit 23 as 23 (Profile) + 23.5 (System Config) at spec time.
+- **Settings split — RESOLVED (Unit 23, 2026-11-23):** Split into two units as originally reframed. **Unit 23 (Profile Settings)** ships the editable bio-data form, self-scoped `updateUserProfile`, sidebar propagation. **Unit 23.5 (System Configuration)** follows — read-only constants view + role-gated management link-outs; no editable persistence (schema change deferred to a future unit). Specs: `context/specs/23-profile-settings.md` (this unit) and `context/specs/23.5-system-configuration.md` (to be authored). **Two exclusions from build-plan item 28:** *Users* tab remains its own operational surface (`/dashboard/users`) — folding it into Settings would dilute the Unit 16.5 separation of duties; *SMS Templates* tab requires a `SmsTemplate` model — a schema unit, deferred.
+- **Email change flow (open, Unit 23):** `User.email` is not editable in the Profile form. Supabase Auth requires a re-verification round-trip (`updateUser({ email })` + confirmation email) that does not yet exist in this codebase. Out of scope for 23.
+- **Avatar upload (open, Unit 23):** `profile_photo_url` is URL-only. Blob storage is out of scope per `architecture.md` § 3 ("No Blob Storage Needed"). Upload is a future unit (would pair with an `architecture.md` § 3 storage-model change).
+- **Observed during Unit 23 (not fixed, recorded for future cleanup):** (a) `formatRole()` duplicated in `nav-user.tsx` and `profile-card.tsx` — 2 files, under the 3+ threshold in `code-standards.md` § "Component Reuse"; (b) `user-actions.ts` has a local `verifyOperationsAdmin()` helper instead of importing from `lib/auth/guards.ts` — pre-existing pattern split; (c) `app/dashboard/layout.tsx` calls both `prisma.user.findUnique()` and `getCurrentUserRole()` — the second re-reads the row the first already loaded; (d) `profile-card.tsx` uses `space-y-6` where `ui-context.md` § 4 prefers `space-y-xl` — not restyled because the file is preserved by Unit 23.
 - **Feature subscriptions (directional only, no unit scheduled):** A subscription-based feature-access model is under consideration. This is a full architectural layer (feature flags, subscription state, gated UI, billing, audit trail). Noted for direction only; do not build toward it speculatively.
 
 - **NATIONAL_OVERSEER sees "Edit Church" (Unit 20.6a residual papercut):** `regional-table.tsx` gates the item on `userRole === 'NATIONAL'`, which includes NATIONAL_OVERSEER. Overseer will click and hit `verifyOperationsAccess` rejection. Fix requires threading actual `Role` through the prop. Not fixed in 20.6 — `userRole` prop is a bucket, not the role. Trigger to fix: next time `regional-table.tsx` needs a role-aware menu item.
@@ -406,7 +409,7 @@ Update this table whenever a measurement changes — it is the living record of 
 "scales" means for this system right now.
 
 ## Session Notes
-- **Current Branch:** `main` at `41d4f44` (post-PR #62 UI hotfix: Live Feed modal collapse + formatter cleanup).
+- **Current Branch:** `main` at `c7266ea` (docs sync post-`41d4f44` UI hotfix). Unit 23 doc-sync commit will land on this head.
 - **Migration Head:** `20261123010107_add_church_deletion_request` (advanced from `20261121145153_add_church_soft_delete` in B1 commit `7d2fc87`). **Production deploy status:** applied via Vercel auto-`migrate deploy` on merge of PR #62 (`60b82fd`). Verified post-merge: 13 migrations, up to date.
 - **Production Backfill:** `UPDATE "Payment" SET source='Webhook' WHERE source IS NULL;` has been applied successfully to production (verified 18 Webhook, 2 Manual).
 - **AGENTS.md:** Updated to reflect 4 mandatory spec sections (Goal, Design, Implementation (including Dependencies), Verification) and standardized filename `project-overview.md`.

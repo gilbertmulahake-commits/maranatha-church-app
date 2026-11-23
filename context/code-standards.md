@@ -30,7 +30,7 @@
 - **Exports:** All export functionality must go through `lib/utils/export-advanced.ts` (supporting CSV, Excel, and branded PDFs). Do not use raw `Blob` or `URL.createObjectURL` directly in components.
 - **Exports (Print):** The PDF export engine supports an `autoPrint` argument which triggers the browser print dialog.
 - **Unmatched capture (Unit 17):** When a webhook cannot find its target church, do NOT return 404. Capture it in `UnmatchedPayment` with the top fuzzy suggestion, log `UNMATCHED_PAYMENT_CAPTURED`, and return HTTP 200 so the bank stops retrying.
-- **Payload Types:** Server Actions that handle forms (like `createManualEntry` or `proposeWriteOff`) MUST accept `FormData` and use `formData.get()`. Do not pass raw objects directly from the client to these specific actions.
+- **Payload Types:** Server Actions that handle forms (like `createManualEntry`, `proposeWriteOff`, or `updateUserProfile`) MUST accept `FormData` and use `formData.get()`. Do not pass raw objects directly from the client to these specific actions.
 
 ## Data and Storage
 - Use Prisma ORM for all database queries.
@@ -85,6 +85,7 @@
   - `verifyReportsAccess()` — All report reads (any authenticated role; scoping via `buildChurchWhere` / `buildPaymentWhere` / `scopeByRole` — Invariant 2)
   - `verifyChurchDeletionRequestAccess(churchId)` — **Unit 20.6b.** Proposes a church deletion request. Regional roles only (`REGIONAL_CHAIRMAN` / `REGIONAL_TREASURER`); enforces `dbUser.region_id === church.region_id` server-side (Invariant 2), refuses National roles (they have direct `deleteChurch`), refuses Local roles. Returns `{ actorId, actorEmail, actorRole, dbUser, church }`.
 - If the caller lacks permission, the guard throws — the `catch` block converts this into a `{ error: 'Forbidden' }` return shape.
+- **Self-scoped mutations — no guard wrapper (Unit 23):** Server actions that mutate only the acting user's own row do not need a guard function. They read `session.user.id` from Supabase and use it as the target ID — self-scope is enforced by construction (the action accepts no user-id argument). Three current instances, all in `lib/actions/user-actions.ts`: `clearPasswordResetFlag`, `updatePasswordAndClearFlag`, and `updateUserProfile`. A `verifySelfProfileUpdate()` guard was considered for Unit 23 and deliberately rejected: adding a guard to a self-scoped action invites a future caller to pass a user id "for consistency," at which point the guard becomes the only thing preventing cross-user edits. Keeping the signature argument-free makes the safety property structural, not defensive.
 - **Separation of Duties:** `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users. Neither can do the other's job. `SYSTEM_ADMIN` can do both. **Registry deletion requests follow registry authority** — proposed by Regional, approved by Operations-domain National (see `architecture.md` § 4 Separation of Duties for the full distinction from financial write-off authority).
 
 ## Known ESLint Configuration Gaps
@@ -160,6 +161,10 @@ Never re-implement these — always use the component:
 | Compliance rule (Strict Bucket Isolation) | `isChurchCompliant` | `lib/utils/financial.ts` |
 
 If a pattern appears in 3+ files and a component exists for it, use the component. Never re-inline.
+
+**Candidates for extraction (not yet at the 3+ threshold, logged for a future cleanup unit):**
+- `formatRole()` — duplicated in `components/layout/nav-user.tsx` and `components/settings/profile-card.tsx` (2 files as of Unit 23). Extract only when a third consumer appears, or when either file is substantially rewritten.
+- `verifyOperationsAdmin()` — local helper in `lib/actions/user-actions.ts`, duplicates the role-check portion of `verifyOperationsAccess()` in `lib/auth/guards.ts`. Pre-existing pattern split, out of scope for Unit 23.
 
 ### Base UI `Sheet` Collapse Bug
 - The protected `components/ui/sheet.tsx` primitive lacks default width/background classes for its right-side variant. When building a drawer that must be forced open, apply inline styles (`style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--background)' }}`) to guarantee the panel does not collapse to a sliver. Do not modify the primitive itself.
