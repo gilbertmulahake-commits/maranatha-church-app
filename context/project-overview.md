@@ -60,6 +60,12 @@ A real-time financial and administrative management system for Maranatha Faith A
 - **User Lifecycle:** Soft-deactivation, forced password reset, and auditable role changes.
 - **Secure Auth Flows:** Password reset and email verification use token-hash verification rather than PKCE code exchange, eliminating session races.
 
+### Church Registry & Deletion Workflow
+- **Soft-delete, never hard-delete:** `Church.deleted_at` removes a church from active operational views (dashboards, dropdowns, compliance percentages, SMS recipient sets) while preserving every payment, write-off, and audit-log entry. Attached users are deactivated atomically inside the same `$transaction`; PostgreSQL FK Restrict on `Payment` / `WriteOff` / `PendingPayment` / `PaymentIntent` makes hard delete structurally impossible on any realistic church.
+- **Financial disclosure preservation:** Write-Off Register and Defunct Register deliberately preserve deleted churches with a `(deleted)` badge (IFRS 9 / IPSAS 29 — auditors must trace every recognized write-off). Money-ledger views (Cashbook, Collections, YoY, Allocation, Source/Method) also preserve.
+- **Regional propose → National approve:** A Regional Chairman or Regional Treasurer proposes deletion for a church in their **own region** (region-scoped server-side — Invariant 2); National roles are refused (they have direct delete). Reasons are coded (`DISSOLVED` / `MERGED` / `DUPLICATE` / `OTHER`); `OTHER` requires a 100-character justification and surfaces with an amber "Needs review" badge. Proposers can withdraw Pending requests. The queue at `/dashboard/church-deletion-requests` shows requests oldest-first with a 3-day / 7-day SLA badge; Operations Admin, System Admin, and National Treasurer approve/reject.
+- **Preconditions + four-eyes + full audit:** Both direct delete and the Phase B approval path block when the church has any Pending `PendingPayment`, `WriteOff`, or `UnmatchedPayment`. Approve and reject enforce `proposed_by !== reviewed_by` server-side. The KES 20,000 four-eyes threshold does NOT gate deletion (registry action, not financial). Approval fires two distinct audit events — `CHURCH_DELETION_APPROVED` and `CHURCH_DELETED` with `metadata.source = 'deletion_request'` — both traceable.
+
 ### Data Export
 - **Enterprise Export Engine:** Any table exports to CSV, Excel, or branded PDF, and can be printed. Bulk actions intercept to confirm scope (selected rows versus all rows).
 
@@ -73,6 +79,7 @@ A real-time financial and administrative management system for Maranatha Faith A
 - Automated compliance calculation and regional incentive tiers.
 - Reconciliation subsystem: unmatched queue, manual entry, write-offs, four-eyes approval, Solutions Bank.
 - System-wide audit log with forensic snapshots.
+- **Regional church deletion request workflow:** propose (Regional, region-scoped) → approve/reject (National Operations). Soft-delete preserves the full financial trail; two IFRS 9 / IPSAS 29 disclosure registers preserve deleted churches' write-off history. Full lifecycle audit: `CHURCH_DELETION_REQUESTED` → `CHURCH_DELETION_APPROVED` / `CHURCH_DELETION_REJECTED`, with `CHURCH_DELETED` firing on approval.
 - Real-time dashboards with Strict Bucket Isolation.
 - Enterprise export across every table.
 
@@ -96,6 +103,7 @@ A real-time financial and administrative management system for Maranatha Faith A
 - A repeated messy reference is suggested with higher confidence on its second occurrence, and the learned pattern takes precedence over character-distance matching.
 - A write-off leaves Gross Arrears unchanged, reduces Net Recoverable, and a full write-off excludes the church from compliance percentages, regional scores, and SMS lists.
 - Every critical mutation appears in the audit log with actor, role, before and after snapshots.
+- A Regional Chairman can propose deletion of a church in their own region; the church is soft-deleted only after Operations Admin (or another National Operations-domain role) approval; attached users are deactivated atomically; the audit log captures the full lifecycle (`CHURCH_DELETION_REQUESTED` → `CHURCH_DELETION_APPROVED` / `CHURCH_DELETION_REJECTED`, with `CHURCH_DELETED` on approval). Region scoping is enforced server-side (a Chairman cannot propose deletion for another region's church); financial records (payments, write-offs, audit) are preserved; the KES 20,000 four-eyes threshold does not gate deletion (registry action).
 - A Finance Admin cannot manage users or churches; an Operations Admin cannot access payments or reconciliation; neither can modify a protected account.
 - National, Regional, and Local dashboards each report Annual and Monthly buckets independently.
 - The system accurately calculates the "Final Score" and "Incentive Tier" for a region based on the 40/30/20/10 weighted formula.

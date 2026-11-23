@@ -8,6 +8,14 @@ import { EntityBackButton } from '@/components/shared/entity-back-button'
 import { ChurchProfileClient } from '@/components/churches/church-profile-client'
 import { getPeriodStatus, getCreditPosition } from '@/lib/utils/financial'
 import { KpiGrid } from '@/components/ui/kpi-grid'
+import { AlertTriangle } from 'lucide-react'
+
+// Unit 20.6b — church detail pending-deletion banner
+function formatDaysAgo(days: number): string {
+  if (days === 0) return 'today'
+  if (days === 1) return '1 day ago'
+  return `${days} days ago`
+}
 
 async function ChurchProfileContent({ params }: { params: Promise<{ code: string }> }) {
   await connection()
@@ -25,7 +33,15 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
       // 🚨 FIX: Include approved write-offs
       write_offs: {
         where: { status: 'Approved' }
-      }
+      },
+      // Unit 20.6b: pending deletion request — banner data, piggybacks on the
+      // existing round trip. take:1 is safe because proposeChurchDeletion has
+      // a server-side duplicate backstop; a church can have at most one Pending.
+      deletion_requests: {
+        where: { status: 'Pending' },
+        select: { id: true, proposed_at: true },
+        take: 1,
+      },
     },
   })
 
@@ -37,6 +53,13 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
   if (!church || church.deleted_at) return notFound()
 
   const now = new Date()
+  const pendingDeletion = church.deletion_requests[0] ?? null
+  const pendingDeletionDaysOld = pendingDeletion
+    ? Math.floor(
+        (now.getTime() - pendingDeletion.proposed_at.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : null
+
   const credit = getCreditPosition(church, now)
   const { annualPaid, monthlyPaid, expectedAnnual, expectedMonthly } = credit
 
@@ -101,14 +124,14 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
     expectedAnnual,
     expectedMonthly,
     totalExpected,
-    
+
     // 🚨 FIX: Pass the new gross/net values
     annualOutstanding: grossAnnualOutstanding,
     monthlyOutstanding: grossMonthlyOutstanding,
     grossOutstanding: grossOutstanding,
     totalWrittenOff: totalWrittenOff,
     netOutstanding: netOutstanding,
-    
+
     annualCredit: credit.annualCredit,
     monthlyCredit: credit.monthlyCredit,
     annualStatus,
@@ -119,6 +142,21 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
 
   return (
     <div className="space-y-xl">
+      {pendingDeletionDaysOld !== null && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-heading-4 font-bold text-amber-900">
+              Deletion request pending
+            </p>
+            <p className="text-paragraph-small text-amber-800">
+              A deletion request for this church is pending National approval
+              (submitted {formatDaysAgo(pendingDeletionDaysOld)}).
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-sm">
           <EntityBackButton fallbackHref="/dashboard/churches" />
@@ -129,7 +167,7 @@ async function ChurchProfileContent({ params }: { params: Promise<{ code: string
             </p>
           </div>
         </div>
-        
+
         <Badge
           variant="outline"
           className={

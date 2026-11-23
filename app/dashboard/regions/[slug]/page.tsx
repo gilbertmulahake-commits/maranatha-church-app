@@ -48,7 +48,7 @@ async function RegionDetailContent({ params }: { params: Promise<{ slug: string 
       </div>
 
       {/* Use the Chairman's exact dashboard client component */}
-      <RegionalDashboardClient stats={stats} />
+      <RegionalDashboardClient stats={stats} userRole="NATIONAL" />
     </div>
   )
 }

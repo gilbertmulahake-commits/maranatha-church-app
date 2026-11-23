@@ -13,6 +13,7 @@ import {
   IconBuildingBank,
   IconHistory,
   IconScale,
+  IconTrash,
   IconHelp,
 } from '@tabler/icons-react'
 import {
@@ -41,10 +42,12 @@ export function AppSidebar({
   role,
   userEmail,
   unresolvedCount = 0,
+  pendingDeletionCount = 0,
 }: {
   role: Role | null
   userEmail?: string
   unresolvedCount?: number
+  pendingDeletionCount?: number
 }) {
   let navMain: NavItem[] = []
   let navSecondary: NavItem[] = []
@@ -56,6 +59,16 @@ export function AppSidebar({
       { title: 'Churches', url: '/dashboard/churches', icon: IconBuilding },
       { title: 'Payments', url: '/dashboard/payments', icon: IconCreditCard },
     ]
+
+    // Deletion Requests — Operations Admin, System Admin, National Treasurer
+    if (isOperationsAdmin(role) || role === 'NATIONAL_TREASURER') {
+      nationalNav.push({
+        title: 'Deletion Requests',
+        url: '/dashboard/church-deletion-requests',
+        icon: IconTrash,
+        badge: pendingDeletionCount > 0 ? pendingDeletionCount : undefined,
+      })
+    }
 
     // Users — Operations Admin and System Admin only
     if (isOperationsAdmin(role)) {

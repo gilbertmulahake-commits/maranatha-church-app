@@ -49,6 +49,7 @@
   - `lib/utils/financial.ts` — Cumulative ledger helpers + `isChurchCompliant` (Unit 18.2 compliance single source of truth).
   - `lib/utils/report-scope.ts` — `buildChurchWhere`, `buildPaymentWhere`, `scopeByRole` (Unit 18.1 + 18.2).
   - `lib/utils/report-registry.ts` — Report slug/title/description/group/role visibility (Unit 18.2 single source of truth).
+  - `lib/church/soft-delete-tx.ts` — `softDeleteChurchTx` — the single soft-delete helper for `Church`, shared by both the direct `deleteChurch` path (Phase A) and `approveChurchDeletionRequest` (Phase B, Unit 20.6b). Must be called inside `prisma.$transaction`; does **not** log audit (callers log after commit, per `architecture.md` § 8 AuditLog).
   - `lib/auth/guards.ts` — Centralized RBAC verification helpers.
   - `lib/auth/roles.ts` — Role predicates + `toReportRole`.
 - `prisma/` — schema and migrations.
@@ -81,14 +82,15 @@
   - `verifyReconciliationAccess()` — Reconciliation reads/resolutions (Finance Admin, Treasurer, or System Admin)
   - `verifyTreasurerAuthority()` — Approvals and write-offs (Treasurer or System Admin only)
   - `verifyReportsAccess()` — All report reads (any authenticated role; scoping via `buildChurchWhere` / `buildPaymentWhere` / `scopeByRole` — Invariant 2)
+  - `verifyChurchDeletionRequestAccess(churchId)` — **Unit 20.6b.** Proposes a church deletion request. Regional roles only (`REGIONAL_CHAIRMAN` / `REGIONAL_TREASURER`); enforces `dbUser.region_id === church.region_id` server-side (Invariant 2), refuses National roles (they have direct `deleteChurch`), refuses Local roles. Returns `{ actorId, actorEmail, actorRole, dbUser, church }`.
 - If the caller lacks permission, the guard throws — the `catch` block converts this into a `{ error: 'Forbidden' }` return shape.
-- **Separation of Duties:** `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users. Neither can do the other's job. `SYSTEM_ADMIN` can do both.
+- **Separation of Duties:** `FINANCE_ADMIN` handles money; `OPERATIONS_ADMIN` handles registry/users. Neither can do the other's job. `SYSTEM_ADMIN` can do both. **Registry deletion requests follow registry authority** — proposed by Regional, approved by Operations-domain National (see `architecture.md` § 4 Separation of Duties for the full distinction from financial write-off authority).
 
 ## Known ESLint Configuration Gaps
 - **`argsIgnorePattern` is NOT set.** Underscore-prefixed parameters (e.g., `_options`) are still flagged as unused. Use `void` to mark intentionally unused parameters, or remove them entirely.
 - **`@typescript-eslint/no-explicit-any` is enforced.** Never use `any`. Use `unknown` + narrowing, or define an explicit type.
 - **`react/no-unescaped-entities` is enforced.** Quote, apostrophe, and angle-bracket characters in JSX text must be escaped (`&quot;`, `&apos;`, `&lt;`, `&gt;`) or wrapped in `{}` expressions.
-- **`react-hooks/set-state-in-effect` is enforced.** Never call `setState()` synchronously inside `useEffect`. Move state resets to event handlers. Effects should only do: `async fetch → setState in callback`.
+- **`react-hooks/set-state-in-effect` is enforced.** Never call `setState()` synchronously inside `useEffect`. Move state resets to event handlers. Effects should only do: `async fetch → setState in callback`. When the effect's data is scoped to a specific entity (a selected ID, a target row), wrap state in `{ identity: string; data: T }` and **derive** the "current" value by comparing `identity` to the current entity — this avoids needing a sync `setState(null)` reset when the entity changes.
 
 ## SMS Actions API
 - **`sendBulkReminders(recipients, senderRole)`** takes exactly **2 arguments**.
@@ -178,9 +180,10 @@ If a pattern appears in 3+ files and a component exists for it, use the componen
 - **Write-offs ALWAYS require Treasurer approval** regardless of amount (absolute four-eyes — prevents fraud from hiding behind "write-off" labels).
 
 ### Separation of Duties (Four-Eyes Hardening)
-- **Server-Side Enforcement:** Both `approvePendingPayment` and `approveWriteOff` MUST check `if (proposerId === actorId)` and throw an error. 
+- **Server-Side Enforcement:** Both `approvePendingPayment` and `approveWriteOff` MUST check `if (proposerId === actorId)` and throw an error.
 - **Never trust the UI:** Even if the UI hides the approve button, the server action must explicitly block a user from approving their own proposal.
-- **Applies to:** Unmatched resolutions (>20K), Manual Entries (>20K), and ALL Write-Offs (regardless of amount).
+- **Applies to:** Unmatched resolutions (>20K), Manual Entries (>20K), ALL Write-Offs (regardless of amount), and **Unit 20.6b: `approveChurchDeletionRequest` / `rejectChurchDeletionRequest`**.
+- **Unit 20.6b clarification — registry vs finance:** The "proposer ≠ approver" backstop applies uniformly to **every** approval flow, financial or registry. However the **`KES 20,000` threshold is a financial concept and does NOT gate church deletion requests** — church deletion is a registry action (it removes a church from active operational views, not from financial history). Only the "proposer ≠ approver" invariant applies to the deletion-request workflow. Do not introduce a threshold gate where the spec doesn't ask for one.
 
 ### Solutions Bank
 - Every successful `resolveUnmatched` calls `recordResolution()` — upserts a `ResolutionPattern` row keyed by `(raw_reference_pattern, resolved_church_code)`.

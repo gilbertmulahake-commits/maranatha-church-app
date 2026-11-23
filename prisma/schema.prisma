@@ -9,91 +9,93 @@ datasource db {
 // --- MODELS ---
 
 model Region {
-  id             String         @id @default(uuid())
-  name           String         @unique
+  id             String          @id @default(uuid())
+  name           String          @unique
   chairman_name  String
   contact_phone  String
-  created_at     DateTime       @default(now())
+  created_at     DateTime        @default(now())
   churches       Church[]
-  pastorates     Pastorate[]          // NEW — back-relation required by Prisma
+  pastorates     Pastorate[] // NEW — back-relation required by Prisma
   regionalScores RegionalScore[]
   users          User[]
 }
 
 model Pastorate {
-  id             String   @id @default(uuid())
-  name           String
-  region_id      String
-  region         Region   @relation(fields: [region_id], references: [id])
-  overseer_name  String?
-  contact_phone  String?
-  is_active      Boolean  @default(true)
-  created_at     DateTime @default(now())
-  churches       Church[]
+  id            String   @id @default(uuid())
+  name          String
+  region_id     String
+  region        Region   @relation(fields: [region_id], references: [id])
+  overseer_name String?
+  contact_phone String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  churches      Church[]
 }
 
 model Church {
-  id             String    @id @default(uuid())
-  church_code    String    @unique // e.g., "CH001"
-  church_name    String
-  region_id      String
-  region         Region    @relation(fields: [region_id], references: [id])
+  id          String @id @default(uuid())
+  church_code String @unique // e.g., "CH001"
+  church_name String
+  region_id   String
+  region      Region @relation(fields: [region_id], references: [id])
 
   // NEW: Pastorate layer (nullable, dormant — see architecture.md)
-  pastorate_id     String?
-  pastorate        Pastorate? @relation(fields: [pastorate_id], references: [id])
+  pastorate_id String?
+  pastorate    Pastorate? @relation(fields: [pastorate_id], references: [id])
 
   // NEW: Church profile data
   physical_address String?
   membership_count Int?
 
   // Local Pastor Details
-  pastor_name    String    @default("") 
-  pastor_phone   String    @default("")
-  
+  pastor_name  String @default("")
+  pastor_phone String @default("")
+
   treasurer_name String
   contact_phone  String
-  
-  annual_fee     Decimal   @default(5000.00)
-  monthly_fee    Decimal   @default(500.00)
-  created_at     DateTime  @default(now())
-  payments       Payment[]
-  users          User[]
+
+  annual_fee  Decimal   @default(5000.00)
+  monthly_fee Decimal   @default(500.00)
+  created_at  DateTime  @default(now())
+  payments    Payment[]
+  users       User[]
 
   // Unit 17: Reconciliation & Write-Offs
-  is_defunct            Boolean  @default(false)
+  is_defunct Boolean @default(false)
 
   // Unit 20.6a: Soft delete — removes church from active views without
   // breaking FK integrity on Payment / WriteOff / PendingPayment / PaymentIntent.
   // Defunct ≠ deleted: defunct churches remain in financial reports; deleted
   // churches do not. See architecture.md § 8.
-  deleted_at            DateTime?
+  deleted_at DateTime?
 
-  unmatched_suggested   UnmatchedPayment[] @relation("UnmatchedSuggestedChurch")
-  unmatched_assigned    UnmatchedPayment[] @relation("UnmatchedAssignedChurch")
-  write_offs            WriteOff[]
-  pending_payments      PendingPayment[]
-  payment_intents       PaymentIntent[]
+  unmatched_suggested UnmatchedPayment[]      @relation("UnmatchedSuggestedChurch")
+  unmatched_assigned  UnmatchedPayment[]      @relation("UnmatchedAssignedChurch")
+  write_offs          WriteOff[]
+  pending_payments    PendingPayment[]
+  payment_intents     PaymentIntent[]
+  // Unit 20.6b: Church deletion requests (back-relation required by Prisma)
+  deletion_requests   ChurchDeletionRequest[]
 }
 
 model Payment {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   church_id      String
-  church         Church   @relation(fields: [church_id], references: [id])
-  transaction_id String   @unique
+  church         Church        @relation(fields: [church_id], references: [id])
+  transaction_id String        @unique
   payment_type   PaymentType
   amount_paid    Decimal
   payment_date   DateTime
   payment_method PaymentMethod
   status         PaymentStatus @default(Pending)
   month_covered  String?
-  billing_year   Int      // Added in Unit 10.0
-  created_at     DateTime @default(now())
-  
-  allocations    PaymentAllocation[]
+  billing_year   Int // Added in Unit 10.0
+  created_at     DateTime      @default(now())
+
+  allocations PaymentAllocation[]
 
   // Unit 17: Source tracking and Unmatched linkage
-  source           String   @default("Webhook") // "Webhook" | "Manual" | "Resolved"
+  source            String             @default("Webhook") // "Webhook" | "Manual" | "Resolved"
   unmatched_origins UnmatchedPayment[] @relation("UnmatchedAssignedPayment")
 
   @@index([payment_date])
@@ -101,17 +103,17 @@ model Payment {
 }
 
 model PaymentAllocation {
-  id              String      @id @default(uuid())
-  payment_id      String
-  payment         Payment     @relation(fields: [payment_id], references: [id], onDelete: Cascade)
-  
-  allocation_type PaymentType 
-  
-  billing_year    Int
-  billing_month   Int?        
-  amount          Decimal
-  
-  created_at      DateTime    @default(now())
+  id         String  @id @default(uuid())
+  payment_id String
+  payment    Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+
+  allocation_type PaymentType
+
+  billing_year  Int
+  billing_month Int?
+  amount        Decimal
+
+  created_at DateTime @default(now())
 
   @@index([payment_id])
 }
@@ -132,14 +134,14 @@ model RegionalScore {
 }
 
 model User {
-  id             String   @id @default(uuid())
-  email          String   @unique
-  role           Role     @default(CHURCH_TREASURER)
+  id                      String   @id @default(uuid())
+  email                   String   @unique
+  role                    Role     @default(CHURCH_TREASURER)
   is_active               Boolean  @default(true)
   requires_password_reset Boolean  @default(false)
-  region_id      String?
-  church_id      String?
-  created_at     DateTime @default(now())
+  region_id               String?
+  church_id               String?
+  created_at              DateTime @default(now())
 
   // NEW: Bio-data
   first_name        String?
@@ -148,34 +150,34 @@ model User {
   profile_photo_url String?
   bio               String?
 
-  region         Region?  @relation(fields: [region_id], references: [id])
-  church         Church?  @relation(fields: [church_id], references: [id])
+  region Region? @relation(fields: [region_id], references: [id])
+  church Church? @relation(fields: [church_id], references: [id])
 }
 
 // --- UNIT 17 MODELS ---
 
 model UnmatchedPayment {
-  id                    String   @id @default(uuid())
-  bank_reference        String   @unique
-  bank_name             String
-  raw_bill_ref          String
-  amount                Decimal
-  payer_phone           String?
-  raw_payload           Json
-  status                String   // "Pending" | "Resolved" | "Rejected" | "WrittenOff"
-  suggested_church_id   String?
-  confidence_score      Float?
-  assigned_church_id    String?
-  assigned_payment_id   String?
-  reviewed_by           String?
-  reviewed_at           DateTime?
-  notes                 String?
-  escalated_at          DateTime?
-  created_at            DateTime @default(now())
+  id                  String    @id @default(uuid())
+  bank_reference      String    @unique
+  bank_name           String
+  raw_bill_ref        String
+  amount              Decimal
+  payer_phone         String?
+  raw_payload         Json
+  status              String // "Pending" | "Resolved" | "Rejected" | "WrittenOff"
+  suggested_church_id String?
+  confidence_score    Float?
+  assigned_church_id  String?
+  assigned_payment_id String?
+  reviewed_by         String?
+  reviewed_at         DateTime?
+  notes               String?
+  escalated_at        DateTime?
+  created_at          DateTime  @default(now())
 
-  suggested_church     Church?  @relation("UnmatchedSuggestedChurch", fields: [suggested_church_id], references: [id])
-  assigned_church      Church?  @relation("UnmatchedAssignedChurch", fields: [assigned_church_id], references: [id])
-  assigned_payment     Payment? @relation("UnmatchedAssignedPayment", fields: [assigned_payment_id], references: [id])
+  suggested_church Church?  @relation("UnmatchedSuggestedChurch", fields: [suggested_church_id], references: [id])
+  assigned_church  Church?  @relation("UnmatchedAssignedChurch", fields: [assigned_church_id], references: [id])
+  assigned_payment Payment? @relation("UnmatchedAssignedPayment", fields: [assigned_payment_id], references: [id])
 
   @@index([status, created_at])
   @@index([created_at])
@@ -186,17 +188,17 @@ model UnmatchedPayment {
 }
 
 model ResolutionPattern {
-  id                     String   @id @default(uuid())
-  raw_reference_pattern  String
-  normalized_reference   String
-  resolved_church_code   String
-  resolution_type        String   // "Fuzzy" | "Manual" | "Rule"
-  hit_count              Int      @default(1)
-  confidence_score       Float    @default(50)
-  is_active              Boolean  @default(true)
-  created_by             String?
-  last_used_at           DateTime @default(now())
-  created_at             DateTime @default(now())
+  id                    String   @id @default(uuid())
+  raw_reference_pattern String
+  normalized_reference  String
+  resolved_church_code  String
+  resolution_type       String // "Fuzzy" | "Manual" | "Rule"
+  hit_count             Int      @default(1)
+  confidence_score      Float    @default(50)
+  is_active             Boolean  @default(true)
+  created_by            String?
+  last_used_at          DateTime @default(now())
+  created_at            DateTime @default(now())
 
   @@unique([raw_reference_pattern, resolved_church_code])
   @@index([normalized_reference])
@@ -204,84 +206,105 @@ model ResolutionPattern {
 }
 
 model WriteOff {
-  id                String   @id @default(uuid())
-  church_id         String
-  amount            Decimal
-  reason            String   // "DEFUNCT" | "DISSOLVED" | "UNCOLLECTABLE_90D" | "COURT_ORDER" | "OTHER"
-  notes             String?
-  status            String   // "Pending" | "Approved" | "Rejected"
-  proposed_by       String
-  proposed_at       DateTime @default(now())
-  approved_by       String?
-  approved_at       DateTime?
-  rejection_reason  String?
-  resulting_defunct_flag Boolean @default(false)
-  audit_log_id      String?
+  id                     String    @id @default(uuid())
+  church_id              String
+  amount                 Decimal
+  reason                 String // "DEFUNCT" | "DISSOLVED" | "UNCOLLECTABLE_90D" | "COURT_ORDER" | "OTHER"
+  notes                  String?
+  status                 String // "Pending" | "Approved" | "Rejected"
+  proposed_by            String
+  proposed_at            DateTime  @default(now())
+  approved_by            String?
+  approved_at            DateTime?
+  rejection_reason       String?
+  resulting_defunct_flag Boolean   @default(false)
+  audit_log_id           String?
 
-  church            Church   @relation(fields: [church_id], references: [id])
+  church Church @relation(fields: [church_id], references: [id])
 
   @@index([church_id])
   @@index([status])
 }
 
 model PendingPayment {
-  id                    String   @id @default(uuid())
-  proposed_by           String
-  proposed_at           DateTime @default(now())
-  church_id             String
-  amount                Decimal
-  payment_method        String   // "Cash" | "Cheque" | "Bank_Transfer"
-  transaction_id        String
-  payment_date          DateTime
-  allocations_json      Json     // Snapshot of proposed allocations for preview
-  attachment_url        String?
-  notes                 String?
-  status                String   // "Pending" | "Approved" | "Rejected"
-  reviewed_by           String?
-  reviewed_at           DateTime?
-  rejection_reason      String?
-  resulting_payment_id  String?
+  id                   String    @id @default(uuid())
+  proposed_by          String
+  proposed_at          DateTime  @default(now())
+  church_id            String
+  amount               Decimal
+  payment_method       String // "Cash" | "Cheque" | "Bank_Transfer"
+  transaction_id       String
+  payment_date         DateTime
+  allocations_json     Json // Snapshot of proposed allocations for preview
+  attachment_url       String?
+  notes                String?
+  status               String // "Pending" | "Approved" | "Rejected"
+  reviewed_by          String?
+  reviewed_at          DateTime?
+  rejection_reason     String?
+  resulting_payment_id String?
 
-  church                Church   @relation(fields: [church_id], references: [id])
+  church Church @relation(fields: [church_id], references: [id])
 
   @@index([status])
   @@index([church_id])
 }
 
-
 // --- UNIT 19 MODELS ---
 
 model PaymentIntent {
-  id                    String                 @id @default(uuid())
-  church_id             String
-  church                Church                 @relation(fields: [church_id], references: [id])
-  amount                Decimal
-  payment_type          PaymentType
-  channel               PaymentIntentChannel   @default(Manual)
-  status                PaymentIntentStatus    @default(Active)
+  id           String               @id @default(uuid())
+  church_id    String
+  church       Church               @relation(fields: [church_id], references: [id])
+  amount       Decimal
+  payment_type PaymentType
+  channel      PaymentIntentChannel @default(Manual)
+  status       PaymentIntentStatus  @default(Active)
 
   // Provider tracking (null for Manual)
-  provider_request_id   String?
-  provider_receipt      String?                @unique
-  provider_result_code  String?
-  raw_callback          Json?
+  provider_request_id  String?
+  provider_receipt     String? @unique
+  provider_result_code String?
+  raw_callback         Json?
 
   // Matching
-  matched_payment_id    String?                @unique
-  matched_unmatched_id  String?                @unique
-  matched_at            DateTime?
+  matched_payment_id   String?   @unique
+  matched_unmatched_id String?   @unique
+  matched_at           DateTime?
 
   // Forensics
-  raw_bill_ref_entered  String?
-  created_by            String
-  expires_at            DateTime
-  abandoned_at          DateTime?
-  created_at            DateTime               @default(now())
+  raw_bill_ref_entered String?
+  created_by           String
+  expires_at           DateTime
+  abandoned_at         DateTime?
+  created_at           DateTime  @default(now())
 
   @@index([church_id, status])
   @@index([expires_at])
   @@index([channel, status])
   @@index([provider_request_id])
+}
+
+// --- UNIT 20.6 MODELS ---
+
+model ChurchDeletionRequest {
+  id                   String    @id @default(uuid())
+  church_id            String
+  church               Church    @relation(fields: [church_id], references: [id])
+  reason               String // "DISSOLVED" | "MERGED" | "DUPLICATE" | "OTHER"
+  notes                String?
+  status               String // "Pending" | "Approved" | "Rejected"
+  proposed_by          String
+  proposed_at          DateTime  @default(now())
+  reviewed_by          String?
+  reviewed_at          DateTime?
+  rejection_reason     String?
+  resulted_in_deletion Boolean   @default(false)
+
+  @@index([church_id])
+  @@index([status])
+  @@index([proposed_by])
+  @@index([status, proposed_at])
 }
 
 // --- ENUMS ---
@@ -303,7 +326,6 @@ enum PaymentStatus {
   Pending
   Overdue
 }
-
 
 enum PaymentIntentStatus {
   Active
@@ -339,22 +361,22 @@ model SmsLog {
   phone      String
   message    String
   status     String   @default("Sent") // 'Sent', 'Failed'
-  type       String   // 'Receipt', 'Reminder'
+  type       String // 'Receipt', 'Reminder'
   created_at DateTime @default(now())
 }
 
 model AuditLog {
-  id           String   @id @default(uuid())
-  actor_id     String
-  actor_email  String
-  actor_role   String
-  action       String   // e.g., 'USER_DEACTIVATED', 'CHURCH_UPDATED', 'PAYMENT_MANUAL_ENTRY'
-  entity       String   // e.g., 'User', 'Church', 'Payment'
-  entity_id    String
-  before_data  Json?    // Snapshot before the change (null for CREATE)
-  after_data   Json?    // Snapshot after the change (null for DELETE)
-  metadata     Json?    // Any extra context (e.g., IP, reason)
-  created_at   DateTime @default(now())
+  id          String   @id @default(uuid())
+  actor_id    String
+  actor_email String
+  actor_role  String
+  action      String // e.g., 'USER_DEACTIVATED', 'CHURCH_UPDATED', 'PAYMENT_MANUAL_ENTRY'
+  entity      String // e.g., 'User', 'Church', 'Payment'
+  entity_id   String
+  before_data Json? // Snapshot before the change (null for CREATE)
+  after_data  Json? // Snapshot after the change (null for DELETE)
+  metadata    Json? // Any extra context (e.g., IP, reason)
+  created_at  DateTime @default(now())
 
   @@index([created_at])
   @@index([actor_id])
