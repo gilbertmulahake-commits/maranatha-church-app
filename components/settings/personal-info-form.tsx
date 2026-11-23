@@ -1,0 +1,185 @@
+'use client'
+
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { updateUserProfile, type UserProfile } from '@/lib/actions/user-actions'
+
+export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
+  const router = useRouter()
+
+  const [firstName, setFirstName] = useState(profile.first_name ?? '')
+  const [lastName, setLastName] = useState(profile.last_name ?? '')
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [bio, setBio] = useState(profile.bio ?? '')
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(profile.profile_photo_url ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const isDirty =
+    firstName !== (profile.first_name ?? '') ||
+    lastName !== (profile.last_name ?? '') ||
+    phone !== (profile.phone ?? '') ||
+    bio !== (profile.bio ?? '') ||
+    profilePhotoUrl !== (profile.profile_photo_url ?? '')
+
+  // beforeunload guard while the form has unsaved changes.
+  // No setState in this effect body - complies with react-hooks/set-state-in-effect.
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  const initials =
+    [firstName, lastName]
+      .filter(Boolean)
+      .map((s) => s.charAt(0).toUpperCase())
+      .join('') || profile.email.charAt(0).toUpperCase()
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      const fd = new FormData()
+      fd.append('first_name', firstName)
+      fd.append('last_name', lastName)
+      fd.append('phone', phone)
+      fd.append('bio', bio)
+      fd.append('profile_photo_url', profilePhotoUrl)
+
+      const result = await updateUserProfile(fd)
+      if ('error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Profile updated')
+        router.refresh()
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-heading-4 font-bold text-foreground">Personal Information</CardTitle>
+        <CardDescription>Update the personal details associated with your account.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+            <div>
+              <label htmlFor="first-name" className="block text-paragraph-small font-medium text-foreground mb-xs">
+                First Name
+              </label>
+              <Input
+                id="first-name"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. John"
+                className="h-9"
+                autoComplete="given-name"
+              />
+            </div>
+            <div>
+              <label htmlFor="last-name" className="block text-paragraph-small font-medium text-foreground mb-xs">
+                Last Name
+              </label>
+              <Input
+                id="last-name"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Kamau"
+                className="h-9"
+                autoComplete="family-name"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-paragraph-small font-medium text-foreground mb-xs">
+              Phone
+            </label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. +254 700 000 000"
+              className="h-9"
+              autoComplete="tel"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bio" className="block text-paragraph-small font-medium text-foreground mb-xs">
+              Bio
+            </label>
+            <Textarea
+              id="bio"
+              value={bio}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setBio(e.target.value)}
+              placeholder="Optional short description"
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="profile-photo-url" className="block text-paragraph-small font-medium text-foreground mb-xs">
+              Profile Photo URL
+            </label>
+            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+              <Input
+                id="profile-photo-url"
+                type="url"
+                value={profilePhotoUrl}
+                onChange={(e) => setProfilePhotoUrl(e.target.value)}
+                placeholder="https://example.com/photo.jpg"
+                className="h-9 flex-1 w-full"
+                autoComplete="url"
+              />
+              <Avatar className="h-12 w-12">
+                {profilePhotoUrl && <AvatarImage src={profilePhotoUrl} alt="Profile photo preview" />}
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button
+              type="submit"
+              disabled={!isDirty || saving}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
