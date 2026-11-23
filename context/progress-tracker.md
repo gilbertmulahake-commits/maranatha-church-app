@@ -261,7 +261,7 @@ Post-MVP — Phase 4 (Post-Deployment Enhancements).
   - **Zero protected files touched** (`components/ui/*`, `lib/utils.ts` twMerge block, `prisma/migrations/*` except new folder `20261123010107_add_church_deletion_request`).
 
 ## In Progress
-- *(nothing — 20.6b ready to commit + PR; see `## Completed`)*
+- **Unit 23: Profile Settings** — implementation in progress on `feat/23-profile-settings`. Spec + doc-sync committed at `e317114`. Scope in `## Current Goal` and `context/specs/23-profile-settings.md`.
 
 ## Next Up
 - **Unit 19c: STK Push adapters (KCB Buni + Equity Jenga).** Blocked on sandbox credential registration. 19a and 19b are complete.
