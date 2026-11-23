@@ -15,7 +15,7 @@ async function ProfileContent() {
   return (
     <div className="space-y-xl">
       <PersonalInfoForm profile={profile} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-md items-start">
+      <div className="grid grid-cols-1 @[800px]:grid-cols-2 gap-md items-start">
         <ProfileCard profile={profile} />
         <PasswordForm />
       </div>
@@ -29,7 +29,7 @@ export default function ProfilePage() {
       fallback={
         <div className="space-y-xl">
           <Skeleton className="h-96 rounded-xl" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md items-start">
+          <div className="grid grid-cols-1 @[800px]:grid-cols-2 gap-md items-start">
             <Skeleton className="h-96 rounded-xl" />
             <Skeleton className="h-96 rounded-xl" />
           </div>

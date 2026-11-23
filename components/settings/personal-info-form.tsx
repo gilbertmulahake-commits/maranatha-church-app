@@ -73,14 +73,14 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
   }
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle className="text-heading-4 font-bold text-foreground">Personal Information</CardTitle>
         <CardDescription>Update the personal details associated with your account.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-w-0">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+          <div className="grid grid-cols-1 @[600px]:grid-cols-2 gap-md">
             <div>
               <label htmlFor="first-name" className="block text-paragraph-small font-medium text-foreground mb-xs">
                 First Name
@@ -143,7 +143,7 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
             <label htmlFor="profile-photo-url" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Profile Photo URL
             </label>
-            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+            <div className="flex flex-col @[600px]:flex-row gap-3 items-start @[600px]:items-center">
               <Input
                 id="profile-photo-url"
                 type="url"
