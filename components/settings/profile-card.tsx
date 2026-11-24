@@ -86,6 +86,14 @@ export function ProfileCard({ profile }: { profile: UserProfile }) {
             </div>
           </div>
         )}
+              {profile.bio && (
+          <div>
+            <p className="text-paragraph-small font-medium text-foreground">Bio</p>
+            <p className="text-paragraph-small text-muted-foreground whitespace-pre-wrap break-words">
+              {profile.bio}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
