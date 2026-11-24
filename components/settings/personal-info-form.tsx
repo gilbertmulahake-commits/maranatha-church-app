@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { updateUserProfile, type UserProfile } from '@/lib/actions/user-actions'
 
 export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
@@ -18,15 +17,13 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
   const [lastName, setLastName] = useState(profile.last_name ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
   const [bio, setBio] = useState(profile.bio ?? '')
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState(profile.profile_photo_url ?? '')
   const [saving, setSaving] = useState(false)
 
   const isDirty =
     firstName !== (profile.first_name ?? '') ||
     lastName !== (profile.last_name ?? '') ||
     phone !== (profile.phone ?? '') ||
-    bio !== (profile.bio ?? '') ||
-    profilePhotoUrl !== (profile.profile_photo_url ?? '')
+    bio !== (profile.bio ?? '')
 
   // beforeunload guard while the form has unsaved changes.
   // No setState in this effect body - complies with react-hooks/set-state-in-effect.
@@ -40,12 +37,6 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
 
-  const initials =
-    [firstName, lastName]
-      .filter(Boolean)
-      .map((s) => s.charAt(0).toUpperCase())
-      .join('') || profile.email.charAt(0).toUpperCase()
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (saving) return
@@ -56,7 +47,6 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
       fd.append('last_name', lastName)
       fd.append('phone', phone)
       fd.append('bio', bio)
-      fd.append('profile_photo_url', profilePhotoUrl)
 
       const result = await updateUserProfile(fd)
       if ('error' in result) {
@@ -137,29 +127,6 @@ export function PersonalInfoForm({ profile }: { profile: UserProfile }) {
               placeholder="Optional short description"
               rows={4}
             />
-          </div>
-
-          <div>
-            <label htmlFor="profile-photo-url" className="block text-paragraph-small font-medium text-foreground mb-xs">
-              Profile Photo URL
-            </label>
-            <div className="flex flex-col @[600px]:flex-row gap-3 items-start @[600px]:items-center">
-              <Input
-                id="profile-photo-url"
-                type="url"
-                value={profilePhotoUrl}
-                onChange={(e) => setProfilePhotoUrl(e.target.value)}
-                placeholder="https://example.com/photo.jpg"
-                className="h-9 flex-1 w-full"
-                autoComplete="url"
-              />
-              <Avatar className="h-12 w-12">
-                {profilePhotoUrl && <AvatarImage src={profilePhotoUrl} alt="Profile photo preview" />}
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            </div>
           </div>
 
           <div className="flex justify-end pt-4">

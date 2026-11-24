@@ -28,7 +28,6 @@ export type UserProfile = {
   last_name: string | null
   phone: string | null
   bio: string | null
-  profile_photo_url: string | null
   regionName: string | null
   churchName: string | null
 }
@@ -105,7 +104,6 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     last_name: dbUser.last_name,
     phone: dbUser.phone,
     bio: dbUser.bio,
-    profile_photo_url: dbUser.profile_photo_url,
     regionName: dbUser.region?.name || null,
     churchName: dbUser.church?.church_name || null,
   }
@@ -116,14 +114,6 @@ const ProfileSchema = z.object({
   last_name: z.string().trim().max(80).transform(v => v === '' ? null : v),
   phone: z.string().trim().max(20).transform(v => v === '' ? null : v),
   bio: z.string().trim().max(500).transform(v => v === '' ? null : v),
-  profile_photo_url: z
-    .string()
-    .trim()
-    .max(500)
-    .refine(v => v === '' || z.string().url().safeParse(v).success, {
-      message: 'Profile photo URL must be a valid URL',
-    })
-    .transform(v => v === '' ? null : v),
 })
 
 export async function updateUserProfile(formData: FormData) {
@@ -137,7 +127,6 @@ export async function updateUserProfile(formData: FormData) {
       last_name: formData.get('last_name') ?? '',
       phone: formData.get('phone') ?? '',
       bio: formData.get('bio') ?? '',
-      profile_photo_url: formData.get('profile_photo_url') ?? '',
     }
 
     const parsed = ProfileSchema.safeParse(raw)
@@ -153,8 +142,7 @@ export async function updateUserProfile(formData: FormData) {
       data: parsed.data,
     })
 
-    // Audit identity fields only. bio and profile_photo_url are cosmetic and
-    // deliberately not audited — see architecture.md § 8 AuditLog.
+    // Audit identity fields only. bio is cosmetic and deliberately not audited.
     const identityChanged =
       beforeUser.first_name !== parsed.data.first_name ||
       beforeUser.last_name !== parsed.data.last_name ||

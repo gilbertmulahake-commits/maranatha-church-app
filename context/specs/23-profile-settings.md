@@ -76,6 +76,7 @@ Sidebar "Settings" nav item URL changes from `/dashboard/settings` to `/dashboar
 - No cross-user profile editing. Every role edits their own row only.
 - No changes to `components/ui/*`, `lib/utils.ts`, `prisma/migrations/*`.
 - No `<KpiGrid>`, `<TableShell>`, `<TableToolbar>`, `<Select>`, `<Dialog>`, `<AlertDialog>`.
+- No photo field. `User.profile_photo_url` remains nullable and dormant. Full Supabase Storage upload (file picker, MIME/size validation, `avatars/{userId}/*` bucket with RLS, replace-on-new) ships in Unit 23.6. The URL-only field originally scoped here was rejected at implementation time as non-enterprise-grade — a URL field no non-technical user can populate is not a real feature.
 
 ## Implementation
 
