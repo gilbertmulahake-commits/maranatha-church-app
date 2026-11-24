@@ -41,11 +41,15 @@ type NavItem = {
 export function AppSidebar({
   role,
   userEmail,
+  firstName,
+  lastName,
   unresolvedCount = 0,
   pendingDeletionCount = 0,
 }: {
   role: Role | null
   userEmail?: string
+  firstName?: string | null
+  lastName?: string | null
   unresolvedCount?: number
   pendingDeletionCount?: number
 }) {
@@ -109,12 +113,13 @@ export function AppSidebar({
   }
 
   navSecondary = [
-    { title: 'Settings', url: '/dashboard/settings', icon: IconSettings },
+    { title: 'Settings', url: '/dashboard/settings/profile', icon: IconSettings },
     { title: 'Help', url: '/dashboard/help', icon: IconHelp },
   ]
 
+  const displayName = [firstName, lastName].filter(Boolean).join(' ')
   const user = {
-    name: userEmail?.split('@')[0] || 'User',
+    name: displayName || userEmail?.split('@')[0] || 'User',
     email: userEmail || 'user@maranatha.org',
     avatar: '',
     role: role || 'CHURCH_TREASURER',
