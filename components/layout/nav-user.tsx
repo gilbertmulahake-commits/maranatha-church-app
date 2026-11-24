@@ -112,7 +112,7 @@ export function NavUser({
             
             <DropdownMenuGroup>
               <DropdownMenuItem
-                onClick={() => router.push('/dashboard/settings')}
+                onClick={() => router.push('/dashboard/settings/profile')}
                 className="cursor-pointer"
                 disabled={isLoggingOut}
               >

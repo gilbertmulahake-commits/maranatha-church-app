@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/actions/audit-actions'
 import { isOperationsAdmin } from '@/lib/auth/roles'
 import { PROTECTED_USER_IDS } from '@/lib/auth/protected-users'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 
 export type SystemUser = {
   id: string
@@ -26,6 +27,7 @@ export type UserProfile = {
   first_name: string | null
   last_name: string | null
   phone: string | null
+  bio: string | null
   regionName: string | null
   churchName: string | null
 }
@@ -101,8 +103,75 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     first_name: dbUser.first_name,
     last_name: dbUser.last_name,
     phone: dbUser.phone,
+    bio: dbUser.bio,
     regionName: dbUser.region?.name || null,
     churchName: dbUser.church?.church_name || null,
+  }
+}
+
+const ProfileSchema = z.object({
+  first_name: z.string().trim().max(80).transform(v => v === '' ? null : v),
+  last_name: z.string().trim().max(80).transform(v => v === '' ? null : v),
+  phone: z.string().trim().max(20).transform(v => v === '' ? null : v),
+  bio: z.string().trim().max(500).transform(v => v === '' ? null : v),
+})
+
+export async function updateUserProfile(formData: FormData) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    const raw = {
+      first_name: formData.get('first_name') ?? '',
+      last_name: formData.get('last_name') ?? '',
+      phone: formData.get('phone') ?? '',
+      bio: formData.get('bio') ?? '',
+    }
+
+    const parsed = ProfileSchema.safeParse(raw)
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? 'Invalid profile data' }
+    }
+
+    const beforeUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!beforeUser) return { error: 'User not found' }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: parsed.data,
+    })
+
+    // Audit identity fields only. bio is cosmetic and deliberately not audited.
+    const identityChanged =
+      beforeUser.first_name !== parsed.data.first_name ||
+      beforeUser.last_name !== parsed.data.last_name ||
+      beforeUser.phone !== parsed.data.phone
+
+    if (identityChanged) {
+      await logAudit({
+        action: 'USER_PROFILE_UPDATED',
+        entity: 'User',
+        entityId: user.id,
+        beforeData: {
+          first_name: beforeUser.first_name,
+          last_name: beforeUser.last_name,
+          phone: beforeUser.phone,
+        },
+        afterData: {
+          first_name: parsed.data.first_name,
+          last_name: parsed.data.last_name,
+          phone: parsed.data.phone,
+        },
+      })
+    }
+
+    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/settings/profile')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update profile'
+    return { error: message }
   }
 }
 

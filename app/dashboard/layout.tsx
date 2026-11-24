@@ -64,6 +64,8 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
         <AppSidebar
           role={role}
           userEmail={user.email}
+          firstName={dbUser?.first_name ?? null}
+          lastName={dbUser?.last_name ?? null}
           unresolvedCount={unresolvedCount}
           pendingDeletionCount={pendingDeletionCount}
         />

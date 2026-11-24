@@ -32,7 +32,7 @@
   - Production deploys use `prisma7 migrate deploy` (never `migrate dev` on prod).
   - **NEVER** run `prisma7 migrate reset` against a database containing real data.
 - **Backup Policy:** Supabase Free Plan does **not** include scheduled backups. Use `pg_dump` locally before any destructive operation. Store dumps outside the repo (`.gitignore` should exclude `*.sql`).
-- **Pastorate Layer (LIVE, DORMANT):** The `Pastorate` model was added in Unit 15 Phase 1. The `Church.pastorate_id` FK is nullable and the layer is **not used** in any financial calculation or UI. It exists to support an optional `National → Region → Pastorate → Church` hierarchy if the Ministry adopts it. Do not build UI or business logic against it without an explicit spec.- **User Bio-Data (LIVE):** The `User` model now has `first_name`, `last_name`, `phone`, `profile_photo_url`, and `bio` — all nullable. Profile UI (Phase 5) will consume these. Do not add non-null constraints or defaults without an explicit migration.
+- **Pastorate Layer (LIVE, DORMANT):** The `Pastorate` model was added in Unit 15 Phase 1. The `Church.pastorate_id` FK is nullable and the layer is **not used** in any financial calculation or UI. It exists to support an optional `National → Region → Pastorate → Church` hierarchy if the Ministry adopts it. Do not build UI or business logic against it without an explicit spec.- **User Bio-Data (LIVE):** The `User` model now has `first_name`, `last_name`, `phone`, `profile_photo_url`, and `bio` — all nullable. Consumed by the Profile Settings surface (Unit 23, `/dashboard/settings/profile`) via a self-scoped `updateUserProfile` action. Do not add non-null constraints or defaults without an explicit migration.
 - **Church Profile Fields (LIVE):** The `Church` model now has `physical_address` (String?) and `membership_count` (Int?), both nullable. Reserved for future reporting features.
 - **Bank Adapter Pattern (Future):** The system is architected to support dual-bank webhooks (KCB + Equity). Both will normalize their payloads into a standard `NormalizedTransaction` shape before hitting the Reconciliation Engine.- **Sandbox Integration Mode:** Both KCB (Buni API) and Equity (Jenga API) integrations will utilize their respective sandbox environments. A `BANK_ADAPTER_MODE` environment variable will handle the toggle between `mock`, `sandbox`, and `live`.
 - **Dynamic Fund & Channel Architecture (Future):** The current `PaymentType` and `PaymentMethod` enums will be migrated to `Fund` and `PaymentChannel` tables in V2. This enables admin-created payment categories without code changes.
@@ -72,6 +72,8 @@
 - `components/help/` — Guided tour (`guided-tour.tsx`), Help drawer (`help-drawer.tsx`), contextual wrapper (`info-tooltip.tsx`), and layout provider (`help-drawer-provider.tsx`).
 - `lib/help/` — Single source of truth for help copy (`content.ts`), tour step definitions (`tour-steps.ts`), and UI config (`constants.ts`).
 - `app/dashboard/help/` — Full Help reference page.
+- `app/dashboard/settings/` — Unit 23 settings surface. `layout.tsx` (shared chrome + tab nav), `page.tsx` (redirect to `/dashboard/settings/profile`), `profile/page.tsx` (Profile tab content). The System Configuration tab ships in Unit 23.5.
+- `components/settings/` — `profile-card.tsx` (read-only Account Details), `password-form.tsx` (Security), `settings-nav.tsx` (client tab strip), `personal-info-form.tsx` (editable bio-data form, Unit 23).
 
 ## 3. Storage Model
 - **Supabase (PostgreSQL):** Stores core relational data: Regions, Churches, Payments, Users, Regional Scores, `PaymentAllocation`, `UnmatchedPayment`, `ResolutionPattern`, `WriteOff`, `PendingPayment`, `ChurchDeletionRequest`, and `AuditLog`.
@@ -91,6 +93,8 @@
 | **NATIONAL_OVERSEER** | Dashboard, Regions, Churches, Payments, Users, Reconciliation, Reports, Settings, Audit Logs | Read-heavy oversight role. Same visibility as Treasurer but limited mutation capabilities. |
 | **REGIONAL_CHAIRMAN / REGIONAL_TREASURER** | Regional Dashboard, Regional Payments, Reports, Settings | Regional compliance monitoring, drill-downs, and bulk SMS. May propose (and cancel) church deletion requests for churches in their **own region** — Regional dashboard's "My Deletion Requests" tab. |
 | **LOCAL_PASTOR / CHURCH_TREASURER** | Local Dashboard, Reports, Settings | Personal church compliance, exact bucket status, and payment history. |
+
+**Settings surface (Unit 23):** `/dashboard/settings/profile` is universal — every authenticated role sees and can edit their own bio-data. The System Configuration tab (Unit 23.5) will be National-level only, gated by `isNationalLevel()`. In Unit 23 there is only the Profile tab; there is no role-specific section, and no guard is invoked on the Profile route beyond authentication (self-scope is enforced by construction in `updateUserProfile` — the action accepts no user id and always targets `session.user.id`).
 
 ### Protected Accounts (SYSTEM_ADMIN)
 - SYSTEM_ADMIN users are stored in the `User` table but flagged as protected via a hardcoded allowlist (see `lib/auth/protected-users.ts`).
@@ -156,7 +160,7 @@ Migration: `20261115211407_add_audit_log_system`.
 - **CRITICAL INVARIANT:** `logAudit()` must **NEVER throw**. An audit failure must not roll back the main mutation.
 - **CRITICAL RULE:** Call `logAudit()` **AFTER** the main Prisma transaction succeeds — never inside it.
 
-**Wired mutations:** User (6 events), Church (3 events), Region (2 events), KCB webhook (`PAYMENT_RECEIVED` with allocations), and all Unit 17 reconciliation events (`UNMATCHED_CAPTURED`, `UNMATCHED_RESOLVED`, `PENDING_PAYMENT_APPROVED`, `WRITEOFF_PROPOSED`, etc.).
+**Wired mutations:** User (7 events — `USER_PROFILE_UPDATED` added in Unit 23; identity fields only: `first_name`, `last_name`, `phone`. `bio` and `profile_photo_url` are cosmetic and deliberately not audited), Church (3 events), Region (2 events), KCB webhook (`PAYMENT_RECEIVED` with allocations), and all Unit 17 reconciliation events (`UNMATCHED_CAPTURED`, `UNMATCHED_RESOLVED`, `PENDING_PAYMENT_APPROVED`, `WRITEOFF_PROPOSED`, etc.).
 
 ### Reconciliation Models (Unit 17) — ✅ IMPLEMENTED (Merged PR #44)
 

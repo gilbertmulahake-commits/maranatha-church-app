@@ -51,29 +51,33 @@ export function PasswordForm() {
       <CardContent className="min-w-0">
         <form onSubmit={handleSubmit} className="space-y-4 w-full">
           <div>
-            <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+            <label htmlFor="new-password" className="block text-paragraph-small font-medium text-foreground mb-xs">
               New Password
             </label>
             <Input 
+              id="new-password"
               type="password"
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               placeholder="Enter new password" 
               className="h-9"
+              autoComplete="new-password"
               required 
             />
           </div>
 
           <div>
-            <label className="block text-paragraph-small font-medium text-foreground mb-xs">
+            <label htmlFor="confirm-password" className="block text-paragraph-small font-medium text-foreground mb-xs">
               Confirm Password
             </label>
             <Input 
+              id="confirm-password"
               type="password"
               value={confirmPassword} 
               onChange={(e) => setConfirmPassword(e.target.value)} 
               placeholder="Confirm new password" 
               className="h-9"
+              autoComplete="new-password"
               required 
             />
           </div>
