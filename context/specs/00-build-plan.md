@@ -186,10 +186,11 @@ Not originally planned, but necessary to fix production bugs discovered after de
 28. **Unit 23: Profile Settings** — ✅ Spec authored (`context/specs/23-profile-settings.md`)
     - Nested route `/dashboard/settings/profile` replacing the flat `/dashboard/settings` page (which becomes a redirect). Editable bio-data form (`first_name`, `last_name`, `phone`, `bio`, `profile_photo_url`) against the session user's own `User` row. Self-scoped `updateUserProfile` action (no guard wrapper — session-derived actor, follows the `clearPasswordResetFlag` precedent). New `USER_PROFILE_UPDATED` audit event for identity fields only (bio and photo URL are cosmetic and not audited). Sidebar display name and avatar propagate without a hard refresh. No schema change, no migration.
 
-28.1. **Unit 23.5: System Configuration** — spec to be authored after Unit 23 ships
-    - Read-only display of `lib/constants.ts` values (`FOUR_EYES_THRESHOLD`, fee amounts, SLA thresholds) and `BANK_ADAPTER_MODE`. Role-gated management link-outs (Users, Regions, Churches, Audit Logs, Reconciliation, Reports) for national roles. National-only tab; all other roles see the Profile tab only.
+28.1. **Unit 23.5: System Configuration** — ✅ COMPLETE (spec authored `context/specs/23.5-system-configuration.md`; implementation shipped, gate 32/32)
+    - Read-only display of `lib/constants.ts` values (`FOUR_EYES_THRESHOLD`, `ARREARS_CRITICAL_DAYS`, `PAYMENT_INTENT_AMOUNT_CEILING`, both reconciliation SLA pairs, deletion SLA pairs, `PAYMENT_INTENT_EXPIRY_MINUTES`) and `BANK_ADAPTER_MODE`. Role-gated management link-outs (Users, Regions, Churches, Reconciliation, Reports, Audit Logs) for national roles. National-only tab; all other roles see the Profile tab only.
     - **No editable persistence** in 23.5 — editing org-level config requires a `SystemConfig` model, which is a schema unit and will be scheduled separately.
     - **Two exclusions from the old item 28:** *Users* tab stays its own operational surface (`/dashboard/users`) — folding it in would dilute the Unit 16.5 separation of duties; *SMS Templates* requires a `SmsTemplate` model — a schema unit, deferred.
+    - **Fee-amount exclusion:** the KES 500 / 5,000 figures are **not** in `lib/constants.ts` — extracting them is Unit 20.7 (also documented in `progress-tracker.md` → Next Up). Card 1 is structured so 20.7 adds two rows without restructuring.
 29. **Unit 24: 2FA for National HQ + SYSTEM_ADMIN**
 30. **Unit 25: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
 31. **Unit 26: Pastorate Layer Activation** (Pending Ministry decision)
