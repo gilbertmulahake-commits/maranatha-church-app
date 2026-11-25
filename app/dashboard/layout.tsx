@@ -3,14 +3,13 @@ import { connection } from 'next/server'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SiteHeader } from '@/components/layout/site-header'
-import { getCurrentUserRole } from '@/lib/actions/auth-actions'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUnresolvedCounts } from '@/lib/actions/reconciliation-actions'
 import { getPendingChurchDeletionCount } from '@/lib/actions/church-deletion-request-actions'
-import { isFinanceAdmin } from '@/lib/auth/roles'
+import { isFinanceAdmin, isNationalTreasurer } from '@/lib/auth/roles'
 import { HelpDrawerProvider } from '@/components/help/help-drawer-provider'
 
 async function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -35,13 +34,13 @@ async function AuthenticatedLayout({ children }: { children: React.ReactNode }) 
     redirect('/force-password-reset')
   }
 
-  const role = await getCurrentUserRole()
+  const role = dbUser?.role ?? null
 
   // Unit 17: Fetch unresolved reconciliation counts — only for roles that can see the tab
   let unresolvedCount = 0
   const canSeeReconciliation =
     role !== null &&
-    (isFinanceAdmin(role) || role === 'NATIONAL_TREASURER')
+    (isFinanceAdmin(role) || isNationalTreasurer(role))
 
   if (canSeeReconciliation) {
     const counts = await getUnresolvedCounts()

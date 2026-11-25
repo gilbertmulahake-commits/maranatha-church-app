@@ -47,6 +47,10 @@ export function isOperationsAdmin(role: Role | string | null | undefined): boole
   return role === 'OPERATIONS_ADMIN' || role === 'SYSTEM_ADMIN'
 }
 
+export function isNationalTreasurer(role: Role | string | null | undefined): boolean {
+  return role === 'NATIONAL_TREASURER'
+}
+
 // Report-layer role mapping. Returns the report visibility bucket for a user.
 // Never returns 'ALL' — that value exists only in the report registry's
 // `visibleTo` arrays (a report visible to everyone), not as a caller identity.
