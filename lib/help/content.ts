@@ -26,6 +26,8 @@ export type InfoTooltipKey =
   | 'complianceSnapshot'
   | 'fourEyes'
   | 'strictBucketIsolation'
+  | 'bankAdapterMode'
+  | 'managementSurfaces'
 
 export interface HelpEntry {
   title: string
@@ -49,6 +51,10 @@ export const INFO_TOOLTIPS: Record<InfoTooltipKey, string> = {
   fourEyes: `Any item at or above ${formatCurrency(FOUR_EYES_THRESHOLD)} — or touching 90+ day arrears, or any write-off — needs a second approver who is not the proposer. Enforced on the server, not in the UI.`,
   strictBucketIsolation:
     'Annual (KES 5,000) and Monthly (KES 500) are independent ledgers. An overpayment in one never covers a shortfall in the other.',
+  bankAdapterMode:
+    'Controls which bank API environment the system targets. Accepted values: mock (no external calls; simulated only), sandbox (test bank environments), live (production; real payments settle). Changing to live is a deployment decision, not a UI setting.',
+  managementSurfaces:
+    'Shortcuts to existing management pages. Each link is visible only if your role can access the destination in the sidebar; permissions are enforced server-side.',
 }
 
 /**

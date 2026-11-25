@@ -29,7 +29,7 @@ import {
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
 import { Role } from '@prisma/client'
-import { isNationalLevel, isRegionalLevel, isFinanceAdmin, isOperationsAdmin } from '@/lib/auth/roles'
+import { isNationalLevel, isRegionalLevel, isFinanceAdmin, isOperationsAdmin, isNationalTreasurer } from '@/lib/auth/roles'
 
 type NavItem = {
   title: string
@@ -65,7 +65,7 @@ export function AppSidebar({
     ]
 
     // Deletion Requests — Operations Admin, System Admin, National Treasurer
-    if (isOperationsAdmin(role) || role === 'NATIONAL_TREASURER') {
+    if (isOperationsAdmin(role) || isNationalTreasurer(role)) {
       nationalNav.push({
         title: 'Deletion Requests',
         url: '/dashboard/church-deletion-requests',
@@ -82,7 +82,7 @@ export function AppSidebar({
     nationalNav.push({ title: 'Reports', url: '/dashboard/reports', icon: IconFileText })
 
     // Reconciliation — Finance Admin, Treasurer, System Admin
-    if (isFinanceAdmin(role) || role === 'NATIONAL_TREASURER') {
+    if (isFinanceAdmin(role) || isNationalTreasurer(role)) {
       nationalNav.push({
         title: 'Reconciliation',
         url: '/dashboard/reconciliation',

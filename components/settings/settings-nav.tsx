@@ -13,7 +13,7 @@ export function SettingsNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname()
 
   return (
-    <nav className="flex gap-6 border-b border-border" aria-label="Settings sections">
+    <nav className="flex gap-6 border-b border-border print:hidden" aria-label="Settings sections">
       {items.map((item) => {
         const isActive = pathname === item.href
         return (
