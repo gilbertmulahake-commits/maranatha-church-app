@@ -1,5 +1,4 @@
-export const ANNUAL_FEE = 5000
-export const MONTHLY_FEE = 500
+import { ANNUAL_FEE, MONTHLY_FEE, ANNUAL_FEE_DUE_THROUGH_MONTH } from '@/lib/constants'
 
 /**
  * Calculates the cumulative expected amount owed by a church from a start date.
@@ -19,9 +18,9 @@ export function getExpectedUpToDate(startDate: Date, upToDate: Date = new Date()
     const isStartYear = currentYear === startDate.getFullYear()
     const isEndYear = currentYear === endYear
 
-    // --- 1. Annual Fee (Due after March) ---
+    // --- 1. Annual Fee (due if created on or before March) ---
     if (isStartYear) {
-      if (startDate.getMonth() <= 2) expectedAnnual += ANNUAL_FEE
+      if (startDate.getMonth() + 1 <= ANNUAL_FEE_DUE_THROUGH_MONTH) expectedAnnual += ANNUAL_FEE
     } else {
       expectedAnnual += ANNUAL_FEE
     }

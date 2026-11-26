@@ -190,7 +190,7 @@ Not originally planned, but necessary to fix production bugs discovered after de
     - Read-only display of `lib/constants.ts` values (`FOUR_EYES_THRESHOLD`, `ARREARS_CRITICAL_DAYS`, `PAYMENT_INTENT_AMOUNT_CEILING`, both reconciliation SLA pairs, deletion SLA pairs, `PAYMENT_INTENT_EXPIRY_MINUTES`) and `BANK_ADAPTER_MODE`. Role-gated management link-outs (Users, Regions, Churches, Reconciliation, Reports, Audit Logs) for national roles. National-only tab; all other roles see the Profile tab only.
     - **No editable persistence** in 23.5 — editing org-level config requires a `SystemConfig` model, which is a schema unit and will be scheduled separately.
     - **Two exclusions from the old item 28:** *Users* tab stays its own operational surface (`/dashboard/users`) — folding it in would dilute the Unit 16.5 separation of duties; *SMS Templates* requires a `SmsTemplate` model — a schema unit, deferred.
-    - **Fee-amount exclusion:** the KES 500 / 5,000 figures are **not** in `lib/constants.ts` — extracting them is Unit 20.7 (also documented in `progress-tracker.md` → Next Up). Card 1 is structured so 20.7 adds two rows without restructuring.
+    - **Fee amounts:** extracted in Unit 20.7. `ANNUAL_FEE` (5,000), `MONTHLY_FEE` (500), and `ANNUAL_FEE_DUE_THROUGH_MONTH` (3 — March) live in `lib/constants.ts`. Card 1 "Financial Controls" now renders the two fee rows at the top.
 29. **Unit 24: 2FA for National HQ + SYSTEM_ADMIN**
 30. **Unit 25: Dynamic Fund Architecture** (Migrate `PaymentType` enum → `Fund` table)
 31. **Unit 26: Pastorate Layer Activation** (Pending Ministry decision)

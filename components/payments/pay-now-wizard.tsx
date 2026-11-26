@@ -5,6 +5,8 @@ import { formatCurrency } from '@/lib/utils'
 import {
   PAYMENT_INTENT_AMOUNT_CEILING,
   PAYMENT_INTENT_POLL_INTERVAL_MS,
+  ANNUAL_FEE,
+  MONTHLY_FEE,
 } from '@/lib/constants'
 import {
   abandonPaymentIntent,
@@ -325,18 +327,18 @@ export function PayNowWizard({ stats, open, onOpenChange }: Props) {
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => setAmount('500')}
+                onClick={() => setAmount(String(MONTHLY_FEE))}
               >
-                Pay KES 500
+                Pay KES {MONTHLY_FEE.toLocaleString('en-KE')}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => setAmount('5000')}
+                onClick={() => setAmount(String(ANNUAL_FEE))}
               >
-                Pay KES 5,000
+                Pay KES {ANNUAL_FEE.toLocaleString('en-KE')}
               </Button>
             </div>
 

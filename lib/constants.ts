@@ -15,6 +15,19 @@ export const PRISMA_TRANSACTION_TIMEOUT = 15000
 // The age (in days) at which an outstanding balance is considered critical arrears
 export const ARREARS_CRITICAL_DAYS = 90
 
+
+// Per-church contribution obligations. Relocated from lib/utils/financial.ts
+// (Unit 20.7). Single source of truth — every ledger calculation, help string,
+// and system-config row reads these. Never inline 5000 or 500 anywhere.
+export const ANNUAL_FEE = 5000
+export const MONTHLY_FEE = 500
+
+// 1-indexed month. Churches created on or before March owe the current year's
+// annual fee; churches created in April or later begin owing the following
+// year. Reads as plain English ("March") — do NOT convert to a 0-indexed JS
+// month. The comparison site handles the `+ 1` shift.
+export const ANNUAL_FEE_DUE_THROUGH_MONTH = 3
+
 // SLA Limits for Unmatched Payments
 export const SLA_YELLOW_DAYS = 7
 export const SLA_RED_DAYS = 30

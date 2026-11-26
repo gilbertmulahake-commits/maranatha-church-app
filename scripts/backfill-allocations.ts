@@ -21,9 +21,7 @@ import 'dotenv/config'
 // ============================================================================
 
 import { prisma } from '../lib/prisma'
-
-const ANNUAL_FEE = 5000
-const MONTHLY_FEE = 500
+import { ANNUAL_FEE, MONTHLY_FEE } from '../lib/constants'
 
 interface AllocationDraft {
   allocation_type: 'Annual' | 'Monthly'
