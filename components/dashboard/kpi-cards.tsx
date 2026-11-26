@@ -13,6 +13,7 @@ import { KpiGrid } from '@/components/ui/kpi-grid'
 import { KpiValue } from '@/components/ui/kpi-value'
 import { InfoTooltip } from '@/components/help/info-tooltip'
 import { INFO_TOOLTIPS } from '@/lib/help/content'
+import { ANNUAL_FEE, MONTHLY_FEE } from '@/lib/constants'
 
 interface KpiCardsProps {
   stats: {
@@ -60,7 +61,7 @@ export function KpiCards({ stats }: KpiCardsProps) {
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">
-              Annual Bucket (KES 5,000/yr)
+              Annual Bucket (KES {ANNUAL_FEE.toLocaleString('en-KE')}/yr)
             </CardDescription>
             <KpiValue className={annualPct >= 100 ? 'text-emerald-600' : annualPct >= 50 ? 'text-amber-600' : 'text-destructive'}>
               {annualPct.toFixed(1)}%
@@ -100,7 +101,7 @@ export function KpiCards({ stats }: KpiCardsProps) {
         <Card className={cardClasses}>
           <CardHeader className="p-4 pb-2">
             <CardDescription className="text-xs font-medium text-muted-foreground">
-              Monthly Bucket (KES 500/mo)
+              Monthly Bucket (KES {MONTHLY_FEE.toLocaleString('en-KE')}/mo)
             </CardDescription>
             <KpiValue className={monthlyPct >= 100 ? 'text-emerald-600' : monthlyPct >= 50 ? 'text-amber-600' : 'text-destructive'}>
               {monthlyPct.toFixed(1)}%

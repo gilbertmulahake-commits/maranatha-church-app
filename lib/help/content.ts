@@ -15,7 +15,7 @@
  */
 
 import type { Role } from '@prisma/client'
-import { FOUR_EYES_THRESHOLD } from '@/lib/constants'
+import { FOUR_EYES_THRESHOLD, ANNUAL_FEE, MONTHLY_FEE } from '@/lib/constants'
 import { formatCurrency } from '@/lib/utils'
 import { toReportRole } from '@/lib/auth/roles'
 import { getReportsForRole } from '@/lib/utils/report-registry'
@@ -50,7 +50,7 @@ export const INFO_TOOLTIPS: Record<InfoTooltipKey, string> = {
     'Counts, not percentages. A percentage hides which churches are struggling; the Paid / Partial / Overdue / N/A split shows exactly who needs attention.',
   fourEyes: `Any item at or above ${formatCurrency(FOUR_EYES_THRESHOLD)} — or touching 90+ day arrears, or any write-off — needs a second approver who is not the proposer. Enforced on the server, not in the UI.`,
   strictBucketIsolation:
-    'Annual (KES 5,000) and Monthly (KES 500) are independent ledgers. An overpayment in one never covers a shortfall in the other.',
+    `Annual (KES ${ANNUAL_FEE.toLocaleString('en-KE')}) and Monthly (KES ${MONTHLY_FEE.toLocaleString('en-KE')}) are independent ledgers. An overpayment in one never covers a shortfall in the other.`,
   bankAdapterMode:
     'Controls which bank API environment the system targets. Accepted values: mock (no external calls; simulated only), sandbox (test bank environments), live (production; real payments settle). Changing to live is a deployment decision, not a UI setting.',
   managementSurfaces:
@@ -177,7 +177,7 @@ const STATIC_CONTENT: Record<HelpTier, HelpSection[]> = {
         {
           title: 'Your church, your numbers',
           body:
-            'Annual (KES 5,000/yr) and Monthly (KES 500/mo) obligations tracked independently. The status badge and KPIs swap based on which bucket is selected.',
+            `Annual (KES ${ANNUAL_FEE.toLocaleString('en-KE')}/yr) and Monthly (KES ${MONTHLY_FEE.toLocaleString('en-KE')}/mo) obligations tracked independently. The status badge and KPIs swap based on which bucket is selected.`,
         },
         {
           title: 'Pay Now',

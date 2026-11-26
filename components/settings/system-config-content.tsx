@@ -7,6 +7,8 @@ import {
   UserCheck,
   Clock,
   Banknote,
+  Coins,
+  CalendarDays,
   Timer,
   Bell,
   AlarmClock,
@@ -34,6 +36,8 @@ import { INFO_TOOLTIPS } from '@/lib/help/content'
 import { cn, formatCurrency } from '@/lib/utils'
 import {
   FOUR_EYES_THRESHOLD,
+  ANNUAL_FEE,
+  MONTHLY_FEE,
   ARREARS_CRITICAL_DAYS,
   PAYMENT_INTENT_AMOUNT_CEILING,
   SLA_YELLOW_DAYS,
@@ -212,7 +216,16 @@ export function SystemConfigContent({
             <CardDescription>Fixed thresholds enforced across the system.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 min-w-0">
-            {/* Fee amounts (KES 500 / 5,000) are added by Unit 20.7. Do not hardcode here. */}
+            <ConfigRow
+              icon={Coins}
+              label="Annual contribution fee"
+              value={formatCurrency(ANNUAL_FEE)}
+            />
+            <ConfigRow
+              icon={CalendarDays}
+              label="Monthly contribution fee"
+              value={formatCurrency(MONTHLY_FEE)}
+            />
             <ConfigRow
               icon={UserCheck}
               label="Four-eyes threshold"

@@ -16,8 +16,7 @@
 // each annual cycle and ensures no year is partially funded.
 // ============================================================================
 
-const ANNUAL_FEE = 5000
-const MONTHLY_FEE = 500
+import { ANNUAL_FEE, MONTHLY_FEE } from '@/lib/constants'
 
 export type ExpectedPeriod = {
   year: number
