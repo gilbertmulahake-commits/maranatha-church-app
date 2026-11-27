@@ -88,10 +88,6 @@ export function MyDeletionRequestsTable({
 
   return (
     <div className="space-y-md">
-      <p className="text-paragraph-small text-muted-foreground">
-        All deletion requests you have submitted. Withdraw a pending request to cancel it.
-      </p>
-
       <TableShell>
         <TableHeader className="bg-muted/50">
           <TableRow>

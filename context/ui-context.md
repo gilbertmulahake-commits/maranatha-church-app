@@ -148,6 +148,7 @@ No table should ever be rendered without the `<TableToolbar>` component.
 - **Period Toggle:** Use `<Select>` on mobile, `<Button>` group on desktop (`md:hidden` / `hidden md:flex` pattern).
 - **Icon-Only Buttons:** Print and Export buttons must hide their text below `lg` (`<span className="hidden lg:inline">Label</span>`) and show only the icon.
 - **Bulk Action Bar:** Appears when checkboxes are selected. Shows count and action buttons (e.g., "Send Reminders", "Print", or "Export Selected").
+- **Suppressing the toolbar title/subtitle when a page provides a unified header (Unit 20.6.2):** When a page renders its own title/subtitle above a `<Tabs>` element (e.g., the Regional dashboard's unified header for `Churches / My Deletion Requests`), the table inside the tab panel must suppress `<TableToolbar>`'s built-in title/subtitle to avoid duplication. **Pattern:** pass `hideHeader={true}` on the table (`<RegionalTable>` is the reference implementation), which routes to `title={hideHeader ? "" : "Default Title"}` and `subtitle={hideHeader ? "" : "Default Subtitle"}` inside `<TableToolbar>`. **Never pass `undefined`** — `TableToolbarProps.title` is typed `string` (not `string | undefined`), so `undefined` fails `tsc`; empty string `""` renders as no header (the toolbar conditionally renders the header block based on truthiness).
 
 ### 6.2 Table Structure - `<TableShell>` MANDATORY
 - **ALWAYS wrap the table in `<TableShell>` from `components/ui/table-shell.tsx`.**

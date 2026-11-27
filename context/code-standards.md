@@ -128,6 +128,11 @@
 - Never conditionally return a `<TooltipTrigger>` outside its `<Tooltip.Root>` — Base UI throws a runtime error.
 - Base tooltip styling in `components/ui/tooltip.tsx` uses `w-max !min-w-max whitespace-normal break-words max-w-[300px]`. Never add `whitespace-nowrap` or `flex` to `TooltipPopup` — it collapses the content vertically.
 
+**`<Tabs>` from `@base-ui/react/tabs` — two framework traps (Unit 20.6.2):**
+- **`flex-row` stretch bug:** `<TabsPrimitive.Root>` renders `flex-row` by default. The `data-horizontal:flex-col` utility in `components/ui/tabs.tsx` only fires when `data-orientation="horizontal"` is present AND the Tailwind build matches that data-attribute selector — which it often does not in practice. Symptom: the tab strip stretches vertically and pushes the content area right, especially on sidebar-adjacent pages. **Fix:** always add `flex flex-col` explicitly to `<Tabs>` at the call site — never rely on the `data-horizontal:flex-col` default. Do not patch `tabs.tsx`; it is protected.
+- **`variant="line"` hides the pill track:** The `bg-muted` track is only present under the `default` variant. `variant="line"` replaces it with a `bg-transparent` container plus a `after:bottom-[-5px]` underline that gets clipped against a white page background — the tabs look like plain text links. **Rule:** use the default variant unless the design explicitly requires underline tabs against a non-white background, and verify visually if you do opt for `line`. First bug report was 20.6b's Regional dashboard; reverted in 20.6.2.
+- **Layout pattern for tabbed pages:** KPI cards and other page-level context render **above** `<Tabs>`, never inside a `<TabsContent>` — otherwise they unmount on tab switch. Title/subtitle/tab-triggers live in a **unified header** (`flex flex-col sm:flex-row sm:items-end sm:justify-between border-b pb-4`). Full pattern documented in `progress-tracker.md` → Architecture Decisions (Unit 20.6.2).
+
 ### Standardized Dialog Widths (Preventing Flexbox Collapse)
 - Never leave `DialogContent` without explicit width constraints, or it will collapse to a 40px vertical sliver inside a flex parent.
 - **Standard:** `w-[95vw] sm:w-full sm:max-w-[500px] p-6 max-h-[90vh] overflow-y-auto`

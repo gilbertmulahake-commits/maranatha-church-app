@@ -20,28 +20,16 @@ import { TableToolbar } from '@/components/ui/table-toolbar'
 import { DataTablePagination } from '@/components/ui/data-table-pagination'
 import { ExportDropdown } from '@/components/ui/export-dropdown'
 import { ExportConfirmDialog } from '@/components/ui/export-confirm-dialog'
-// Single-source-of-truth table frame + responsive print button.
 import { TableShell } from '@/components/ui/table-shell'
 import { PrintButton } from '@/components/ui/print-button'
-// Unit 15i: Replaced native <select> with shadcn <Select> (Base UI variant).
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { RegionalChurchData } from '@/lib/actions/regional-actions'
 import { sendBulkReminders } from '@/lib/actions/sms-actions'
@@ -68,6 +56,7 @@ interface Props {
   periodView: 'month' | 'year'
   setPeriodView: (val: 'month' | 'year') => void
   pendingDeletions?: Record<string, { id: string; daysOld: number }>
+  hideHeader?: boolean
 }
 
 function formatCurrency(amount: number) {
@@ -91,6 +80,7 @@ export function RegionalTable({
   periodView,
   setPeriodView,
   pendingDeletions = {},
+  hideHeader = false,
 }: Props) {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof RegionalChurchData
@@ -258,8 +248,8 @@ export function RegionalTable({
   return (
     <div className="space-y-md">
       <TableToolbar
-        title="Churches in Region"
-        subtitle={`${churches.length} churches · ${userRole === 'REGIONAL' ? 'Chairman View' : 'National View'}`}
+        title={hideHeader ? "" : "Churches in Region"}
+        subtitle={hideHeader ? "" : `${churches.length} churches · ${userRole === 'REGIONAL' ? 'Chairman View' : 'National View'}`}
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search churches..."
@@ -483,7 +473,6 @@ export function RegionalTable({
                           </Button>
                         }
                       />
-                      {/* FIXED: Added sideOffset={0} */}
                       <DropdownMenuContent align="end" sideOffset={0} className="w-56">
                         <DropdownMenuGroup>
                           <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -498,10 +487,6 @@ export function RegionalTable({
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
 
-                        {/* Unit 20.6a: Regional roles cannot edit churches
-                            (updateChurch is verifyOperationsAccess-gated).
-                            Previously this menu item was shown for both roles;
-                            Regional users got a server error on click. */}
                         {userRole === 'NATIONAL' && (
                           <DropdownMenuItem
                             className="cursor-pointer text-paragraph-small whitespace-nowrap"
@@ -525,10 +510,6 @@ export function RegionalTable({
                           />
                         )}
 
-                        {/* Unit 20.6b: Regional-only action. National roles
-                            have direct delete on the church table and are
-                            deliberately not routed through the request
-                            workflow (see spec § Design → Propose). */}
                         {userRole === 'REGIONAL' && (
                           <>
                             <DropdownMenuSeparator />
